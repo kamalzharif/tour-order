@@ -384,7 +384,6 @@ function renderAdmin(){
       <div class="trip-actions">
         <button class="btn-sm" data-copy="${tripLink(t.id)}">📋 Copy Link</button>
         <button class="btn-sm green" data-view-trip="${t.id}">📊 Order</button>
-        <button class="btn-sm" data-manage-imgs="${t.id}">🖼️ Gambar</button>
         <button class="btn-sm red" data-del-trip="${t.id}">🗑 Padam</button>
       </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip lagi.</p>`;
 
@@ -393,6 +392,7 @@ function renderAdmin(){
       <div class="tab-row">
         <button class="tab-btn active" data-tab="trips">🗺️ Trip</button>
         <button class="tab-btn" data-tab="orders">📋 Order</button>
+        <button class="tab-btn" data-tab="imgs">🖼️ Menu</button>
       </div>
       <div class="section-title">Senarai Trip</div>${cards}
       <div class="section-title">Tambah Trip Baru</div>
@@ -603,6 +603,7 @@ function attachEvents(){
   document.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()=>{
     S.adminTab=b.dataset.tab;
     if(S.adminTab==="orders"&&S.trips.length>0){S.selectedTripId=S.selectedTripId||S.trips[0].id;loadOrders(S.selectedTripId).then(render);}
+    else if(S.adminTab==="imgs"){S.pickedFiles=[];S.pendingImgs={};S.imgPreviews=[];S.selectingFileIdx=null;render();}
     else render();
   }));
   on("trip-selector","change",async e=>{S.selectedTripId=e.target.value;await loadOrders(S.selectedTripId);render();});
@@ -620,14 +621,7 @@ function attachEvents(){
     alert(`✅ Trip "${t.nama}" berjaya dicipta!\n\n🔗 Link:\n${tripLink(id)}`);render();
   });
 
-  // Manage images button
-  document.querySelectorAll("[data-manage-imgs]").forEach(b=>b.addEventListener("click",async()=>{
-    S.selectedTripId=b.dataset.manageImgs;S.adminTab="imgs";
-    S.pickedFiles=[];S.pendingImgs={};S.imgPreviews=[];S.selectingFileIdx=null;
-    await loadImgs();render();
-  }));
-
-  // Bulk file pick — generate previews
+  // Manage images — now via tab, remove old button handler
   on("bulk-file-pick","change",async e=>{
     S.pickedFiles=Array.from(e.target.files);
     S.pendingImgs={};S.selectingFileIdx=null;
