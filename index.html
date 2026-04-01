@@ -152,25 +152,69 @@ async function delOrder(tid,oid){await deleteDoc(doc(db,"trips",tid,"orders",oid
 async function saveTrip(t){await setDoc(doc(db,"trips",t.id),t);}
 async function delTrip(tid){const s=await getDocs(collection(db,"trips",tid,"orders"));for(const d of s.docs)await deleteDoc(d.ref);await deleteDoc(doc(db,"trips",tid));}
 
-function buildRestoran(trip,orders){
-  const sl=trip.sesi||SESI;let txt=`🍽️ *ORDER UNTUK RESTORAN*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
-  sl.forEach(s=>{
-    txt+=`*${s.nama}*\n`;
-    const cnt={};const pm={};
-    orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p[s.id];if(i){cnt[i.name]=(cnt[i.name]||0)+1;pm[i.name]=i.price||0;}}));
-    if(!Object.keys(cnt).length){txt+=`  Tiada order\n`;}
-    else{let sub=0;Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{const p=pm[n]||0;const tot=p*c;sub+=tot;txt+=`  • ${n}: *${c} pax*`;if(s.showPrice)txt+=` (¥${p.toLocaleString()}×${c}=¥${tot.toLocaleString()})`;if(s.id==="namba")txt+=`\n    ↳ +Karaage 3pc ¥${(400*c).toLocaleString()}`;txt+=`\n`;});if(s.showPrice)txt+=`  💴 Subtotal: ¥${sub.toLocaleString()}\n`;}
-    txt+=`\n`;});
+function buildRestoran1Sesi(trip,orders,sesiId){
+  const sl=trip.sesi||SESI;
+  const s=sl.find(x=>x.id===sesiId);if(!s)return"";
+  let txt=`🍽️ *ORDER UNTUK RESTORAN*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
+  txt+=`*${s.nama}*\n`;
+  const cnt={};const pm={};
+  orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p[s.id];if(i){cnt[i.name]=(cnt[i.name]||0)+1;pm[i.name]=i.price||0;}}));
+  if(!Object.keys(cnt).length){txt+=`  Tiada order\n`;}
+  else{
+    let sub=0;
+    Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{
+      const p=pm[n]||0;const tot=p*c;sub+=tot;
+      txt+=`  • ${n}: *${c} pax*`;
+      if(s.showPrice)txt+=` (¥${p.toLocaleString()}×${c}=¥${tot.toLocaleString()})`;
+      if(s.id==="namba")txt+=`\n    ↳ +Karaage 3pc ¥${(400*c).toLocaleString()}`;
+      txt+=`\n`;
+    });
+    if(s.showPrice)txt+=`\n  💴 *Jumlah: ¥${sub.toLocaleString()}*\n`;
+    if(s.id==="namba"){
+      const totalPax=Object.values(cnt).reduce((a,b)=>a+b,0);
+      txt+=`  🍗 Karaage 3pc × ${totalPax} = ¥${(400*totalPax).toLocaleString()}\n`;
+    }
+  }
   return txt;
 }
 function buildLeader(trip,orders){
-  const sl=trip.sesi||SESI;let txt=`👥 *ORDER UNTUK TOUR LEADER*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
+  const sl=trip.sesi||SESI;
+  let txt=`👥 *ORDER UNTUK TOUR LEADER*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
+  // Per person details
   orders.forEach((o,i)=>{
     txt+=`*${i+1}. ${o.name}*${(o.persons||[]).length>1?` (${o.persons.length} orang)`:''}\n`;
+    const multi=(o.persons||[]).length>1;
     (o.persons||[]).forEach((p,pi)=>{
-      if((o.persons||[]).length>1)txt+=`  👤 Orang ${pi+1}:\n`;
-      sl.forEach(s=>{const item=p[s.id];txt+=`  ${(o.persons||[]).length>1?'  ':''}${s.nama}: ${item?item.name:'—'}${s.id==="namba"&&item?' (Regular+Karaage)':''}\n`;});
-    });txt+=`\n`;});
+      if(multi)txt+=`  👤 Orang ${pi+1}:\n`;
+      const indent=multi?'    ':'  ';
+      sl.forEach(s=>{
+        const item=p[s.id];
+        txt+=`${indent}${s.nama}: ${item?item.name:'—'}`;
+        if(item&&s.showPrice)txt+=` (¥${(item.price||0).toLocaleString()})`;
+        if(s.id==="namba"&&item)txt+=` + Karaage 3pc (¥400)`;
+        txt+=`\n`;
+      });
+    });
+    // Subtotal per wakil
+    let subtotalFuji=0,subtotalNara=0;
+    (o.persons||[]).forEach(p=>{
+      const f=p["fuji"];const n=p["nara"];
+      if(f)subtotalFuji+=f.price||0;
+      if(n)subtotalNara+=n.price||0;
+    });
+    txt+=`  💴 Fuji: ¥${subtotalFuji.toLocaleString()} | Nara: ¥${subtotalNara.toLocaleString()} | *Jumlah: ¥${(subtotalFuji+subtotalNara).toLocaleString()}*\n\n`;
+  });
+  // Grand total
+  let grandFuji=0,grandNara=0;
+  orders.forEach(o=>(o.persons||[]).forEach(p=>{
+    const f=p["fuji"];const n=p["nara"];
+    if(f)grandFuji+=f.price||0;if(n)grandNara+=n.price||0;
+  }));
+  txt+=`${'─'.repeat(28)}\n`;
+  txt+=`💴 *JUMLAH KESELURUHAN*\n`;
+  txt+=`  🍱 Fuji: ¥${grandFuji.toLocaleString()}\n`;
+  txt+=`  🍛 Nara: ¥${grandNara.toLocaleString()}\n`;
+  txt+=`  *TOTAL: ¥${(grandFuji+grandNara).toLocaleString()}*\n`;
   return txt;
 }
 function buildRingkasan(trip,orders){
@@ -366,7 +410,11 @@ function renderAdmin(){
     </div>
     <div class="export-section">
       <h4>📤 Eksport & Kongsi</h4>
-      <button class="btn-copy" id="copy-restoran">🍽️ Copy — Untuk Restoran</button>
+      <div style="font-size:12px;color:#666;margin-bottom:6px;font-weight:600">Untuk Restoran:</div>
+      <button class="btn-copy" id="copy-fuji">🍱 Copy — Restoran Fuji</button>
+      <button class="btn-copy" id="copy-nara">🍛 Copy — Restoran Nara</button>
+      <button class="btn-copy" id="copy-namba">🍜 Copy — Restoran Namba</button>
+      <div style="font-size:12px;color:#666;margin:10px 0 6px;font-weight:600">Lain-lain:</div>
       <button class="btn-copy" id="copy-leader">👥 Copy — Untuk Tour Leader</button>
       <button class="btn-copy" id="copy-ringkasan">📊 Copy — Ringkasan Keseluruhan</button>
     </div>
@@ -422,7 +470,9 @@ function attachEvents(){
     const tid=S.selectedTripId;const snap=await getDocs(collection(db,"trips",tid,"orders"));
     for(const d of snap.docs)await deleteDoc(d.ref);S.orders=[];render();
   });
-  on("copy-restoran","click",()=>{const t=S.trips.find(t=>t.id===S.selectedTripId);if(t)copy(buildRestoran(t,S.orders));});
+  on("copy-fuji","click",()=>{const t=S.trips.find(t=>t.id===S.selectedTripId);if(t)copy(buildRestoran1Sesi(t,S.orders,"fuji"));});
+  on("copy-nara","click",()=>{const t=S.trips.find(t=>t.id===S.selectedTripId);if(t)copy(buildRestoran1Sesi(t,S.orders,"nara"));});
+  on("copy-namba","click",()=>{const t=S.trips.find(t=>t.id===S.selectedTripId);if(t)copy(buildRestoran1Sesi(t,S.orders,"namba"));});
   on("copy-leader","click",()=>{const t=S.trips.find(t=>t.id===S.selectedTripId);if(t)copy(buildLeader(t,S.orders));});
   on("copy-ringkasan","click",()=>{const t=S.trips.find(t=>t.id===S.selectedTripId);if(t)copy(buildRingkasan(t,S.orders));});
   on("special-nama","input",e=>S.addSpecial=e.target.value);
