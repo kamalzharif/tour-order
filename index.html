@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Sistem Order Makan — Grup Tour</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a1a; }
+  .page { max-width: 480px; margin: 0 auto; background: #fff; min-height: 100vh; }
+  .header-blue { background: #378ADD; padding: 40px 24px 32px; text-align: center; }
+  .header-blue h1 { font-size: 24px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+  .header-blue p { font-size: 14px; color: rgba(255,255,255,0.8); }
+  .sticky-header { padding: 14px 16px; border-bottom: 1px solid #eee; position: sticky; top: 0; background: #fff; z-index: 10; display: flex; align-items: center; gap: 10px; }
+  .sticky-header h2 { font-size: 17px; font-weight: 600; flex: 1; }
+  .back-btn { font-size: 22px; background: none; border: none; cursor: pointer; color: #1a1a1a; line-height: 1; padding: 0; }
+  .body { padding: 20px 16px 100px; }
+  .slot-badge { display: flex; justify-content: space-between; align-items: center; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px; }
+  .slot-badge.ok { background: #e8f5e9; }
+  .slot-badge.warn { background: #fdecea; }
+  .slot-badge span { font-size: 14px; font-weight: 600; }
+  .slot-badge.ok span { color: #2e7d32; }
+  .slot-badge.warn span { color: #c62828; }
+  .btn-primary { width: 100%; padding: 17px 0; font-size: 16px; border-radius: 14px; cursor: pointer; background: #378ADD; border: none; color: #fff; font-weight: 600; margin-bottom: 12px; }
+  .btn-primary:disabled { background: #e0e0e0; color: #9e9e9e; cursor: not-allowed; }
+  .btn-secondary { width: 100%; padding: 15px 0; font-size: 15px; border-radius: 14px; cursor: pointer; background: #f5f5f5; border: 1px solid #ddd; color: #1a1a1a; }
+  .form-label { font-size: 13px; color: #666; display: block; margin-bottom: 8px; font-weight: 600; }
+  .form-input { width: 100%; padding: 14px; font-size: 16px; border-radius: 10px; border: 1px solid #ddd; background: #fff; color: #1a1a1a; margin-bottom: 18px; outline: none; }
+  .form-input:focus { border-color: #378ADD; }
+  .counter-wrap { display: flex; align-items: center; gap: 0; margin-bottom: 24px; background: #f5f5f5; border-radius: 12px; padding: 4px; width: fit-content; }
+  .counter-btn { width: 44px; height: 44px; border-radius: 10px; cursor: pointer; font-size: 20px; background: #fff; border: 1px solid #eee; color: #1a1a1a; line-height: 1; }
+  .counter-val { font-size: 20px; font-weight: 600; width: 52px; text-align: center; }
+  .person-label { font-size: 13px; font-weight: 600; background: #f0f0f0; display: inline-block; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px; }
+  .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+  .menu-card { border-radius: 14px; border: 2.5px solid #eee; overflow: hidden; cursor: pointer; background: #fff; transition: border 0.1s; }
+  .menu-card.selected { border-color: #378ADD; background: #EBF4FB; }
+  .menu-img { width: 100%; height: 110px; object-fit: cover; display: block; background: #f0f0f0; }
+  .menu-img-placeholder { width: 100%; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 32px; background: #f5f5f5; }
+  .menu-check { position: absolute; top: 6px; right: 6px; background: #378ADD; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; }
+  .menu-img-wrap { position: relative; }
+  .menu-info { padding: 10px 10px 12px; }
+  .menu-name { font-size: 13px; font-weight: 600; color: #1a1a1a; line-height: 1.3; margin-bottom: 3px; }
+  .menu-desc { font-size: 11px; color: #888; line-height: 1.4; }
+  .error-box { background: #fdecea; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; font-size: 13px; color: #c62828; }
+  .fixed-bottom { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; padding: 12px 16px 28px; background: #fff; border-top: 1px solid #eee; }
+  .success-wrap { text-align: center; padding: 60px 24px; }
+  .success-icon { font-size: 64px; margin-bottom: 16px; }
+  .success-wrap h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .success-wrap p { font-size: 15px; color: #666; margin-bottom: 4px; }
+  .success-wrap p.sub { font-size: 13px; color: #aaa; margin-bottom: 32px; }
+  .stat-row { display: flex; gap: 10px; margin-bottom: 20px; }
+  .stat-card { background: #f5f5f5; border-radius: 12px; padding: 14px 10px; flex: 1; text-align: center; }
+  .stat-card .stat-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+  .stat-card .stat-val { font-size: 20px; font-weight: 600; }
+  .section-title { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .list-card { background: #f5f5f5; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+  .list-item { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid #eee; }
+  .list-item:last-child { border-bottom: none; }
+  .list-item span { font-size: 14px; }
+  .pax-badge { font-size: 13px; font-weight: 600; background: #EBF4FB; color: #1565C0; border-radius: 20px; padding: 2px 12px; }
+  .order-card { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; }
+  .order-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .order-card-name { font-size: 15px; font-weight: 600; }
+  .del-btn { font-size: 13px; color: #e53935; background: none; border: none; cursor: pointer; padding: 4px 8px; }
+  .tag { font-size: 12px; background: #f0f0f0; border-radius: 20px; padding: 4px 12px; color: #555; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .admin-section { background: #f5f5f5; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+  .admin-menu-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #eee; }
+  .admin-menu-item:last-child { border-bottom: none; }
+  .admin-thumb { width: 52px; height: 52px; border-radius: 10px; overflow: hidden; background: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+  .admin-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .admin-menu-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .upload-label { font-size: 12px; color: #378ADD; cursor: pointer; }
+  .add-menu-box { background: #f5f5f5; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .add-menu-box .form-input { margin-bottom: 10px; }
+  .upload-area { display: flex; align-items: center; justify-content: center; font-size: 14px; color: #888; cursor: pointer; padding: 13px 14px; border: 1.5px dashed #ddd; border-radius: 10px; background: #fff; margin-bottom: 10px; }
+  .btn-row { display: flex; gap: 10px; }
+  .btn-add { flex: 1; padding: 13px 0; border-radius: 12px; cursor: pointer; font-size: 14px; background: #fff; border: 1px solid #ddd; color: #1a1a1a; }
+  .btn-save { flex: 1; padding: 13px 0; border-radius: 12px; cursor: pointer; font-size: 14px; background: #378ADD; border: none; color: #fff; font-weight: 600; }
+  .lock-wrap { padding: 40px 24px; }
+  .lock-icon { text-align: center; margin-bottom: 28px; font-size: 44px; }
+  .loading { text-align: center; padding: 4rem; color: #888; font-size: 14px; }
+  .spinner { font-size: 32px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="page" id="app">
+  <div class="loading"><div class="spinner">🍱</div><p>Memuatkan...</p></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBdfyI1IHccekotNNRYwlr3U9JTkVc2uWI",
+  authDomain: "tour-order.firebaseapp.com",
+  projectId: "tour-order",
+  storageBucket: "tour-order.firebasestorage.app",
+  messagingSenderId: "411616788552",
+  appId: "1:411616788552:web:fd0a63dbe84c64334d987d",
+  measurementId: "G-3XQRSXRKRP"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const MAX_TOTAL = 22;
+const ADMIN_PASS = "admin123";
+
+const DEFAULT_MENUS = [
+  { id: 1, name: "Chicken Katsu Set", desc: "Ayam goreng tepung gaya Jepun dengan nasi dan sos katsu" },
+  { id: 2, name: "Karaage Set", desc: "Ayam goreng Jepun rangup dengan sos mayo dan salad" },
+  { id: 3, name: "Dashimaki-egg Set", desc: "Telur gulung Jepun dengan nasi dan sup miso" },
+  { id: 4, name: "Gyudon Set", desc: "Mangkuk nasi dengan daging lembu dan bawang manis" },
+  { id: 5, name: "Chicken Ramen", desc: "Ramen berkuah pekat dengan ayam, telur rebus dan nori" },
+];
+
+let state = {
+  view: "home",
+  orders: [],
+  menus: DEFAULT_MENUS,
+  imgs: {},
+  adminUnlocked: false,
+  adminPass: "",
+  adminError: "",
+  adminMenus: [...DEFAULT_MENUS],
+  newMenu: { name: "", desc: "" },
+  newMenuFile: null,
+  orderForm: { name: "", items: [] },
+  orderCount: 1,
+  submitted: false,
+  orderError: "",
+  loading: true,
+  uploadingImg: {},
+};
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+async function loadData() {
+  try {
+    const menuDoc = await getDoc(doc(db, "config", "menus"));
+    if (menuDoc.exists()) {
+      state.menus = menuDoc.data().list;
+      state.adminMenus = [...state.menus];
+    }
+    const imgDoc = await getDoc(doc(db, "config", "imgs"));
+    if (imgDoc.exists()) state.imgs = imgDoc.data();
+    const ordersSnap = await getDocs(collection(db, "orders"));
+    state.orders = ordersSnap.docs.map(d => d.data());
+  } catch(e) { console.error(e); }
+  state.loading = false;
+  render();
+  listenOrders();
+}
+
+function listenOrders() {
+  onSnapshot(collection(db, "orders"), snap => {
+    state.orders = snap.docs.map(d => d.data());
+    render();
+  });
+}
+
+async function saveMenus() {
+  await setDoc(doc(db, "config", "menus"), { list: state.adminMenus });
+  await setDoc(doc(db, "config", "imgs"), state.imgs);
+  state.menus = [...state.adminMenus];
+  alert("Menu dikemaskini!");
+  render();
+}
+
+async function saveOrder(order) {
+  const id = Date.now().toString();
+  await setDoc(doc(db, "orders", id), { ...order, id });
+}
+
+async function deleteOrder(id) {
+  const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+  await deleteDoc(doc(db, "orders", id));
+}
+
+function totalOrdered() { return state.orders.reduce((s, o) => s + (o.items ? o.items.length : 0), 0); }
+function remaining() { return MAX_TOTAL - totalOrdered(); }
+
+function menuCount() {
+  const cnt = {};
+  state.orders.forEach(o => (o.items || []).forEach(item => {
+    if (item) cnt[item.name] = (cnt[item.name] || 0) + 1;
+  }));
+  return cnt;
+}
+
+function render() {
+  const el = document.getElementById("app");
+  if (state.loading) {
+    el.innerHTML = `<div class="loading"><div class="spinner">🍱</div><p>Memuatkan...</p></div>`;
+    return;
+  }
+  const v = state.view;
+  if (v === "home") el.innerHTML = renderHome();
+  else if (v === "order") el.innerHTML = renderOrder();
+  else if (v === "admin") el.innerHTML = renderAdmin();
+  attachEvents();
+}
+
+function renderHome() {
+  const rem = remaining();
+  return `
+  <div class="header-blue">
+    <div style="font-size:48px;margin-bottom:10px">🍱</div>
+    <h1>Sistem Order Makan</h1>
+    <p>Grup Tour • Maksimum ${MAX_TOTAL} pax</p>
+  </div>
+  <div class="body">
+    <div class="slot-badge ${rem < 5 ? 'warn' : 'ok'}">
+      <span>Slot Tersedia</span>
+      <span>${rem} / ${MAX_TOTAL}</span>
+    </div>
+    <button class="btn-primary" id="go-order" ${rem === 0 ? 'disabled' : ''}>${rem === 0 ? 'Pesanan Penuh' : 'Buat Pesanan'}</button>
+    <button class="btn-secondary" id="go-admin">Paparan Admin</button>
+  </div>`;
+}
+
+function renderOrder() {
+  if (state.submitted) {
+    return `
+    <div class="sticky-header">
+      <button class="back-btn" id="back">←</button>
+      <h2>Buat Pesanan</h2>
+    </div>
+    <div class="success-wrap">
+      <div class="success-icon">✅</div>
+      <h2>Pesanan Diterima!</h2>
+      <p>Terima kasih, <b>${state.orderForm.name}</b>.</p>
+      <p class="sub">Pesanan anda telah berjaya disimpan.</p>
+      <button class="btn-primary" id="back-home" style="max-width:200px;margin:0 auto">Kembali</button>
+    </div>`;
+  }
+  const rem = remaining();
+  let personsHtml = "";
+  for (let idx = 0; idx < state.orderCount; idx++) {
+    let cardsHtml = state.menus.map(m => {
+      const sel = state.orderForm.items[idx] === m.id;
+      const imgSrc = state.imgs[m.id];
+      return `
+      <div class="menu-card ${sel ? 'selected' : ''}" data-idx="${idx}" data-menuid="${m.id}">
+        <div class="menu-img-wrap">
+          ${imgSrc ? `<img class="menu-img" src="${imgSrc}" alt="${m.name}" />` : `<div class="menu-img-placeholder">🍽️</div>`}
+          ${sel ? `<div class="menu-check">✓</div>` : ''}
+        </div>
+        <div class="menu-info">
+          <div class="menu-name">${m.name}</div>
+          <div class="menu-desc">${m.desc}</div>
+        </div>
+      </div>`;
+    }).join("");
+    personsHtml += `
+    <div>
+      <div class="person-label">${idx === 0 ? 'Pilihan anda' : `Orang ke-${idx + 1}`}</div>
+      <div class="menu-grid">${cardsHtml}</div>
+    </div>`;
+  }
+  return `
+  <div class="sticky-header">
+    <button class="back-btn" id="back">←</button>
+    <h2>Buat Pesanan</h2>
+    <span style="font-size:12px;background:${rem<5?'#fdecea':'#e8f5e9'};color:${rem<5?'#c62828':'#2e7d32'};border-radius:20px;padding:3px 10px">${rem} slot tinggal</span>
+  </div>
+  <div class="body">
+    <label class="form-label">Nama Anda (Wakil)</label>
+    <input class="form-input" id="order-name" placeholder="cth: Ahmad bin Ali" value="${state.orderForm.name}" />
+    <label class="form-label">Bilangan pesanan (termasuk diri sendiri)</label>
+    <div class="counter-wrap">
+      <button class="counter-btn" id="cnt-minus">−</button>
+      <div class="counter-val">${state.orderCount}</div>
+      <button class="counter-btn" id="cnt-plus">+</button>
+    </div>
+    ${personsHtml}
+    ${state.orderError ? `<div class="error-box">${state.orderError}</div>` : ''}
+  </div>
+  <div class="fixed-bottom">
+    <button class="btn-primary" id="submit-order">Hantar Pesanan</button>
+  </div>`;
+}
+
+function renderAdmin() {
+  if (!state.adminUnlocked) {
+    return `
+    <div class="sticky-header">
+      <button class="back-btn" id="back">←</button>
+      <h2>Paparan Admin</h2>
+    </div>
+    <div class="lock-wrap">
+      <div class="lock-icon">🔒</div>
+      <label class="form-label" style="text-align:center;display:block;margin-bottom:12px">Masukkan kata laluan admin</label>
+      <input class="form-input" type="password" id="admin-pass" placeholder="Kata laluan" value="${state.adminPass}" />
+      ${state.adminError ? `<div class="error-box">${state.adminError}</div>` : ''}
+      <button class="btn-primary" id="admin-login">Log Masuk</button>
+    </div>`;
+  }
+  const tot = totalOrdered(); const rem = remaining(); const cnt = menuCount();
+  let menuSummary = state.menus.map(m => `
+    <div class="list-item">
+      <span>${m.name}</span>
+      <span class="pax-badge">${cnt[m.name] || 0} pax</span>
+    </div>`).join("");
+  let ordersList = state.orders.length === 0
+    ? `<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Tiada pesanan lagi.</div>`
+    : state.orders.map(o => `
+      <div class="order-card">
+        <div class="order-card-header">
+          <div class="order-card-name">${o.name}</div>
+          <button class="del-btn" data-orderid="${o.id}">Padam</button>
+        </div>
+        <div class="tags">${(o.items||[]).map(item => `<span class="tag">${item?.name||''}</span>`).join("")}</div>
+      </div>`).join("");
+  let adminMenuList = state.adminMenus.map(m => `
+    <div class="admin-menu-item">
+      <div class="admin-thumb">
+        ${state.imgs[m.id] ? `<img src="${state.imgs[m.id]}" alt="${m.name}" />` : '🍽️'}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="admin-menu-name">${m.name}</div>
+        <label class="upload-label">
+          ${state.uploadingImg[m.id] ? 'Memuatkan...' : state.imgs[m.id] ? 'Tukar gambar' : 'Upload gambar'}
+          <input type="file" accept="image/*" style="display:none" data-uploadmenuid="${m.id}" class="upload-input" />
+        </label>
+      </div>
+      <button class="del-btn" data-delmenuid="${m.id}">Padam</button>
+    </div>`).join("");
+  return `
+  <div class="sticky-header">
+    <button class="back-btn" id="back">←</button>
+    <h2>Paparan Admin</h2>
+  </div>
+  <div class="body" style="padding-bottom:40px">
+    <div class="stat-row">
+      ${[['Pesanan',`${tot}/${MAX_TOTAL}`],['Tinggal',rem],['Wakil',state.orders.length]].map(([l,v])=>`
+      <div class="stat-card"><div class="stat-label">${l}</div><div class="stat-val">${v}</div></div>`).join("")}
+    </div>
+    <div class="section-title">Ringkasan Menu</div>
+    <div class="list-card">${menuSummary}</div>
+    <div class="section-title">Senarai Pesanan</div>
+    ${ordersList}
+    <div class="section-title" style="margin-top:20px">Urus Menu & Gambar</div>
+    <div class="admin-section">${adminMenuList}</div>
+    <div class="section-title">Tambah Menu Baru</div>
+    <div class="add-menu-box">
+      <input class="form-input" id="new-menu-name" placeholder="Nama menu" value="${state.newMenu.name}" />
+      <input class="form-input" id="new-menu-desc" placeholder="Penerangan (pilihan)" value="${state.newMenu.desc}" />
+      <label class="upload-area">
+        ${state.newMenuFile ? `✓ ${state.newMenuFile.name}` : 'Upload gambar (pilihan)'}
+        <input type="file" accept="image/*" style="display:none" id="new-menu-file" />
+      </label>
+      <div class="btn-row">
+        <button class="btn-add" id="add-menu">+ Tambah</button>
+        <button class="btn-save" id="save-menus">Simpan Semua</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function attachEvents() {
+  const $ = id => document.getElementById(id);
+  const on = (id, ev, fn) => { const el = $(id); if (el) el.addEventListener(ev, fn); };
+
+  on("go-order", "click", () => {
+    state.submitted = false; state.orderForm = { name: "", items: [] }; state.orderCount = 1; state.orderError = "";
+    state.view = "order"; render();
+  });
+  on("go-admin", "click", () => { state.view = "admin"; render(); });
+  on("back", "click", () => { state.view = "home"; render(); });
+  on("back-home", "click", () => { state.view = "home"; render(); });
+
+  on("order-name", "input", e => { state.orderForm.name = e.target.value; });
+  on("cnt-minus", "click", () => {
+    const val = Math.max(1, state.orderCount - 1);
+    state.orderCount = val; state.orderForm.items = Array(val).fill(null); render();
+  });
+  on("cnt-plus", "click", () => {
+    const val = Math.min(state.orderCount + 1, remaining());
+    state.orderCount = val; state.orderForm.items = Array(val).fill(null); render();
+  });
+
+  document.querySelectorAll(".menu-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const idx = parseInt(card.dataset.idx);
+      const menuId = parseInt(card.dataset.menuid);
+      const items = [...state.orderForm.items];
+      items[idx] = menuId;
+      state.orderForm.items = items;
+      render();
+    });
+  });
+
+  on("submit-order", "click", async () => {
+    const name = $("order-name") ? $("order-name").value.trim() : state.orderForm.name.trim();
+    state.orderForm.name = name;
+    if (!name) { state.orderError = "Sila masukkan nama anda."; render(); return; }
+    if (state.orderForm.items.some(i => i === null || i === undefined)) { state.orderError = "Sila pilih menu untuk semua orang."; render(); return; }
+    if (state.orders.find(o => o.name.toLowerCase() === name.toLowerCase())) { state.orderError = "Nama ini sudah membuat pesanan."; render(); return; }
+    const order = { name, items: state.orderForm.items.map(id => state.menus.find(m => m.id === id)), id: Date.now().toString() };
+    await saveOrder(order);
+    state.submitted = true; state.orderError = ""; render();
+  });
+
+  on("admin-pass", "input", e => { state.adminPass = e.target.value; });
+  on("admin-login", "click", () => {
+    if (state.adminPass === ADMIN_PASS) { state.adminUnlocked = true; state.adminError = ""; }
+    else { state.adminError = "Kata laluan salah."; }
+    render();
+  });
+  on("admin-pass", "keydown", e => { if (e.key === "Enter") $("admin-login")?.click(); });
+
+  document.querySelectorAll(".upload-input").forEach(input => {
+    input.addEventListener("change", async e => {
+      const menuId = parseInt(input.dataset.uploadmenuid);
+      const file = e.target.files[0];
+      if (!file) return;
+      state.uploadingImg[menuId] = true; render();
+      const b64 = await fileToBase64(file);
+      state.imgs[menuId] = b64;
+      state.uploadingImg[menuId] = false;
+      await setDoc(doc(db, "config", "imgs"), state.imgs);
+      render();
+    });
+  });
+
+  document.querySelectorAll(".del-btn[data-orderid]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await deleteOrder(btn.dataset.orderid);
+    });
+  });
+
+  document.querySelectorAll(".del-btn[data-delmenuid]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = parseInt(btn.dataset.delmenuid);
+      state.adminMenus = state.adminMenus.filter(m => m.id !== id);
+      delete state.imgs[id];
+      render();
+    });
+  });
+
+  on("new-menu-name", "input", e => { state.newMenu.name = e.target.value; });
+  on("new-menu-desc", "input", e => { state.newMenu.desc = e.target.value; });
+  on("new-menu-file", "change", e => { state.newMenuFile = e.target.files[0] || null; render(); });
+
+  on("add-menu", "click", async () => {
+    if (!state.newMenu.name.trim()) return;
+    const m = { id: Date.now(), name: state.newMenu.name, desc: state.newMenu.desc };
+    state.adminMenus.push(m);
+    if (state.newMenuFile) {
+      const b64 = await fileToBase64(state.newMenuFile);
+      state.imgs[m.id] = b64;
+    }
+    state.newMenu = { name: "", desc: "" }; state.newMenuFile = null;
+    render();
+  });
+
+  on("save-menus", "click", saveMenus);
+}
+
+loadData();
+</script>
+</body>
+</html>
