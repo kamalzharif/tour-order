@@ -165,13 +165,14 @@ function getTarikhSesi(trip,sid){if(!trip.tarikhMula)return'—';if(sid==="nara"
 
 async function loadTrips(){try{const s=await getDocs(collection(db,"trips"));S.trips=s.docs.map(d=>({id:d.id,...d.data()}));}catch(e){}}
 async function loadOrders(tid){try{const s=await getDocs(collection(db,"trips",tid,"orders"));S.orders=s.docs.map(d=>d.data());}catch(e){S.orders=[];}}
-async function loadImgs(tid){try{const d=await getDoc(doc(db,"trips",tid,"config","imgs"));if(d.exists())S.imgs=d.data();}catch(e){S.imgs={};}}
+async function loadImgs(){try{const d=await getDoc(doc(db,"config","menuImgs"));if(d.exists())S.imgs=d.data();}catch(e){S.imgs={};}}
+
 function listenOrders(tid){onSnapshot(collection(db,"trips",tid,"orders"),s=>{S.orders=s.docs.map(d=>d.data());render();});}
 async function saveOrder(tid,o){await setDoc(doc(db,"trips",tid,"orders",o.id),o);}
 async function delOrder(tid,oid){await deleteDoc(doc(db,"trips",tid,"orders",oid));}
 async function saveTrip(t){await setDoc(doc(db,"trips",t.id),t);}
 async function delTrip(tid){const s=await getDocs(collection(db,"trips",tid,"orders"));for(const d of s.docs)await deleteDoc(d.ref);await deleteDoc(doc(db,"trips",tid));}
-async function saveImgs(tid){await setDoc(doc(db,"trips",tid,"config","imgs"),S.imgs);}
+async function saveImgs(){await setDoc(doc(db,"config","menuImgs"),S.imgs);}
 
 function buildRestoran1Sesi(trip,orders,sesiId){
   const sl=trip.sesi||SESI;const s=sl.find(x=>x.id===sesiId);if(!s)return"";
@@ -593,7 +594,7 @@ function attachEvents(){
   document.querySelectorAll("[data-manage-imgs]").forEach(b=>b.addEventListener("click",async()=>{
     S.selectedTripId=b.dataset.manageImgs;S.adminTab="imgs";
     S.pickedFiles=[];S.pendingImgs={};S.imgPreviews=[];S.selectingFileIdx=null;
-    await loadImgs(S.selectedTripId);render();
+    await loadImgs();render();
   }));
 
   // Bulk file pick — generate previews
@@ -638,7 +639,7 @@ function attachEvents(){
     for(const key of keys){
       const b64=await f2b(S.pendingImgs[key].file);S.imgs[key]=b64;
     }
-    await saveImgs(S.selectedTripId);
+    await saveImgs();
     S.pendingImgs={};S.pickedFiles=[];S.imgPreviews=[];
     toast(`✓ ${keys.length} gambar berjaya disimpan!`);render();
   });
@@ -734,11 +735,11 @@ window.addEventListener("DOMContentLoaded",async()=>{
       const d=await getDoc(doc(db,"trips",tid));
       if(d.exists()){
         S.tripId=tid;S.tripData={id:tid,...d.data()};
-        await loadOrders(tid);await loadImgs(tid);listenOrders(tid);S.view="order";
+        await loadOrders(tid);await loadImgs();listenOrders(tid);S.view="order";
       } else S.view="notfound";
     }catch(e){S.view="notfound";}
   }
-  await loadTrips();if(S.trips.length>0)S.selectedTripId=S.trips[0].id;
+  await loadTrips();await loadImgs();if(S.trips.length>0)S.selectedTripId=S.trips[0].id;
   S.loading=false;render();
 });
 </script>
