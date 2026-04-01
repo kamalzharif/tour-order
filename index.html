@@ -415,52 +415,92 @@ function renderAdmin(){
     const sl=trip?(trip.sesi||SESI):SESI;
     const pending=S.pendingImgs||{};
     const pickedCount=(S.pickedFiles||[]).length;
-    const isAnalyzing=S.analyzingImgs||false;
+    const previews=S.imgPreviews||[];
 
-    // Build all menus flat list for display
-    const rows=sl.map(sesi=>`
-      <div class="section-title">${sesi.nama}</div>
-      <div class="list-card" style="background:#fff;padding:0 14px">
-        ${sesi.menus.map(m=>{
-          const key=`${sesi.id}_${m.id}`;
-          const imgSrc=pending[key]?pending[key].preview:S.imgs[key];
-          const isPending=!!pending[key];
-          return`<div class="admin-menu-row">
-            <div class="admin-thumb">${imgSrc?`<img src="${imgSrc}"/>`:'🍽️'}</div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:12px;font-weight:600">${m.name}</div>
-              <div style="font-size:11px;color:${isPending?'#e65100':'#1a6b3c'}">${isPending?'⏳ Belum disimpan — '+pending[key].filename:S.imgs[key]?'✓ Gambar ada':''}</div>
-            </div>
-            ${isPending?`<button class="btn-sm red" data-remove-pending="${key}" style="padding:4px 8px;font-size:11px">✕</button>`:''}
-          </div>`;
-        }).join("")}
-      </div>`).join("");
+    // Build reverse map: fileIdx -> key
+    const assignedIdx={};
+    Object.entries(pending).forEach(([key,v])=>assignedIdx[v.fileIdx]=key);
+
+    // All menus flat
+    const allMenus=[];
+    sl.forEach(sesi=>sesi.menus.forEach(m=>allMenus.push({key:`${sesi.id}_${m.id}`,name:m.name,sesiNama:sesi.nama})));
+
+    // Grid of uploaded images
+    const grid=previews.map((prev,i)=>{
+      const assignedKey=assignedIdx[i];
+      const assignedMenu=assignedKey?allMenus.find(m=>m.key===assignedKey):null;
+      return`<div class="img-grid-item ${assignedMenu?'assigned':''}" data-fileidx="${i}" style="position:relative;border-radius:10px;overflow:hidden;border:2.5px solid ${assignedMenu?'#1a6b3c':'#eee'};cursor:pointer;background:#f5f5f5">
+        <img src="${prev}" style="width:100%;height:90px;object-fit:cover;display:block"/>
+        <div style="padding:5px 6px;font-size:10px;line-height:1.3;min-height:32px;color:${assignedMenu?'#1a6b3c':'#888'}">
+          ${assignedMenu?`✓ ${assignedMenu.name}`:'Klik untuk padankan'}
+        </div>
+        ${assignedMenu?`<div style="position:absolute;top:4px;right:4px;background:#1a6b3c;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">✓</div>`:''}
+      </div>`;
+    }).join("");
+
+    // Menu list showing current assignment
+    const menuRows=sl.map(sesi=>`
+      <div style="font-size:11px;font-weight:600;color:#1a6b3c;margin:10px 0 4px;text-transform:uppercase">${sesi.nama}</div>
+      ${sesi.menus.map(m=>{
+        const key=`${sesi.id}_${m.id}`;
+        const imgSrc=pending[key]?pending[key].preview:S.imgs[key];
+        return`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0">
+          <div style="width:36px;height:36px;border-radius:8px;overflow:hidden;background:#f0f0f0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">
+            ${imgSrc?`<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover"/>`:'🍽️'}
+          </div>
+          <span style="font-size:12px;flex:1">${m.name}</span>
+          <span style="font-size:10px;color:${pending[key]?'#e65100':S.imgs[key]?'#1a6b3c':'#ccc'}">${pending[key]?'⏳':S.imgs[key]?'✓':''}</span>
+        </div>`;
+      }).join("")}`).join("");
+
+    // Modal for menu selection
+    const modal=S.selectingFileIdx!==null&&S.selectingFileIdx!==undefined?`
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;display:flex;align-items:flex-end;justify-content:center" id="menu-modal-overlay">
+      <div style="background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:16px;max-height:70vh;overflow-y:auto">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:15px;font-weight:600">Pilih menu untuk gambar ini</div>
+          <button id="close-modal" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">✕</button>
+        </div>
+        <img src="${previews[S.selectingFileIdx]}" style="width:100%;height:140px;object-fit:cover;border-radius:10px;margin-bottom:12px"/>
+        <div style="font-size:12px;color:#888;margin-bottom:10px">Pilih menu yang sepadan:</div>
+        ${sl.map(sesi=>`
+          <div style="font-size:11px;font-weight:600;color:#1a6b3c;margin:8px 0 4px;text-transform:uppercase">${sesi.nama}</div>
+          ${sesi.menus.map(m=>{
+            const key=`${sesi.id}_${m.id}`;
+            const isAssigned=pending[key]&&pending[key].fileIdx===S.selectingFileIdx;
+            return`<div class="modal-menu-item" data-key="${key}" data-fileidx="${S.selectingFileIdx}"
+              style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:4px;cursor:pointer;background:${isAssigned?'#f0f9f4':'#f9f9f9'};border:1.5px solid ${isAssigned?'#1a6b3c':'transparent'}">
+              <span style="font-size:13px;flex:1">${m.name}</span>
+              ${isAssigned?'<span style="color:#1a6b3c;font-size:13px">✓</span>':''}
+            </div>`;
+          }).join("")}`).join("")}
+        <button id="remove-assignment" style="width:100%;padding:10px;margin-top:8px;border-radius:10px;border:1px solid #e53935;background:#fff;color:#e53935;font-size:13px;cursor:pointer">✕ Buang Padanan</button>
+      </div>
+    </div>`:'';
 
     return`<div class="sticky-top"><button class="back-btn" id="back-to-trips">←</button><h2>Urus Gambar Menu</h2></div>
     <div class="body" style="padding-bottom:100px">
       <div class="add-box" style="margin-bottom:16px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:6px">🤖 Auto-Padanan AI</div>
-        <p style="font-size:12px;color:#666;margin-bottom:12px;line-height:1.5">Upload semua gambar sekaligus. AI akan baca setiap gambar dan padankan dengan menu secara automatik.</p>
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px">📂 Langkah 1 — Upload gambar</div>
         <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border:1.5px dashed #1a6b3c;border-radius:10px;cursor:pointer;font-size:13px;color:#1a6b3c;background:#f0f9f4">
-          📷 ${pickedCount>0?`${pickedCount} gambar dipilih`:'Pilih gambar (boleh pilih banyak)'}
+          📷 ${pickedCount>0?`${pickedCount} gambar — klik untuk tukar`:'Pilih semua gambar sekaligus'}
           <input type="file" accept="image/*" multiple style="display:none" id="bulk-file-pick"/>
         </label>
-        ${pickedCount>0?`
-        <div style="margin-top:10px;font-size:11px;color:#666;line-height:1.8">
-          ${(S.pickedFiles||[]).map((f,i)=>`<span style="display:inline-block;background:#f5f5f5;border-radius:6px;padding:2px 8px;margin:2px">📷 ${f.name}</span>`).join("")}
-        </div>
-        <button class="btn-primary" id="ai-analyze" style="margin-top:12px;margin-bottom:0" ${isAnalyzing?'disabled':''}>
-          ${isAnalyzing?'🤖 AI sedang analisa gambar...':'🤖 Analisa & Padankan dengan AI'}
-        </button>`:''}
       </div>
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px">Senarai Menu & Gambar</div>
-      ${rows}
+      ${pickedCount>0?`
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px">🖼️ Langkah 2 — Klik gambar untuk padankan</div>
+      <p style="font-size:12px;color:#888;margin-bottom:12px">Klik setiap gambar → pilih nama menu yang sepadan.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px">${grid}</div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px">📋 Status Menu</div>
+      <div style="background:#f9f9f9;border-radius:12px;padding:12px 14px;margin-bottom:16px">${menuRows}</div>
+      `:''}
     </div>
     <div class="fixed-bottom">
       <button class="btn-primary" id="save-all-imgs" ${Object.keys(pending).length===0?'disabled':''}>
-        💾 Simpan ${Object.keys(pending).length>0?Object.keys(pending).length+' ':' '}Gambar
+        💾 Simpan ${Object.keys(pending).length>0?Object.keys(pending).length+' gambar':'Gambar'}
       </button>
-    </div>`;
+    </div>
+    ${modal}`;
   }
 
   const trip=S.trips.find(t=>t.id===S.selectedTripId)||S.trips[0];
@@ -552,62 +592,42 @@ function attachEvents(){
   // Manage images button
   document.querySelectorAll("[data-manage-imgs]").forEach(b=>b.addEventListener("click",async()=>{
     S.selectedTripId=b.dataset.manageImgs;S.adminTab="imgs";
-    S.pickedFiles=[];S.pendingImgs={};S.analyzingImgs=false;
+    S.pickedFiles=[];S.pendingImgs={};S.imgPreviews=[];S.selectingFileIdx=null;
     await loadImgs(S.selectedTripId);render();
   }));
 
-  // Bulk file pick
-  on("bulk-file-pick","change",e=>{
+  // Bulk file pick — generate previews
+  on("bulk-file-pick","change",async e=>{
     S.pickedFiles=Array.from(e.target.files);
-    S.pendingImgs={};render();
+    S.pendingImgs={};S.selectingFileIdx=null;
+    S.imgPreviews=await Promise.all(S.pickedFiles.map(f=>f2b(f)));
+    render();
   });
 
-  // Remove pending
-  document.querySelectorAll("[data-remove-pending]").forEach(b=>b.addEventListener("click",()=>{
-    delete S.pendingImgs[b.dataset.removePending];render();
+  // Click image thumbnail → open modal
+  document.querySelectorAll(".img-grid-item").forEach(item=>item.addEventListener("click",()=>{
+    S.selectingFileIdx=parseInt(item.dataset.fileidx);render();
   }));
 
-  // AI Analyze
-  on("ai-analyze","click",async()=>{
-    if(!S.pickedFiles||!S.pickedFiles.length)return;
-    S.analyzingImgs=true;render();
-    const trip=S.trips.find(t=>t.id===S.selectedTripId);
-    const sl=trip?(trip.sesi||SESI):SESI;
-    // Build full menu list
-    const allMenus=[];
-    sl.forEach(sesi=>sesi.menus.forEach(m=>allMenus.push({key:`${sesi.id}_${m.id}`,name:m.name,sesi:sesi.nama})));
-    const menuListStr=allMenus.map((m,i)=>`${i+1}. [${m.key}] ${m.name} (${m.sesi})`).join("\n");
+  // Close modal
+  on("close-modal","click",()=>{S.selectingFileIdx=null;render();});
+  on("menu-modal-overlay","click",e=>{if(e.target.id==="menu-modal-overlay"){S.selectingFileIdx=null;render();}});
 
-    try{
-      for(const file of S.pickedFiles){
-        const b64full=await f2b(file);
-        const b64data=b64full.split(",")[1];
-        const mime=file.type||"image/jpeg";
-        // Call Claude API
-        const resp=await fetch("https://api.anthropic.com/v1/messages",{
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({
-            model:"claude-sonnet-4-20250514",
-            max_tokens:200,
-            messages:[{
-              role:"user",
-              content:[
-                {type:"image",source:{type:"base64",media_type:mime,data:b64data}},
-                {type:"text",text:`Lihat gambar makanan ini. Padankan dengan menu yang paling sesuai dari senarai berikut:\n\n${menuListStr}\n\nBalas HANYA dengan format: KEY\nContoh: nara_3\n\nJika tiada padanan sesuai, balas: none`}
-              ]
-            }]
-          })
-        });
-        const data=await resp.json();
-        const answer=(data.content[0]?.text||"").trim().toLowerCase().replace(/\s/g,"");
-        const matched=allMenus.find(m=>m.key===answer);
-        if(matched&&!S.pendingImgs[matched.key]){
-          S.pendingImgs[matched.key]={preview:b64full,file,filename:file.name};
-        }
-      }
-    }catch(e){console.error(e);alert("Ralat semasa analisa AI. Cuba semula.");}
-    S.analyzingImgs=false;render();
+  // Select menu from modal
+  document.querySelectorAll(".modal-menu-item").forEach(item=>item.addEventListener("click",async()=>{
+    const key=item.dataset.key;const fi=parseInt(item.dataset.fileidx);
+    // Remove any existing assignment for this key or this fileIdx
+    Object.keys(S.pendingImgs).forEach(k=>{if(S.pendingImgs[k].fileIdx===fi||k===key)delete S.pendingImgs[k];});
+    const preview=S.imgPreviews[fi];
+    S.pendingImgs[key]={fileIdx:fi,preview,file:S.pickedFiles[fi],filename:S.pickedFiles[fi].name};
+    S.selectingFileIdx=null;render();
+  }));
+
+  // Remove assignment
+  on("remove-assignment","click",()=>{
+    const fi=S.selectingFileIdx;
+    Object.keys(S.pendingImgs).forEach(k=>{if(S.pendingImgs[k].fileIdx===fi)delete S.pendingImgs[k];});
+    S.selectingFileIdx=null;render();
   });
 
   // Save all images
@@ -619,7 +639,7 @@ function attachEvents(){
       const b64=await f2b(S.pendingImgs[key].file);S.imgs[key]=b64;
     }
     await saveImgs(S.selectedTripId);
-    S.pendingImgs={};S.pickedFiles=[];
+    S.pendingImgs={};S.pickedFiles=[];S.imgPreviews=[];
     toast(`✓ ${keys.length} gambar berjaya disimpan!`);render();
   });
 
