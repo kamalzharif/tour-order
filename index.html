@@ -152,6 +152,23 @@ async function delOrder(tid,oid){await deleteDoc(doc(db,"trips",tid,"orders",oid
 async function saveTrip(t){await setDoc(doc(db,"trips",t.id),t);}
 async function delTrip(tid){const s=await getDocs(collection(db,"trips",tid,"orders"));for(const d of s.docs)await deleteDoc(d.ref);await deleteDoc(doc(db,"trips",tid));}
 
+function addDays(dateStr,days){
+  if(!dateStr)return'—';
+  const d=new Date(dateStr);d.setDate(d.getDate()+days);
+  return d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+function getWaktu(trip,sesiId){
+  const mod=trip.mod||"tren";
+  if(sesiId==="nara")return mod==="tren"?"11:00am":"11:30am";
+  if(sesiId==="namba")return mod==="tren"?"5:00pm":"5:30pm";
+  return"";
+}
+function getTarikhSesi(trip,sesiId){
+  if(!trip.tarikhMula)return'—';
+  if(sesiId==="nara"||sesiId==="namba")return addDays(trip.tarikhMula,1);
+  if(sesiId==="fuji")return addDays(trip.tarikhMula,3);
+  return'—';
+}
 function buildRestoran1Sesi(trip,orders,sesiId){
   const sl=trip.sesi||SESI;
   const s=sl.find(x=>x.id===sesiId);if(!s)return"";
@@ -161,14 +178,14 @@ function buildRestoran1Sesi(trip,orders,sesiId){
   orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p[s.id];if(i){cnt[i.name]=(cnt[i.name]||0)+1;pm[i.name]=i.price||0;}}));
 
   if(sesiId==="fuji"){
-    // English version with categories
+    const tarikhFuji=getTarikhSesi(trip,"fuji");
     const CATS=[
       {label:"🥩 KATSURETU MENU",items:["Katsuretu Kawaguchiko Curry","Miso Katsuretu Shingen"]},
       {label:"🍚 RICE DISHES",items:["Yellow Chicken","Kawaguchiko Curry","Rice Curry","Kebab Rice"]},
       {label:"🌯 WRAP / KEBAB MENU",items:["Wrap Original (M)","Wrap Spicy (M)","Wrap Curry (M)","Wrap Teriyaki (M)","Wrap Wasabi (M)","Wrap Miso (M)"]},
       {label:"🍜 NOODLES",items:["Spicy Noodle 🌶","Spicy Noodle 🌶🌶","Spicy Noodle 🌶🌶🌶"]},
     ];
-    let txt=`🍱 *BENTO ORDER — FUJI*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
+    let txt=`🍱 *BENTO ORDER — FUJI*\n📌 Trip: ${trip.nama}\n📅 Date: ${tarikhFuji}\n${'─'.repeat(28)}\n\n`;
     let grandTotal=0;
     CATS.forEach(cat=>{
       const catItems=cat.items.filter(n=>cnt[n]);
@@ -185,26 +202,32 @@ function buildRestoran1Sesi(trip,orders,sesiId){
     txt+=`${'─'.repeat(28)}\n💴 *GRAND TOTAL: ¥${grandTotal.toLocaleString()}*\n`;
     return txt;
   }
-
-  // Default for nara / namba
-  let txt=sesiId==="nara"
-    ?`🍛 *LUNCH ORDER — NARA*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`
-    :`🍜 *DINNER ORDER — NAMBA/DOTONBORI*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
-
-  if(!Object.keys(cnt).length){txt+=`  No orders yet.\n`;return txt;}
-  let sub=0;
-  Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{
-    const p=pm[n]||0;const tot=p*c;sub+=tot;
-    txt+=`  • ${n}: *${c} pax*`;
-    if(s.showPrice)txt+=` (¥${p.toLocaleString()} × ${c} = ¥${tot.toLocaleString()})`;
-    if(s.id==="namba")txt+=`\n    ↳ + Karaage 3pc ¥${(400*c).toLocaleString()}`;
-    txt+=`\n`;
-  });
-  if(s.showPrice)txt+=`\n💴 *Total: ¥${sub.toLocaleString()}*\n`;
-  if(sesiId==="namba"){
-    const totalPax=Object.values(cnt).reduce((a,b)=>a+b,0);
-    txt+=`🍗 Karaage 3pc × ${totalPax} = ¥${(400*totalPax).toLocaleString()}\n`;
+  // Nara
+  if(sesiId==="nara"){
+    const tarikhNara=getTarikhSesi(trip,"nara");
+    const waktuNara=getWaktu(trip,"nara");
+    const mod=trip.mod||"tren";
+    let txt=`🍛 *LUNCH ORDER — NARA*\n📌 Trip: ${trip.nama}\n📅 Date: ${tarikhNara}\n⏰ Order time: ${waktuNara} (${mod==="tren"?"by train":"by bus"})\n${'─'.repeat(28)}\n\n`;
+    if(!Object.keys(cnt).length){txt+=`  No orders yet.\n`;return txt;}
+    let sub=0;
+    Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{
+      const p=pm[n]||0;const tot=p*c;sub+=tot;
+      txt+=`  • ${n}: *${c} pax* (¥${p.toLocaleString()} × ${c} = ¥${tot.toLocaleString()})\n`;
+    });
+    txt+=`\n💴 *Total: ¥${sub.toLocaleString()}*\n`;
+    return txt;
   }
+  // Namba
+  const tarikhNamba=getTarikhSesi(trip,"namba");
+  const waktuNamba=getWaktu(trip,"namba");
+  const mod=trip.mod||"tren";
+  let txt=`🍜 *DINNER ORDER — NAMBA/DOTONBORI*\n📌 Trip: ${trip.nama}\n📅 Date: ${tarikhNamba}\n⏰ Order time: ${waktuNamba} (${mod==="tren"?"by train":"by bus"})\n${'─'.repeat(28)}\n\n`;
+  if(!Object.keys(cnt).length){txt+=`  No orders yet.\n`;return txt;}
+  const totalPax=Object.values(cnt).reduce((a,b)=>a+b,0);
+  Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{
+    txt+=`  • ${n}: *${c} pax*\n    ↳ + Karaage 3pc ¥${(400*c).toLocaleString()}\n`;
+  });
+  txt+=`\n🍗 *Karaage 3pc × ${totalPax} = ¥${(400*totalPax).toLocaleString()}*\n`;
   return txt;
 }
 function buildLeader(trip,orders){
@@ -398,7 +421,14 @@ function renderAdmin(){
       <div class="section-title">Tambah Trip Baru</div>
       <div class="add-box">
         <input class="form-input" id="new-trip-nama" placeholder="Nama trip (cth: Japan Nov 2025)" value="${S.newTrip.nama}"/>
-        <input class="form-input" id="new-trip-tarikh" placeholder="Tarikh (cth: 1-7 Nov 2025)" value="${S.newTrip.tarikh}"/>
+        <input class="form-input" id="new-trip-tarikh" placeholder="Tarikh trip (cth: 1-7 Nov 2025)" value="${S.newTrip.tarikh}"/>
+        <label class="form-label">Tarikh mula di Osaka (Hari ke-1)</label>
+        <input class="form-input" id="new-trip-tarikh-mula" type="date" value="${S.newTrip.tarikhMula||''}"/>
+        <label class="form-label">Mod pengangkutan</label>
+        <select class="form-input" id="new-trip-mod">
+          <option value="tren" ${(S.newTrip.mod||'tren')==='tren'?'selected':''}>🚃 Tren (Nara: 11:00am | Namba: 5:00pm)</option>
+          <option value="bas" ${S.newTrip.mod==='bas'?'selected':''}>🚌 Bas (Nara: 11:30am | Namba: 5:30pm)</option>
+        </select>
         <input class="form-input" id="new-trip-pax" placeholder="Jumlah peserta (cth: 22)" value="${S.newTrip.pax}" type="number"/>
         <button class="btn-primary" id="add-trip" style="margin-bottom:0">+ Cipta Trip Baru</button>
       </div></div>`;
@@ -480,11 +510,15 @@ function attachEvents(){
   on("trip-selector","change",async e=>{S.selectedTripId=e.target.value;await loadOrders(S.selectedTripId);render();});
   on("new-trip-nama","input",e=>S.newTrip.nama=e.target.value);
   on("new-trip-tarikh","input",e=>S.newTrip.tarikh=e.target.value);
+  on("new-trip-tarikh-mula","input",e=>S.newTrip.tarikhMula=e.target.value);
+  on("new-trip-mod","change",e=>S.newTrip.mod=e.target.value);
   on("new-trip-pax","input",e=>S.newTrip.pax=e.target.value);
   on("add-trip","click",async()=>{
     if(!S.newTrip.nama.trim()){alert("Sila masukkan nama trip.");return;}
-    const id=genId();const t={id,nama:S.newTrip.nama,tarikh:S.newTrip.tarikh,pax:parseInt(S.newTrip.pax)||22,sesi:SESI};
-    await saveTrip(t);S.trips.push(t);S.newTrip={nama:"",tarikh:"",pax:""};
+    if(!S.newTrip.tarikhMula){alert("Sila masukkan tarikh mula di Osaka.");return;}
+    const id=genId();
+    const t={id,nama:S.newTrip.nama,tarikh:S.newTrip.tarikh,tarikhMula:S.newTrip.tarikhMula,mod:S.newTrip.mod||"tren",pax:parseInt(S.newTrip.pax)||22,sesi:SESI};
+    await saveTrip(t);S.trips.push(t);S.newTrip={nama:"",tarikh:"",tarikhMula:"",mod:"tren",pax:""};
     alert(`✅ Trip "${t.nama}" berjaya dicipta!\n\n🔗 Link:\n${tripLink(id)}`);render();
   });
   document.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>{navigator.clipboard.writeText(b.dataset.copy).then(()=>toast("✓ Link disalin!"));}));
