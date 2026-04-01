@@ -426,53 +426,73 @@ function renderAdmin(){
     const allMenus=[];
     sl.forEach(sesi=>sesi.menus.forEach(m=>allMenus.push({key:`${sesi.id}_${m.id}`,name:m.name,sesiNama:sesi.nama})));
 
-    // Grid of uploaded images
-    const grid=previews.map((prev,i)=>{
-      const assignedKey=assignedIdx[i];
-      const assignedMenu=assignedKey?allMenus.find(m=>m.key===assignedKey):null;
-      return`<div class="img-grid-item ${assignedMenu?'assigned':''}" data-fileidx="${i}" style="position:relative;border-radius:10px;overflow:hidden;border:2.5px solid ${assignedMenu?'#1a6b3c':'#eee'};cursor:pointer;background:#f5f5f5">
-        <img src="${prev}" style="width:100%;height:90px;object-fit:cover;display:block"/>
-        <div style="padding:5px 6px;font-size:10px;line-height:1.3;min-height:32px;color:${assignedMenu?'#1a6b3c':'#888'}">
-          ${assignedMenu?`✓ ${assignedMenu.name}`:'Klik untuk padankan'}
-        </div>
-        ${assignedMenu?`<div style="position:absolute;top:4px;right:4px;background:#1a6b3c;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">✓</div>`:''}
-      </div>`;
-    }).join("");
+    // Count stats
+    const totalMenus=allMenus.length;
+    const hasImg=allMenus.filter(m=>S.imgs[m.key]||pending[m.key]).length;
 
-    // Menu list showing current assignment
-    const menuRows=sl.map(sesi=>`
-      <div style="font-size:11px;font-weight:600;color:#1a6b3c;margin:10px 0 4px;text-transform:uppercase">${sesi.nama}</div>
-      ${sesi.menus.map(m=>{
-        const key=`${sesi.id}_${m.id}`;
-        const imgSrc=pending[key]?pending[key].preview:S.imgs[key];
-        return`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0">
-          <div style="width:36px;height:36px;border-radius:8px;overflow:hidden;background:#f0f0f0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">
-            ${imgSrc?`<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover"/>`:'🍽️'}
-          </div>
-          <span style="font-size:12px;flex:1">${m.name}</span>
-          <span style="font-size:10px;color:${pending[key]?'#e65100':S.imgs[key]?'#1a6b3c':'#ccc'}">${pending[key]?'⏳':S.imgs[key]?'✓':''}</span>
-        </div>`;
-      }).join("")}`).join("");
+    // Current menu status grid (always visible)
+    const statusGrid=sl.map(sesi=>`
+      <div style="font-size:12px;font-weight:600;color:#1a6b3c;margin:14px 0 8px;text-transform:uppercase;letter-spacing:0.5px">${sesi.nama}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
+        ${sesi.menus.map(m=>{
+          const key=`${sesi.id}_${m.id}`;
+          const imgSrc=pending[key]?pending[key].preview:S.imgs[key];
+          const isPending=!!pending[key];
+          const hasExisting=!!S.imgs[key];
+          return`<div style="border-radius:10px;overflow:hidden;border:2px solid ${isPending?'#e65100':hasExisting?'#1a6b3c':'#eee'};background:#fff;position:relative">
+            <div style="width:100%;height:70px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;overflow:hidden">
+              ${imgSrc?`<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover"/>`:`<span style="font-size:24px">🍽️</span>`}
+            </div>
+            <div style="padding:5px 7px">
+              <div style="font-size:10px;font-weight:600;color:#1a1a1a;line-height:1.3">${m.name}</div>
+              <div style="font-size:9px;margin-top:2px;color:${isPending?'#e65100':hasExisting?'#1a6b3c':'#bbb'}">${isPending?'⏳ Belum simpan':hasExisting?'✓ Ada gambar':'Tiada gambar'}</div>
+            </div>
+            ${isPending?`<div style="position:absolute;top:4px;right:4px;background:#e65100;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">!</div>`:hasExisting?`<div style="position:absolute;top:4px;right:4px;background:#1a6b3c;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">✓</div>`:''}
+          </div>`;
+        }).join("")}
+      </div>`).join("");
 
-    // Modal for menu selection
+    // Uploaded image grid for assignment
+    const grid=previews.length>0?`
+      <div style="font-size:13px;font-weight:600;margin:16px 0 6px">🖼️ Langkah 2 — Klik gambar untuk padankan</div>
+      <p style="font-size:12px;color:#888;margin-bottom:10px">Klik setiap gambar → pilih nama menu yang sepadan.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+        ${previews.map((prev,i)=>{
+          const assignedKey=assignedIdx[i];
+          const assignedMenu=assignedKey?allMenus.find(m=>m.key===assignedKey):null;
+          return`<div class="img-grid-item ${assignedMenu?'assigned':''}" data-fileidx="${i}" style="position:relative;border-radius:10px;overflow:hidden;border:2.5px solid ${assignedMenu?'#1a6b3c':'#eee'};cursor:pointer;background:#f5f5f5">
+            <img src="${prev}" style="width:100%;height:80px;object-fit:cover;display:block"/>
+            <div style="padding:4px 5px;font-size:9px;line-height:1.3;min-height:28px;color:${assignedMenu?'#1a6b3c':'#888'}">
+              ${assignedMenu?`✓ ${assignedMenu.name}`:'Klik padankan'}
+            </div>
+            ${assignedMenu?`<div style="position:absolute;top:3px;right:3px;background:#1a6b3c;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">✓</div>`:''}
+          </div>`;
+        }).join("")}
+      </div>`:'';
+
+    // Modal
     const modal=S.selectingFileIdx!==null&&S.selectingFileIdx!==undefined?`
     <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;display:flex;align-items:flex-end;justify-content:center" id="menu-modal-overlay">
-      <div style="background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:16px;max-height:70vh;overflow-y:auto">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:16px;max-height:75vh;overflow-y:auto">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div style="font-size:15px;font-weight:600">Pilih menu untuk gambar ini</div>
           <button id="close-modal" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">✕</button>
         </div>
-        <img src="${previews[S.selectingFileIdx]}" style="width:100%;height:140px;object-fit:cover;border-radius:10px;margin-bottom:12px"/>
-        <div style="font-size:12px;color:#888;margin-bottom:10px">Pilih menu yang sepadan:</div>
+        <img src="${previews[S.selectingFileIdx]}" style="width:100%;height:130px;object-fit:cover;border-radius:10px;margin-bottom:12px"/>
+        <div style="font-size:12px;color:#888;margin-bottom:8px">Pilih menu yang sepadan:</div>
         ${sl.map(sesi=>`
-          <div style="font-size:11px;font-weight:600;color:#1a6b3c;margin:8px 0 4px;text-transform:uppercase">${sesi.nama}</div>
+          <div style="font-size:10px;font-weight:600;color:#1a6b3c;margin:8px 0 4px;text-transform:uppercase">${sesi.nama}</div>
           ${sesi.menus.map(m=>{
             const key=`${sesi.id}_${m.id}`;
             const isAssigned=pending[key]&&pending[key].fileIdx===S.selectingFileIdx;
+            const imgSrc=S.imgs[key];
             return`<div class="modal-menu-item" data-key="${key}" data-fileidx="${S.selectingFileIdx}"
-              style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:4px;cursor:pointer;background:${isAssigned?'#f0f9f4':'#f9f9f9'};border:1.5px solid ${isAssigned?'#1a6b3c':'transparent'}">
+              style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;margin-bottom:4px;cursor:pointer;background:${isAssigned?'#f0f9f4':'#f9f9f9'};border:1.5px solid ${isAssigned?'#1a6b3c':'transparent'}">
+              <div style="width:32px;height:32px;border-radius:6px;overflow:hidden;background:#eee;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">
+                ${imgSrc?`<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover"/>`:'🍽️'}
+              </div>
               <span style="font-size:13px;flex:1">${m.name}</span>
-              ${isAssigned?'<span style="color:#1a6b3c;font-size:13px">✓</span>':''}
+              ${isAssigned?'<span style="color:#1a6b3c;font-size:13px;font-weight:600">✓</span>':''}
             </div>`;
           }).join("")}`).join("")}
         <button id="remove-assignment" style="width:100%;padding:10px;margin-top:8px;border-radius:10px;border:1px solid #e53935;background:#fff;color:#e53935;font-size:13px;cursor:pointer">✕ Buang Padanan</button>
@@ -481,20 +501,30 @@ function renderAdmin(){
 
     return`<div class="sticky-top"><button class="back-btn" id="back-to-trips">←</button><h2>Urus Gambar Menu</h2></div>
     <div class="body" style="padding-bottom:100px">
-      <div class="add-box" style="margin-bottom:16px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:6px">📂 Langkah 1 — Upload gambar</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <div style="flex:1;background:#f0f9f4;border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:20px;font-weight:600;color:#1a6b3c">${hasImg}</div>
+          <div style="font-size:11px;color:#666">Ada gambar</div>
+        </div>
+        <div style="flex:1;background:#f9f9f9;border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:20px;font-weight:600;color:#888">${totalMenus-hasImg}</div>
+          <div style="font-size:11px;color:#666">Tiada gambar</div>
+        </div>
+        <div style="flex:1;background:#fff8e1;border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:20px;font-weight:600;color:#e65100">${Object.keys(pending).length}</div>
+          <div style="font-size:11px;color:#666">Belum simpan</div>
+        </div>
+      </div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px">📋 Status Semua Menu</div>
+      ${statusGrid}
+      <div style="margin-top:16px" class="add-box">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px">📂 Langkah 1 — Upload gambar baru</div>
         <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border:1.5px dashed #1a6b3c;border-radius:10px;cursor:pointer;font-size:13px;color:#1a6b3c;background:#f0f9f4">
-          📷 ${pickedCount>0?`${pickedCount} gambar — klik untuk tukar`:'Pilih semua gambar sekaligus'}
+          📷 ${pickedCount>0?`${pickedCount} gambar dipilih — klik untuk tukar`:'Pilih gambar (boleh pilih banyak)'}
           <input type="file" accept="image/*" multiple style="display:none" id="bulk-file-pick"/>
         </label>
       </div>
-      ${pickedCount>0?`
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px">🖼️ Langkah 2 — Klik gambar untuk padankan</div>
-      <p style="font-size:12px;color:#888;margin-bottom:12px">Klik setiap gambar → pilih nama menu yang sepadan.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px">${grid}</div>
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px">📋 Status Menu</div>
-      <div style="background:#f9f9f9;border-radius:12px;padding:12px 14px;margin-bottom:16px">${menuRows}</div>
-      `:''}
+      ${grid}
     </div>
     <div class="fixed-bottom">
       <button class="btn-primary" id="save-all-imgs" ${Object.keys(pending).length===0?'disabled':''}>
