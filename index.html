@@ -375,36 +375,31 @@ function renderLeader(){
     return`<div class="sticky-top"><button class="back-btn" id="back">←</button><h2>Tour Leader</h2></div>
     <div class="lock-wrap"><div style="text-align:center;font-size:40px;margin-bottom:24px">👤</div>
     <label class="form-label" style="text-align:center;display:block;margin-bottom:12px">Kata laluan Tour Leader</label>
-    <input type="password" class="form-input" id="leader-pass" placeholder="Kata laluan" value="${S.adminPass}"/>
+    <input type="password" class="form-input" id="leader-pass" placeholder="Kata laluan"/>
     ${S.adminError?`<div class="error-box">${S.adminError}</div>`:''}
     <button class="btn-primary" id="leader-login">Log Masuk</button></div>`;
   }
-
   const trip=S.trips.find(t=>t.id===S.selectedTripId)||S.trips[0];
   const sl=trip?(trip.sesi||SESI):SESI;
   const orders=S.orders;
   const totalPax=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-
   const tripSel=S.trips.length>0?`<select class="form-input" id="trip-selector">${S.trips.map(t=>`<option value="${t.id}" ${S.selectedTripId===t.id?'selected':''}>${t.nama}</option>`).join("")}</select>`:`<p style="color:#aaa;font-size:13px">Tiada trip.</p>`;
-
   const summary=sl.map(s=>{
     const cnt={};orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p[s.id];if(i)cnt[i.name]=(cnt[i.name]||0)+1;}));
     const rows=Object.keys(cnt).length===0?`<div style="padding:10px 14px;font-size:12px;color:#aaa">Tiada order</div>`:Object.entries(cnt).sort((a,b)=>b[1]-a[1]).map(([n,c])=>`<div class="list-item"><span style="font-size:12px">${n}</span><span class="pax-badge">${c} pax</span></div>`).join("");
     return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:4px">${s.nama}</div><div class="list-card">${rows}</div></div>`;
   }).join("");
-
   const ordersList=orders.length===0?`<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Tiada pesanan lagi.</div>`:orders.map(o=>`<div class="order-card">
     <div class="order-name">
       <span>${o.name}${(o.persons||[]).length>1?` <span style="font-size:11px;color:#888;font-weight:400">(${o.persons.length} orang)</span>`:''}</span>
-      <button class="del-btn leader-del" data-del-order="${o.id}" style="color:#e53935">Padam</button>
+      <button class="leader-del" data-del-order="${o.id}" style="font-size:11px;color:#e53935;background:none;border:none;cursor:pointer">Padam</button>
     </div>
     ${(o.persons||[]).map((p,pi)=>`
       ${(o.persons||[]).length>1?`<div style="font-size:11px;font-weight:600;color:#888;margin:5px 0 2px">👤 Orang ${pi+1}</div>`:''}
       ${sl.map(s=>`<div class="order-sesi"><div class="order-sesi-title">${s.nama}</div>
       <div class="order-sesi-val">${p[s.id]?p[s.id].name:'—'}${s.id==="namba"&&p[s.id]?' <span style="font-size:10px;color:#888">(Regular+Karaage)</span>':''}</div></div>`).join("")}`).join("")}
   </div>`).join("");
-
-  return`<div class="sticky-top"><button class="back-btn" id="back">←</button><h2>Tour Leader</h2></div>
+  return`<div class="sticky-top"><button class="back-btn" id="back">←</button><h2>👤 Tour Leader</h2></div>
   <div class="body" style="padding-bottom:40px">
     ${tripSel}
     <div class="stat-row">
