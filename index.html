@@ -223,11 +223,21 @@ function buildRestoran1Sesi(trip,orders,sesiId){
   const mod=trip.mod||"tren";
   let txt=`🍜 *DINNER ORDER — NAMBA/DOTONBORI*\n📌 Trip: ${trip.nama}\n📅 Date: ${tarikhNamba}\n⏰ Order time: ${waktuNamba} (${mod==="tren"?"by train":"by bus"})\n${'─'.repeat(28)}\n\n`;
   if(!Object.keys(cnt).length){txt+=`  No orders yet.\n`;return txt;}
+  const RAMEN_PRICE=1000;const KARAAGE_PRICE=400;
   const totalPax=Object.values(cnt).reduce((a,b)=>a+b,0);
+  let ramenTotal=0;
   Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{
-    txt+=`  • ${n}: *${c} pax*\n    ↳ + Karaage 3pc ¥${(400*c).toLocaleString()}\n`;
+    const tot=RAMEN_PRICE*c;ramenTotal+=tot;
+    txt+=`  • ${n} (Regular size)\n`;
+    txt+=`    ¥${RAMEN_PRICE.toLocaleString()} × ${c} pax = ¥${tot.toLocaleString()}\n\n`;
   });
-  txt+=`\n🍗 *Karaage 3pc × ${totalPax} = ¥${(400*totalPax).toLocaleString()}*\n`;
+  const karaageTotal=KARAAGE_PRICE*totalPax;
+  txt+=`  • Karaage 3pc\n`;
+  txt+=`    ¥${KARAAGE_PRICE.toLocaleString()} × ${totalPax} pax = ¥${karaageTotal.toLocaleString()}\n\n`;
+  txt+=`${'─'.repeat(28)}\n`;
+  txt+=`🍜 Ramen total: ¥${ramenTotal.toLocaleString()}\n`;
+  txt+=`🍗 Karaage total: ¥${karaageTotal.toLocaleString()}\n`;
+  txt+=`💴 *GRAND TOTAL: ¥${(ramenTotal+karaageTotal).toLocaleString()}*\n`;
   return txt;
 }
 function buildLeader(trip,orders){
