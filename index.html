@@ -413,25 +413,50 @@ function renderAdmin(){
   if(S.adminTab==="imgs"){
     const trip=S.trips.find(t=>t.id===S.selectedTripId);
     const sl=trip?(trip.sesi||SESI):SESI;
+    // Build flat menu list with keys
+    const allMenus=[];
+    sl.forEach(sesi=>sesi.menus.forEach(m=>allMenus.push({key:`${sesi.id}_${m.id}`,name:m.name,sesiNama:sesi.nama,sesiId:sesi.id})));
+    // Pending assignments (files picked but not yet saved)
+    const pending=S.pendingImgs||{};
     const rows=sl.map(sesi=>`
       <div class="section-title">${sesi.nama}</div>
       <div class="list-card" style="background:#fff;padding:0 14px">
         ${sesi.menus.map(m=>{
-          const key=`${sesi.id}_${m.id}`;const imgSrc=S.imgs[key];
+          const key=`${sesi.id}_${m.id}`;
+          const imgSrc=pending[key]?pending[key].preview:S.imgs[key];
+          const isPending=!!pending[key];
           return`<div class="admin-menu-row">
             <div class="admin-thumb">${imgSrc?`<img src="${imgSrc}"/>`:'🍽️'}</div>
             <div style="flex:1;min-width:0">
               <div style="font-size:12px;font-weight:600">${m.name}</div>
-              <label class="upload-lbl">
-                ${S.uploadingImg[key]?'Memuatkan...':imgSrc?'Tukar gambar':'Upload gambar'}
-                <input type="file" accept="image/*" style="display:none" data-imgkey="${key}" class="img-upload"/>
-              </label>
+              <div style="font-size:11px;color:${isPending?'#e65100':'#1a6b3c'}">${isPending?'⏳ Belum disimpan':S.imgs[key]?'✓ Gambar ada':''}</div>
             </div>
+            <select class="img-assign-select" data-key="${key}" style="font-size:11px;border:1px solid #ddd;border-radius:6px;padding:4px 6px;max-width:140px;color:#333">
+              <option value="">— tiada —</option>
+              ${(S.pickedFiles||[]).map((f,i)=>`<option value="${i}" ${pending[key]&&pending[key].fileIdx===i?'selected':''}>📷 ${f.name.length>18?f.name.substr(0,18)+'...':f.name}</option>`).join("")}
+            </select>
           </div>`;
         }).join("")}
       </div>`).join("");
+
+    const pickedCount=(S.pickedFiles||[]).length;
     return`<div class="sticky-top"><button class="back-btn" id="back-to-trips">←</button><h2>Urus Gambar Menu</h2></div>
-    <div class="body" style="padding-bottom:40px">${rows}</div>`;
+    <div class="body" style="padding-bottom:100px">
+      <div class="add-box" style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">📂 Langkah 1 — Pilih semua gambar sekaligus</div>
+        <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border:1.5px dashed #1a6b3c;border-radius:10px;cursor:pointer;font-size:13px;color:#1a6b3c;background:#f0f9f4">
+          📷 ${pickedCount>0?`${pickedCount} gambar dipilih — klik untuk tukar`:'Pilih gambar (boleh pilih banyak)'}
+          <input type="file" accept="image/*" multiple style="display:none" id="bulk-file-pick"/>
+        </label>
+        ${pickedCount>0?`<div style="margin-top:10px;font-size:12px;color:#666">Gambar dipilih:<br>${(S.pickedFiles||[]).map((f,i)=>`<span style="display:inline-block;background:#f0f9f4;border-radius:6px;padding:2px 8px;margin:2px;font-size:11px">📷 ${i+1}. ${f.name}</span>`).join("")}</div>`:''}
+      </div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px">🔗 Langkah 2 — Padankan gambar dengan menu</div>
+      <p style="font-size:12px;color:#888;margin-bottom:12px">Pilih gambar yang sesuai untuk setiap menu menggunakan dropdown di sebelah kanan.</p>
+      ${rows}
+    </div>
+    <div class="fixed-bottom">
+      <button class="btn-primary" id="save-all-imgs" ${pickedCount===0?'disabled':''}>💾 Simpan Semua Gambar</button>
+    </div>`;
   }
 
   const trip=S.trips.find(t=>t.id===S.selectedTripId)||S.trips[0];
@@ -523,10 +548,62 @@ function attachEvents(){
   // Manage images button
   document.querySelectorAll("[data-manage-imgs]").forEach(b=>b.addEventListener("click",async()=>{
     S.selectedTripId=b.dataset.manageImgs;S.adminTab="imgs";
+    S.pickedFiles=[];S.pendingImgs={};
     await loadImgs(S.selectedTripId);render();
   }));
 
-  // Image upload
+  // Bulk file pick
+  on("bulk-file-pick","change",async e=>{
+    const files=Array.from(e.target.files);
+    S.pickedFiles=files;S.pendingImgs={};
+    // Auto-match by filename to menu name
+    const trip=S.trips.find(t=>t.id===S.selectedTripId);
+    const sl=trip?(trip.sesi||SESI):SESI;
+    for(const[fi,file] of files.entries()){
+      const fname=file.name.toLowerCase().replace(/[^a-z0-9]/g,' ');
+      for(const sesi of sl){
+        for(const m of sesi.menus){
+          const mname=m.name.toLowerCase().replace(/[^a-z0-9]/g,' ');
+          const words=mname.split(' ').filter(w=>w.length>2);
+          const match=words.filter(w=>fname.includes(w)).length>=Math.min(2,words.length);
+          if(match){
+            const key=`${sesi.id}_${m.id}`;
+            if(!S.pendingImgs[key]){
+              const preview=await f2b(file);
+              S.pendingImgs[key]={fileIdx:fi,preview,file};
+            }
+          }
+        }
+      }
+    }
+    render();
+  });
+
+  // Dropdown assign
+  document.querySelectorAll(".img-assign-select").forEach(sel=>sel.addEventListener("change",async e=>{
+    const key=sel.dataset.key;const idx=parseInt(e.target.value);
+    if(isNaN(idx)||!S.pickedFiles[idx]){delete S.pendingImgs[key];render();return;}
+    const file=S.pickedFiles[idx];
+    const preview=await f2b(file);
+    S.pendingImgs[key]={fileIdx:idx,preview,file};
+    render();
+  }));
+
+  // Save all images
+  on("save-all-imgs","click",async()=>{
+    const keys=Object.keys(S.pendingImgs);
+    if(!keys.length){alert("Tiada gambar untuk disimpan.");return;}
+    toast("⏳ Menyimpan gambar...");
+    for(const key of keys){
+      const b64=await f2b(S.pendingImgs[key].file);
+      S.imgs[key]=b64;
+    }
+    await saveImgs(S.selectedTripId);
+    S.pendingImgs={};S.pickedFiles=[];
+    toast(`✓ ${keys.length} gambar berjaya disimpan!`);render();
+  });
+
+  // Image upload (single — kept for fallback)
   document.querySelectorAll(".img-upload").forEach(inp=>inp.addEventListener("change",async e=>{
     const key=inp.dataset.imgkey;const file=e.target.files[0];if(!file)return;
     S.uploadingImg[key]=true;render();
