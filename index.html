@@ -30,17 +30,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sesi-header h3{font-size:15px;font-weight:600;margin-bottom:2px}
 .sesi-header p{font-size:12px;opacity:0.85}
 .sesi-note{background:#fff8e1;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#856404;border-left:3px solid #ffc107}
-.person-block{background:#f9f9f9;border-radius:12px;padding:12px;margin-bottom:14px;border:1.5px solid #eee}
-.person-block.filled{border-color:#1a6b3c;background:#f0f9f4}
-.person-label{font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.person-selected{font-size:11px;background:#1a6b3c;color:#fff;border-radius:20px;padding:2px 8px;margin-left:auto}
-.menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.menu-card{border-radius:10px;border:2px solid #eee;overflow:hidden;cursor:pointer;background:#fff;transition:border 0.1s}
+.instruction-box{background:#e8f5e9;border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:13px;color:#1a6b3c;border-left:3px solid #1a6b3c;line-height:1.5}
+/* Person tabs */
+.person-tabs{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.person-tabs::-webkit-scrollbar{height:3px}
+.person-tabs::-webkit-scrollbar-thumb{background:#ccc;border-radius:2px}
+.ptab{padding:8px 16px;border-radius:20px;border:2px solid #eee;background:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;color:#888;transition:all 0.15s;flex-shrink:0}
+.ptab.active{border-color:#1a6b3c;background:#1a6b3c;color:#fff}
+.ptab.done{border-color:#1a6b3c;background:#f0f9f4;color:#1a6b3c}
+.ptab.done::after{content:" ✓";font-size:11px}
+.menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.menu-card{border-radius:12px;border:2px solid #eee;overflow:hidden;cursor:pointer;background:#fff;transition:border 0.1s}
 .menu-card.selected{border-color:#1a6b3c;background:#f0f9f4}
-.menu-img-wrap{position:relative;width:100%;height:72px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.menu-img-wrap{position:relative;width:100%;height:90px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .menu-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
-.menu-check{position:absolute;top:4px;right:4px;background:#1a6b3c;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff}
-.menu-info{padding:6px 8px 8px}
+.menu-check{position:absolute;top:5px;right:5px;background:#1a6b3c;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff}
+.menu-info{padding:7px 8px 9px}
 .menu-name{font-size:11px;font-weight:600;color:#1a1a1a;line-height:1.3;margin-bottom:1px}
 .menu-price{font-size:11px;color:#1a6b3c;font-weight:600}
 .menu-desc{font-size:10px;color:#888;line-height:1.3;margin-top:1px}
@@ -54,7 +59,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .success-icon{font-size:56px;margin-bottom:14px}
 .summary-box{background:#f9f9f9;border-radius:12px;padding:14px;margin:14px 0;text-align:left}
 .summary-box h4{font-size:13px;font-weight:600;margin-bottom:10px;color:#1a6b3c}
-.summary-sesi{margin-bottom:12px}
+.summary-sesi{margin-bottom:10px}
 .summary-sesi-title{font-size:11px;color:#1a6b3c;font-weight:600;text-transform:uppercase;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid #eee}
 .summary-row{font-size:12px;color:#555;padding:3px 0;display:flex;justify-content:space-between}
 .stat-row{display:flex;gap:8px;margin-bottom:16px}
@@ -68,7 +73,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pax-badge{font-size:11px;font-weight:600;background:#e8f5e9;color:#1a6b3c;border-radius:20px;padding:2px 10px;white-space:nowrap}
 .order-card{background:#fff;border:1px solid #eee;border-radius:12px;padding:12px 14px;margin-bottom:8px}
 .order-name{font-size:14px;font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
-.order-sesi{margin-bottom:6px}
+.order-sesi{margin-bottom:5px}
 .order-sesi-title{font-size:10px;color:#1a6b3c;font-weight:600;text-transform:uppercase;margin-bottom:2px}
 .order-sesi-val{font-size:12px;color:#333}
 .del-btn{font-size:11px;color:#e53935;background:none;border:none;cursor:pointer}
@@ -91,6 +96,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .vegan-tag{font-size:9px;background:#e8f5e9;color:#1a6b3c;border-radius:10px;padding:1px 5px;margin-left:3px}
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:999;opacity:0;transition:opacity 0.3s;pointer-events:none}
 .toast.show{opacity:1}
+/* Admin menu img */
+.admin-menu-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eee}
+.admin-menu-row:last-child{border-bottom:none}
+.admin-thumb{width:52px;height:52px;border-radius:10px;overflow:hidden;background:#f0f0f0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px}
+.admin-thumb img{width:100%;height:100%;object-fit:cover}
+.upload-lbl{font-size:11px;color:#1a6b3c;cursor:pointer;display:block;margin-top:3px}
 </style>
 </head>
 <body>
@@ -133,50 +144,39 @@ const SESI=[
     {id:2,name:"Miso Ramen",price:1000,desc:"Regular + Karaage 3pc ¥400"},
   ]},
 ];
+
 let S={
   view:"home",tripId:null,tripData:null,trips:[],orders:[],
   adminUnlocked:false,adminPass:"",adminError:"",adminTab:"trips",selectedTripId:null,
-  orderForm:{name:"",pax:1,persons:[]},orderStep:1,currentSesiIdx:0,
+  orderForm:{name:"",pax:1,persons:[]},orderStep:1,currentSesiIdx:0,activePerson:0,
   submitted:false,orderError:"",loading:true,
-  newTrip:{nama:"",tarikh:"",pax:""},addSpecial:"",
+  newTrip:{nama:"",tarikh:"",tarikhMula:"",mod:"tren",pax:""},
+  addSpecial:"",imgs:{},uploadingImg:{},
 };
+
 function toast(m="✓ Disalin!"){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2000);}
-function copy(txt){navigator.clipboard?navigator.clipboard.writeText(txt).then(()=>toast()):((ta=>{ ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);toast();})(Object.assign(document.createElement("textarea"),{})));}
+function copy(txt){navigator.clipboard?navigator.clipboard.writeText(txt).then(()=>toast()):((ta=>{ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);toast();})(document.createElement("textarea")));}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5);}
 function tripLink(id){return`${location.origin}${location.pathname}?trip=${id}`;}
+function f2b(file){return new Promise((r,j)=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=j;fr.readAsDataURL(file);});}
+function addDays(ds,days){if(!ds)return'—';const d=new Date(ds);d.setDate(d.getDate()+days);return d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
+function getWaktu(trip,sid){const m=trip.mod||"tren";if(sid==="nara")return m==="tren"?"11:00am":"11:30am";if(sid==="namba")return m==="tren"?"5:00pm":"5:30pm";return"";}
+function getTarikhSesi(trip,sid){if(!trip.tarikhMula)return'—';if(sid==="nara"||sid==="namba")return addDays(trip.tarikhMula,1);if(sid==="fuji")return addDays(trip.tarikhMula,3);return'—';}
+
 async function loadTrips(){try{const s=await getDocs(collection(db,"trips"));S.trips=s.docs.map(d=>({id:d.id,...d.data()}));}catch(e){}}
 async function loadOrders(tid){try{const s=await getDocs(collection(db,"trips",tid,"orders"));S.orders=s.docs.map(d=>d.data());}catch(e){S.orders=[];}}
+async function loadImgs(tid){try{const d=await getDoc(doc(db,"trips",tid,"config","imgs"));if(d.exists())S.imgs=d.data();}catch(e){S.imgs={};}}
 function listenOrders(tid){onSnapshot(collection(db,"trips",tid,"orders"),s=>{S.orders=s.docs.map(d=>d.data());render();});}
 async function saveOrder(tid,o){await setDoc(doc(db,"trips",tid,"orders",o.id),o);}
 async function delOrder(tid,oid){await deleteDoc(doc(db,"trips",tid,"orders",oid));}
 async function saveTrip(t){await setDoc(doc(db,"trips",t.id),t);}
 async function delTrip(tid){const s=await getDocs(collection(db,"trips",tid,"orders"));for(const d of s.docs)await deleteDoc(d.ref);await deleteDoc(doc(db,"trips",tid));}
+async function saveImgs(tid){await setDoc(doc(db,"trips",tid,"config","imgs"),S.imgs);}
 
-function addDays(dateStr,days){
-  if(!dateStr)return'—';
-  const d=new Date(dateStr);d.setDate(d.getDate()+days);
-  return d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-}
-function getWaktu(trip,sesiId){
-  const mod=trip.mod||"tren";
-  if(sesiId==="nara")return mod==="tren"?"11:00am":"11:30am";
-  if(sesiId==="namba")return mod==="tren"?"5:00pm":"5:30pm";
-  return"";
-}
-function getTarikhSesi(trip,sesiId){
-  if(!trip.tarikhMula)return'—';
-  if(sesiId==="nara"||sesiId==="namba")return addDays(trip.tarikhMula,1);
-  if(sesiId==="fuji")return addDays(trip.tarikhMula,3);
-  return'—';
-}
 function buildRestoran1Sesi(trip,orders,sesiId){
-  const sl=trip.sesi||SESI;
-  const s=sl.find(x=>x.id===sesiId);if(!s)return"";
-
-  // Build count map
+  const sl=trip.sesi||SESI;const s=sl.find(x=>x.id===sesiId);if(!s)return"";
   const cnt={};const pm={};
   orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p[s.id];if(i){cnt[i.name]=(cnt[i.name]||0)+1;pm[i.name]=i.price||0;}}));
-
   if(sesiId==="fuji"){
     const tarikhFuji=getTarikhSesi(trip,"fuji");
     const CATS=[
@@ -186,104 +186,55 @@ function buildRestoran1Sesi(trip,orders,sesiId){
       {label:"🍜 NOODLES",items:["Spicy Noodle 🌶","Spicy Noodle 🌶🌶","Spicy Noodle 🌶🌶🌶"]},
     ];
     let txt=`🍱 *BENTO ORDER — FUJI*\n📌 Trip: ${trip.nama}\n📅 Date: ${tarikhFuji}\n${'─'.repeat(28)}\n\n`;
-    let grandTotal=0;
+    let grand=0;
     CATS.forEach(cat=>{
-      const catItems=cat.items.filter(n=>cnt[n]);
-      if(!catItems.length)return;
-      txt+=`*${cat.label}*\n`;
-      let subTotal=0;
-      catItems.forEach(n=>{
-        const c=cnt[n];const p=pm[n]||0;const tot=p*c;subTotal+=tot;
-        txt+=`  • ${n}: *${c} pax* (¥${p.toLocaleString()} × ${c} = ¥${tot.toLocaleString()})\n`;
-      });
-      txt+=`  Subtotal: ¥${subTotal.toLocaleString()}\n\n`;
-      grandTotal+=subTotal;
+      const ci=cat.items.filter(n=>cnt[n]);if(!ci.length)return;
+      txt+=`*${cat.label}*\n`;let sub=0;
+      ci.forEach(n=>{const c=cnt[n];const p=pm[n]||0;const tot=p*c;sub+=tot;txt+=`  • ${n}: *${c} pax* (¥${p.toLocaleString()} × ${c} = ¥${tot.toLocaleString()})\n`;});
+      txt+=`  Subtotal: ¥${sub.toLocaleString()}\n\n`;grand+=sub;
     });
-    txt+=`${'─'.repeat(28)}\n💴 *GRAND TOTAL: ¥${grandTotal.toLocaleString()}*\n`;
+    txt+=`${'─'.repeat(28)}\n💴 *GRAND TOTAL: ¥${grand.toLocaleString()}*\n`;
     return txt;
   }
-  // Nara
   if(sesiId==="nara"){
-    const tarikhNara=getTarikhSesi(trip,"nara");
-    const waktuNara=getWaktu(trip,"nara");
     const mod=trip.mod||"tren";
-    let txt=`🍛 *LUNCH ORDER — NARA*\n📌 Trip: ${trip.nama}\n📅 Date: ${tarikhNara}\n⏰ Order time: ${waktuNara} (${mod==="tren"?"by train":"by bus"})\n${'─'.repeat(28)}\n\n`;
+    let txt=`🍛 *LUNCH ORDER — NARA*\n📌 Trip: ${trip.nama}\n📅 Date: ${getTarikhSesi(trip,"nara")}\n⏰ Order time: ${getWaktu(trip,"nara")} (${mod==="tren"?"by train":"by bus"})\n${'─'.repeat(28)}\n\n`;
     if(!Object.keys(cnt).length){txt+=`  No orders yet.\n`;return txt;}
     let sub=0;
-    Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{
-      const p=pm[n]||0;const tot=p*c;sub+=tot;
-      txt+=`  • ${n}: *${c} pax* (¥${p.toLocaleString()} × ${c} = ¥${tot.toLocaleString()})\n`;
-    });
-    txt+=`\n💴 *Total: ¥${sub.toLocaleString()}*\n`;
-    return txt;
+    Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{const p=pm[n]||0;const tot=p*c;sub+=tot;txt+=`  • ${n}: *${c} pax* (¥${p.toLocaleString()} × ${c} = ¥${tot.toLocaleString()})\n`;});
+    txt+=`\n💴 *Total: ¥${sub.toLocaleString()}*\n`;return txt;
   }
-  // Namba
-  const tarikhNamba=getTarikhSesi(trip,"namba");
-  const waktuNamba=getWaktu(trip,"namba");
   const mod=trip.mod||"tren";
-  let txt=`🍜 *DINNER ORDER — NAMBA/DOTONBORI*\n📌 Trip: ${trip.nama}\n📅 Date: ${tarikhNamba}\n⏰ Order time: ${waktuNamba} (${mod==="tren"?"by train":"by bus"})\n${'─'.repeat(28)}\n\n`;
+  let txt=`🍜 *DINNER ORDER — NAMBA/DOTONBORI*\n📌 Trip: ${trip.nama}\n📅 Date: ${getTarikhSesi(trip,"namba")}\n⏰ Order time: ${getWaktu(trip,"namba")} (${mod==="tren"?"by train":"by bus"})\n${'─'.repeat(28)}\n\n`;
   if(!Object.keys(cnt).length){txt+=`  No orders yet.\n`;return txt;}
-  const RAMEN_PRICE=1000;const KARAAGE_PRICE=400;
-  const totalPax=Object.values(cnt).reduce((a,b)=>a+b,0);
-  let ramenTotal=0;
-  Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{
-    const tot=RAMEN_PRICE*c;ramenTotal+=tot;
-    txt+=`  • ${n} (Regular size)\n`;
-    txt+=`    ¥${RAMEN_PRICE.toLocaleString()} × ${c} pax = ¥${tot.toLocaleString()}\n\n`;
-  });
-  const karaageTotal=KARAAGE_PRICE*totalPax;
-  txt+=`  • Karaage 3pc\n`;
-  txt+=`    ¥${KARAAGE_PRICE.toLocaleString()} × ${totalPax} pax = ¥${karaageTotal.toLocaleString()}\n\n`;
-  txt+=`${'─'.repeat(28)}\n`;
-  txt+=`🍜 Ramen total: ¥${ramenTotal.toLocaleString()}\n`;
-  txt+=`🍗 Karaage total: ¥${karaageTotal.toLocaleString()}\n`;
-  txt+=`💴 *GRAND TOTAL: ¥${(ramenTotal+karaageTotal).toLocaleString()}*\n`;
+  const R=1000,K=400;const tp=Object.values(cnt).reduce((a,b)=>a+b,0);let rt=0;
+  Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{const tot=R*c;rt+=tot;txt+=`  • ${n} (Regular size)\n    ¥${R.toLocaleString()} × ${c} pax = ¥${tot.toLocaleString()}\n\n`;});
+  const kt=K*tp;txt+=`  • Karaage 3pc\n    ¥${K.toLocaleString()} × ${tp} pax = ¥${kt.toLocaleString()}\n\n`;
+  txt+=`${'─'.repeat(28)}\n🍜 Ramen total: ¥${rt.toLocaleString()}\n🍗 Karaage total: ¥${kt.toLocaleString()}\n💴 *GRAND TOTAL: ¥${(rt+kt).toLocaleString()}*\n`;
   return txt;
 }
 function buildLeader(trip,orders){
   const sl=trip.sesi||SESI;
   let txt=`👥 *ORDER UNTUK TOUR LEADER*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
-  // Per person details
   orders.forEach((o,i)=>{
     txt+=`*${i+1}. ${o.name}*${(o.persons||[]).length>1?` (${o.persons.length} orang)`:''}\n`;
     const multi=(o.persons||[]).length>1;
     (o.persons||[]).forEach((p,pi)=>{
       if(multi)txt+=`  👤 Orang ${pi+1}:\n`;
-      const indent=multi?'    ':'  ';
-      sl.forEach(s=>{
-        const item=p[s.id];
-        txt+=`${indent}${s.nama}: ${item?item.name:'—'}`;
-        if(item&&s.showPrice)txt+=` (¥${(item.price||0).toLocaleString()})`;
-        if(s.id==="namba"&&item)txt+=` + Karaage 3pc (¥400)`;
-        txt+=`\n`;
-      });
+      const ind=multi?'    ':'  ';
+      sl.forEach(s=>{const item=p[s.id];txt+=`${ind}${s.nama}: ${item?item.name:'—'}`;if(item&&s.showPrice)txt+=` (¥${(item.price||0).toLocaleString()})`;if(s.id==="namba"&&item)txt+=` + Karaage 3pc (¥400)`;txt+=`\n`;});
     });
-    // Subtotal per wakil
-    let subtotalFuji=0,subtotalNara=0;
-    (o.persons||[]).forEach(p=>{
-      const f=p["fuji"];const n=p["nara"];
-      if(f)subtotalFuji+=f.price||0;
-      if(n)subtotalNara+=n.price||0;
-    });
-    txt+=`  💴 Fuji: ¥${subtotalFuji.toLocaleString()} | Nara: ¥${subtotalNara.toLocaleString()} | *Jumlah: ¥${(subtotalFuji+subtotalNara).toLocaleString()}*\n\n`;
+    let sf=0,sn=0;(o.persons||[]).forEach(p=>{const f=p["fuji"];const n=p["nara"];if(f)sf+=f.price||0;if(n)sn+=n.price||0;});
+    txt+=`  💴 Fuji: ¥${sf.toLocaleString()} | Nara: ¥${sn.toLocaleString()} | *Jumlah: ¥${(sf+sn).toLocaleString()}*\n\n`;
   });
-  // Grand total
-  let grandFuji=0,grandNara=0;
-  orders.forEach(o=>(o.persons||[]).forEach(p=>{
-    const f=p["fuji"];const n=p["nara"];
-    if(f)grandFuji+=f.price||0;if(n)grandNara+=n.price||0;
-  }));
-  txt+=`${'─'.repeat(28)}\n`;
-  txt+=`💴 *JUMLAH KESELURUHAN*\n`;
-  txt+=`  🍱 Fuji: ¥${grandFuji.toLocaleString()}\n`;
-  txt+=`  🍛 Nara: ¥${grandNara.toLocaleString()}\n`;
-  txt+=`  *TOTAL: ¥${(grandFuji+grandNara).toLocaleString()}*\n`;
+  let gf=0,gn=0;orders.forEach(o=>(o.persons||[]).forEach(p=>{const f=p["fuji"];const n=p["nara"];if(f)gf+=f.price||0;if(n)gn+=n.price||0;}));
+  txt+=`${'─'.repeat(28)}\n💴 *JUMLAH KESELURUHAN*\n  🍱 Fuji: ¥${gf.toLocaleString()}\n  🍛 Nara: ¥${gn.toLocaleString()}\n  *TOTAL: ¥${(gf+gn).toLocaleString()}*\n`;
   return txt;
 }
 function buildRingkasan(trip,orders){
   const sl=trip.sesi||SESI;
-  const totalPax=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-  let txt=`📊 *RINGKASAN KESELURUHAN*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n👥 ${orders.length} wakil | 🧑‍🤝‍🧑 ${totalPax} pax\n${'─'.repeat(28)}\n\n`;
+  const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
+  let txt=`📊 *RINGKASAN KESELURUHAN*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n👥 ${orders.length} wakil | 🧑‍🤝‍🧑 ${tp} pax\n${'─'.repeat(28)}\n\n`;
   sl.forEach(s=>{
     txt+=`*${s.nama}*\n`;const cnt={};const pm={};
     orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p[s.id];if(i){cnt[i.name]=(cnt[i.name]||0)+1;pm[i.name]=i.price||0;}}));
@@ -323,16 +274,14 @@ function renderOrder(){
       <p>Terima kasih, <b>${o.name}</b>.</p>
       <p style="font-size:13px;color:#aaa;margin-bottom:16px">${o.pax} orang telah dibuat pesanan.</p>
       <div class="summary-box"><h4>Ringkasan Pesanan</h4>
-        ${sesiList.map(s=>`
-          <div class="summary-sesi">
-            <div class="summary-sesi-title">${s.nama}</div>
-            ${(o.persons||[]).map((p,i)=>`<div class="summary-row"><span>${o.pax>1?`Orang ${i+1}`:o.name}</span><span>${p[s.id]?p[s.id].name:'—'}</span></div>`).join("")}
-          </div>`).join("")}
+        ${sesiList.map(s=>`<div class="summary-sesi">
+          <div class="summary-sesi-title">${s.nama}</div>
+          ${(o.persons||[]).map((p,i)=>`<div class="summary-row"><span>${o.pax>1?`Orang ${i+1}`:o.name}</span><span>${p[s.id]?p[s.id].name:'—'}</span></div>`).join("")}
+        </div>`).join("")}
       </div>
     </div>`;
   }
 
-  // Step 1: nama & bilangan
   if(S.orderStep===1){
     const totalSteps=sesiList.length+1;
     return`<div class="sticky-top"><h2>${trip.nama}</h2><span style="font-size:11px;background:#f0f9f4;color:#1a6b3c;border-radius:20px;padding:3px 10px">${trip.tarikh||''}</span></div>
@@ -352,50 +301,66 @@ function renderOrder(){
     <div class="fixed-bottom"><button class="btn-primary" id="next-step">Seterusnya →</button></div>`;
   }
 
-  // Step 2+: satu sesi, semua orang
   const sesiIdx=S.currentSesiIdx;
   const sesi=sesiList[sesiIdx];
   const totalSteps=sesiList.length+1;
   const persons=S.orderForm.persons||[];
+  const ap=S.activePerson;
+  const allFilled=persons.every(p=>p[sesi.id]);
+  const isLast=sesiIdx===sesiList.length-1;
 
-  // Build person blocks — each person picks from menu
-  const personBlocks=persons.map((p,pi)=>{
-    const sel=p[sesi.id];
-    const cards=sesi.menus.map(m=>{
-      const isSel=sel&&sel.id===m.id;
-      return`<div class="menu-card ${isSel?'selected':''}" data-sesi="${sesi.id}" data-pid="${pi}" data-menuid="${m.id}">
-        <div class="menu-img-wrap"><span style="font-size:22px">🍽️</span>${isSel?'<div class="menu-check">✓</div>':''}</div>
-        <div class="menu-info">
-          <div class="menu-name">${m.name}${m.isVegan?'<span class="vegan-tag">Vegan</span>':''}</div>
-          ${sesi.showPrice?`<div class="menu-price">¥${m.price.toLocaleString()}</div>`:''}
-          ${m.desc?`<div class="menu-desc">${m.desc}</div>`:''}
-        </div>
-      </div>`;
-    }).join("");
-    return`<div class="person-block ${sel?'filled':''}">
-      <div class="person-label">
-        👤 ${persons.length>1?`Orang ${pi+1}`:'Pilihan Anda'}
-        ${sel?`<span class="person-selected">✓ ${sel.name}</span>`:''}
+  // Person tabs
+  const tabs=persons.map((p,i)=>{
+    const filled=!!p[sesi.id];
+    return`<button class="ptab ${ap===i?'active':filled?'done':''}" data-ptab="${i}">${persons.length>1?`Orang ${i+1}`:'Anda'}</button>`;
+  }).join("");
+
+  // Menu grid for active person
+  const sel=persons[ap]?persons[ap][sesi.id]:null;
+  const menuCards=sesi.menus.map(m=>{
+    const isSel=sel&&sel.id===m.id;
+    const imgSrc=S.imgs[`${sesi.id}_${m.id}`];
+    return`<div class="menu-card ${isSel?'selected':''}" data-sesi="${sesi.id}" data-pid="${ap}" data-menuid="${m.id}">
+      <div class="menu-img-wrap">
+        ${imgSrc?`<img src="${imgSrc}" alt="${m.name}"/>`:`<span style="font-size:26px">🍽️</span>`}
+        ${isSel?'<div class="menu-check">✓</div>':''}
       </div>
-      <div class="menu-grid">${cards}</div>
+      <div class="menu-info">
+        <div class="menu-name">${m.name}${m.isVegan?'<span class="vegan-tag">Vegan</span>':''}</div>
+        ${sesi.showPrice?`<div class="menu-price">¥${m.price.toLocaleString()}</div>`:''}
+        ${m.desc?`<div class="menu-desc">${m.desc}</div>`:''}
+      </div>
     </div>`;
   }).join("");
 
-  const isLast=sesiIdx===sesiList.length-1;
-  const allFilled=persons.every(p=>p[sesi.id]);
+  // Progress dots for persons
+  const personProgress=persons.map((p,i)=>{
+    const filled=!!p[sesi.id];
+    return`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${filled?'#1a6b3c':'#ddd'};margin:0 2px"></span>`;
+  }).join("");
 
   return`<div class="sticky-top"><h2>${trip.nama}</h2></div>
   <div class="body">
     <div class="progress-bar">${Array.from({length:totalSteps}).map((_,i)=>`<div class="progress-step ${i<sesiIdx+1?'done':i===sesiIdx+1?'active':''}"></div>`).join("")}</div>
     <div class="sesi-header"><h3>${sesi.nama}</h3>${sesi.note?`<p>${sesi.note}</p>`:''}</div>
     ${sesi.id==="namba"?`<div class="sesi-note">✅ Semua order termasuk Regular size + Karaage 3pc (¥400)</div>`:''}
-    ${personBlocks}
+    <div class="instruction-box">
+      📋 <b>Arahan:</b> Pilih menu untuk setiap orang menggunakan tab di bawah.<br>
+      Semua tab mesti dipilih sebelum boleh teruskan.
+      <div style="margin-top:6px">${personProgress} <span style="font-size:11px;color:#1a6b3c">${persons.filter(p=>p[sesi.id]).length}/${persons.length} selesai</span></div>
+    </div>
+    <div class="person-tabs">${tabs}</div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:#1a1a1a">
+      ${persons.length>1?`👤 Pilihan ${ap===0?'Anda (Orang 1)':`Orang ${ap+1}`}:`:'Pilihan Anda:'}
+      ${persons[ap]&&persons[ap][sesi.id]?`<span style="color:#1a6b3c;font-size:12px;font-weight:600"> ✓ ${persons[ap][sesi.id].name}</span>`:'<span style="color:#aaa;font-size:12px;font-weight:400"> Belum dipilih</span>'}
+    </div>
+    <div class="menu-grid">${menuCards}</div>
     ${S.orderError?`<div class="error-box">${S.orderError}</div>`:''}
   </div>
   <div class="fixed-bottom">
     <div style="display:flex;gap:8px">
       <button class="btn-secondary" id="prev-step" style="margin:0;flex:1;padding:14px 0">← Balik</button>
-      <button class="btn-primary" id="next-step" style="margin:0;flex:2;${!allFilled?'opacity:0.6':''}">${isLast?'✅ Hantar Pesanan':'Seterusnya →'}</button>
+      <button class="btn-primary" id="next-step" style="margin:0;flex:2">${isLast?'✅ Hantar Pesanan':'Seterusnya →'}</button>
     </div>
   </div>`;
 }
@@ -413,11 +378,12 @@ function renderAdmin(){
   if(S.adminTab==="trips"){
     const cards=S.trips.map(t=>`<div class="trip-card">
       <div class="trip-name">${t.nama}</div>
-      <div class="trip-meta">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax</div>
+      <div class="trip-meta">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax &nbsp;🚌 ${t.mod||'tren'}</div>
       <span class="trip-link">${tripLink(t.id)}</span>
       <div class="trip-actions">
         <button class="btn-sm" data-copy="${tripLink(t.id)}">📋 Copy Link</button>
         <button class="btn-sm green" data-view-trip="${t.id}">📊 Order</button>
+        <button class="btn-sm" data-manage-imgs="${t.id}">🖼️ Gambar</button>
         <button class="btn-sm red" data-del-trip="${t.id}">🗑 Padam</button>
       </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip lagi.</p>`;
 
@@ -444,24 +410,45 @@ function renderAdmin(){
       </div></div>`;
   }
 
+  if(S.adminTab==="imgs"){
+    const trip=S.trips.find(t=>t.id===S.selectedTripId);
+    const sl=trip?(trip.sesi||SESI):SESI;
+    const rows=sl.map(sesi=>`
+      <div class="section-title">${sesi.nama}</div>
+      <div class="list-card" style="background:#fff;padding:0 14px">
+        ${sesi.menus.map(m=>{
+          const key=`${sesi.id}_${m.id}`;const imgSrc=S.imgs[key];
+          return`<div class="admin-menu-row">
+            <div class="admin-thumb">${imgSrc?`<img src="${imgSrc}"/>`:'🍽️'}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:600">${m.name}</div>
+              <label class="upload-lbl">
+                ${S.uploadingImg[key]?'Memuatkan...':imgSrc?'Tukar gambar':'Upload gambar'}
+                <input type="file" accept="image/*" style="display:none" data-imgkey="${key}" class="img-upload"/>
+              </label>
+            </div>
+          </div>`;
+        }).join("")}
+      </div>`).join("");
+    return`<div class="sticky-top"><button class="back-btn" id="back-to-trips">←</button><h2>Urus Gambar Menu</h2></div>
+    <div class="body" style="padding-bottom:40px">${rows}</div>`;
+  }
+
   const trip=S.trips.find(t=>t.id===S.selectedTripId)||S.trips[0];
   const sl=trip?(trip.sesi||SESI):SESI;
   const orders=S.orders;
   const totalPax=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-
   const tripSel=S.trips.length>0?`<select class="form-input" id="trip-selector">${S.trips.map(t=>`<option value="${t.id}" ${S.selectedTripId===t.id?'selected':''}>${t.nama}</option>`).join("")}</select>`:`<p style="color:#aaa;font-size:13px">Tiada trip.</p>`;
-
   const summary=sl.map(s=>{
     const cnt={};orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p[s.id];if(i)cnt[i.name]=(cnt[i.name]||0)+1;}));
     const rows=Object.keys(cnt).length===0?`<div style="padding:10px 14px;font-size:12px;color:#aaa">Tiada order</div>`:Object.entries(cnt).sort((a,b)=>b[1]-a[1]).map(([n,c])=>`<div class="list-item"><span style="font-size:12px">${n}</span><span class="pax-badge">${c} pax</span></div>`).join("");
     return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:4px">${s.nama}</div><div class="list-card">${rows}</div></div>`;
   }).join("");
-
   const ordersList=orders.length===0?`<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Tiada pesanan lagi.</div>`:orders.map(o=>`<div class="order-card">
     <div class="order-name"><span>${o.name}${(o.persons||[]).length>1?` <span style="font-size:11px;color:#888;font-weight:400">(${o.persons.length} orang)</span>`:''}</span>
     <button class="del-btn" data-del-order="${o.id}">✕</button></div>
     ${(o.persons||[]).map((p,pi)=>`
-      ${(o.persons||[]).length>1?`<div style="font-size:11px;font-weight:600;color:#888;margin:6px 0 3px">👤 Orang ${pi+1}</div>`:''}
+      ${(o.persons||[]).length>1?`<div style="font-size:11px;font-weight:600;color:#888;margin:5px 0 2px">👤 Orang ${pi+1}</div>`:''}
       ${sl.map(s=>`<div class="order-sesi"><div class="order-sesi-title">${s.nama}</div>
       <div class="order-sesi-val">${p[s.id]?p[s.id].name:'—'}${s.id==="namba"&&p[s.id]?' <span style="font-size:10px;color:#888">(Regular+Karaage)</span>':''}</div></div>`).join("")}`).join("")}
   </div>`).join("");
@@ -505,6 +492,7 @@ function attachEvents(){
 
   on("go-admin","click",()=>{S.view="admin";loadTrips().then(()=>{if(S.trips.length>0)S.selectedTripId=S.trips[0].id;render();});});
   on("back","click",()=>{if(S.view==="admin"&&S.adminUnlocked)S.adminUnlocked=false;S.view="home";render();});
+  on("back-to-trips","click",()=>{S.adminTab="trips";render();});
   on("admin-pass","input",e=>S.adminPass=e.target.value);
   on("admin-login","click",()=>{
     if(S.adminPass===PASS){S.adminUnlocked=true;S.adminError="";loadTrips().then(()=>{if(S.trips.length>0)S.selectedTripId=S.trips[0].id;render();});}
@@ -531,14 +519,25 @@ function attachEvents(){
     await saveTrip(t);S.trips.push(t);S.newTrip={nama:"",tarikh:"",tarikhMula:"",mod:"tren",pax:""};
     alert(`✅ Trip "${t.nama}" berjaya dicipta!\n\n🔗 Link:\n${tripLink(id)}`);render();
   });
+
+  // Manage images button
+  document.querySelectorAll("[data-manage-imgs]").forEach(b=>b.addEventListener("click",async()=>{
+    S.selectedTripId=b.dataset.manageImgs;S.adminTab="imgs";
+    await loadImgs(S.selectedTripId);render();
+  }));
+
+  // Image upload
+  document.querySelectorAll(".img-upload").forEach(inp=>inp.addEventListener("change",async e=>{
+    const key=inp.dataset.imgkey;const file=e.target.files[0];if(!file)return;
+    S.uploadingImg[key]=true;render();
+    const b64=await f2b(file);S.imgs[key]=b64;S.uploadingImg[key]=false;
+    await saveImgs(S.selectedTripId);toast("✓ Gambar disimpan!");render();
+  }));
+
   document.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>{navigator.clipboard.writeText(b.dataset.copy).then(()=>toast("✓ Link disalin!"));}));
   document.querySelectorAll("[data-view-trip]").forEach(b=>b.addEventListener("click",async()=>{S.selectedTripId=b.dataset.viewTrip;S.adminTab="orders";await loadOrders(S.selectedTripId);render();}));
-  document.querySelectorAll("[data-del-trip]").forEach(b=>b.addEventListener("click",async()=>{
-    if(!confirm("Padam trip ini?"))return;await delTrip(b.dataset.delTrip);S.trips=S.trips.filter(t=>t.id!==b.dataset.delTrip);render();
-  }));
-  document.querySelectorAll("[data-del-order]").forEach(b=>b.addEventListener("click",async()=>{
-    const tid=S.selectedTripId||S.tripId;await delOrder(tid,b.dataset.delOrder);S.orders=S.orders.filter(o=>o.id!==b.dataset.delOrder);render();
-  }));
+  document.querySelectorAll("[data-del-trip]").forEach(b=>b.addEventListener("click",async()=>{if(!confirm("Padam trip ini?"))return;await delTrip(b.dataset.delTrip);S.trips=S.trips.filter(t=>t.id!==b.dataset.delTrip);render();}));
+  document.querySelectorAll("[data-del-order]").forEach(b=>b.addEventListener("click",async()=>{const tid=S.selectedTripId||S.tripId;await delOrder(tid,b.dataset.delOrder);S.orders=S.orders.filter(o=>o.id!==b.dataset.delOrder);render();}));
   on("reset-trip","click",async()=>{
     if(!confirm("Padam SEMUA pesanan?"))return;
     const tid=S.selectedTripId;const snap=await getDocs(collection(db,"trips",tid,"orders"));
@@ -563,14 +562,17 @@ function attachEvents(){
   on("cnt-minus","click",()=>{S.orderForm.pax=Math.max(1,S.orderForm.pax-1);render();});
   on("cnt-plus","click",()=>{
     const trip=S.tripData;const pax=trip?trip.pax:22;
-    const totalPax=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-    const rem=pax-totalPax;S.orderForm.pax=Math.min(S.orderForm.pax+1,rem);render();
+    const tp=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
+    S.orderForm.pax=Math.min(S.orderForm.pax+1,pax-tp);render();
   });
+
+  // Person tabs
+  document.querySelectorAll("[data-ptab]").forEach(b=>b.addEventListener("click",()=>{S.activePerson=parseInt(b.dataset.ptab);render();}));
+
   on("next-step","click",async()=>{
     const trip=S.tripData;const sl=trip.sesi||SESI;
     const pax=trip?trip.pax:22;
-    const totalPaxOrdered=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-    const rem=pax-totalPaxOrdered;
+    const tp=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);const rem=pax-tp;
     if(S.orderStep===1){
       const name=($("order-name")||{}).value?.trim()||S.orderForm.name.trim();
       S.orderForm.name=name;
@@ -579,34 +581,40 @@ function attachEvents(){
       if(rem<=0){S.orderError="Maaf, slot pesanan sudah penuh.";render();return;}
       if(S.orderForm.pax>rem){S.orderError=`Hanya ${rem} slot tinggal.`;render();return;}
       S.orderForm.persons=Array.from({length:S.orderForm.pax},()=>({}));
-      S.currentSesiIdx=0;S.orderError="";S.orderStep=2;render();
+      S.currentSesiIdx=0;S.activePerson=0;S.orderError="";S.orderStep=2;render();
     } else {
       const sesi=sl[S.currentSesiIdx];
       const allFilled=S.orderForm.persons.every(p=>p[sesi.id]);
-      if(!allFilled){S.orderError=`Sila pilih menu untuk semua ${S.orderForm.pax} orang.`;render();return;}
+      if(!allFilled){
+        const missing=S.orderForm.persons.findIndex(p=>!p[sesi.id]);
+        S.activePerson=missing;S.orderError=`Sila pilih menu untuk semua ${S.orderForm.pax} orang.`;render();return;
+      }
       S.orderError="";
       if(S.currentSesiIdx===sl.length-1){
         const order={id:genId(),name:S.orderForm.name,persons:S.orderForm.persons};
         await saveOrder(S.tripId,order);S.submitted=true;render();
       } else {
-        S.currentSesiIdx++;render();
+        S.currentSesiIdx++;S.activePerson=0;render();
       }
     }
   });
   on("prev-step","click",()=>{
-    if(S.currentSesiIdx>0){S.currentSesiIdx--;S.orderError="";}
+    if(S.currentSesiIdx>0){S.currentSesiIdx--;S.activePerson=0;S.orderError="";}
     else{S.orderStep=1;S.orderError="";}
     render();
   });
-
-  // Menu selection — per person per sesi
   document.querySelectorAll(".menu-card").forEach(c=>c.addEventListener("click",()=>{
-    const sesiId=c.dataset.sesi;const pid=parseInt(c.dataset.pid);const mid=parseInt(c.dataset.menuid);
+    const sid=c.dataset.sesi;const pid=parseInt(c.dataset.pid);const mid=parseInt(c.dataset.menuid);
     const trip=S.tripData;const sl=trip.sesi||SESI;
-    const sesi=sl.find(s=>s.id===sesiId);if(!sesi)return;
+    const sesi=sl.find(s=>s.id===sid);if(!sesi)return;
     const menu=sesi.menus.find(m=>m.id===mid);if(!menu)return;
     if(!S.orderForm.persons[pid])S.orderForm.persons[pid]={};
-    S.orderForm.persons[pid][sesiId]=menu;S.orderError="";render();
+    S.orderForm.persons[pid][sid]=menu;S.orderError="";
+    // Auto-advance to next unfilled person
+    const persons=S.orderForm.persons;
+    const next=persons.findIndex((p,i)=>i>pid&&!p[sid]);
+    if(next!==-1)S.activePerson=next;
+    render();
   }));
 }
 
@@ -615,8 +623,10 @@ window.addEventListener("DOMContentLoaded",async()=>{
   if(tid){
     try{
       const d=await getDoc(doc(db,"trips",tid));
-      if(d.exists()){S.tripId=tid;S.tripData={id:tid,...d.data()};await loadOrders(tid);listenOrders(tid);S.view="order";}
-      else S.view="notfound";
+      if(d.exists()){
+        S.tripId=tid;S.tripData={id:tid,...d.data()};
+        await loadOrders(tid);await loadImgs(tid);listenOrders(tid);S.view="order";
+      } else S.view="notfound";
     }catch(e){S.view="notfound";}
   }
   await loadTrips();if(S.trips.length>0)S.selectedTripId=S.trips[0].id;
