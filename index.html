@@ -155,25 +155,55 @@ async function delTrip(tid){const s=await getDocs(collection(db,"trips",tid,"ord
 function buildRestoran1Sesi(trip,orders,sesiId){
   const sl=trip.sesi||SESI;
   const s=sl.find(x=>x.id===sesiId);if(!s)return"";
-  let txt=`🍽️ *ORDER UNTUK RESTORAN*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
-  txt+=`*${s.nama}*\n`;
+
+  // Build count map
   const cnt={};const pm={};
   orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p[s.id];if(i){cnt[i.name]=(cnt[i.name]||0)+1;pm[i.name]=i.price||0;}}));
-  if(!Object.keys(cnt).length){txt+=`  Tiada order\n`;}
-  else{
-    let sub=0;
-    Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{
-      const p=pm[n]||0;const tot=p*c;sub+=tot;
-      txt+=`  • ${n}: *${c} pax*`;
-      if(s.showPrice)txt+=` (¥${p.toLocaleString()}×${c}=¥${tot.toLocaleString()})`;
-      if(s.id==="namba")txt+=`\n    ↳ +Karaage 3pc ¥${(400*c).toLocaleString()}`;
-      txt+=`\n`;
+
+  if(sesiId==="fuji"){
+    // English version with categories
+    const CATS=[
+      {label:"🥩 KATSURETU MENU",items:["Katsuretu Kawaguchiko Curry","Miso Katsuretu Shingen"]},
+      {label:"🍚 RICE DISHES",items:["Yellow Chicken","Kawaguchiko Curry","Rice Curry","Kebab Rice"]},
+      {label:"🌯 WRAP / KEBAB MENU",items:["Wrap Original (M)","Wrap Spicy (M)","Wrap Curry (M)","Wrap Teriyaki (M)","Wrap Wasabi (M)","Wrap Miso (M)"]},
+      {label:"🍜 NOODLES",items:["Spicy Noodle 🌶","Spicy Noodle 🌶🌶","Spicy Noodle 🌶🌶🌶"]},
+    ];
+    let txt=`🍱 *BENTO ORDER — FUJI*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
+    let grandTotal=0;
+    CATS.forEach(cat=>{
+      const catItems=cat.items.filter(n=>cnt[n]);
+      if(!catItems.length)return;
+      txt+=`*${cat.label}*\n`;
+      let subTotal=0;
+      catItems.forEach(n=>{
+        const c=cnt[n];const p=pm[n]||0;const tot=p*c;subTotal+=tot;
+        txt+=`  • ${n}: *${c} pax* (¥${p.toLocaleString()} × ${c} = ¥${tot.toLocaleString()})\n`;
+      });
+      txt+=`  Subtotal: ¥${subTotal.toLocaleString()}\n\n`;
+      grandTotal+=subTotal;
     });
-    if(s.showPrice)txt+=`\n  💴 *Jumlah: ¥${sub.toLocaleString()}*\n`;
-    if(s.id==="namba"){
-      const totalPax=Object.values(cnt).reduce((a,b)=>a+b,0);
-      txt+=`  🍗 Karaage 3pc × ${totalPax} = ¥${(400*totalPax).toLocaleString()}\n`;
-    }
+    txt+=`${'─'.repeat(28)}\n💴 *GRAND TOTAL: ¥${grandTotal.toLocaleString()}*\n`;
+    return txt;
+  }
+
+  // Default for nara / namba
+  let txt=sesiId==="nara"
+    ?`🍛 *LUNCH ORDER — NARA*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`
+    :`🍜 *DINNER ORDER — NAMBA/DOTONBORI*\n📌 Trip: ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
+
+  if(!Object.keys(cnt).length){txt+=`  No orders yet.\n`;return txt;}
+  let sub=0;
+  Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{
+    const p=pm[n]||0;const tot=p*c;sub+=tot;
+    txt+=`  • ${n}: *${c} pax*`;
+    if(s.showPrice)txt+=` (¥${p.toLocaleString()} × ${c} = ¥${tot.toLocaleString()})`;
+    if(s.id==="namba")txt+=`\n    ↳ + Karaage 3pc ¥${(400*c).toLocaleString()}`;
+    txt+=`\n`;
+  });
+  if(s.showPrice)txt+=`\n💴 *Total: ¥${sub.toLocaleString()}*\n`;
+  if(sesiId==="namba"){
+    const totalPax=Object.values(cnt).reduce((a,b)=>a+b,0);
+    txt+=`🍗 Karaage 3pc × ${totalPax} = ¥${(400*totalPax).toLocaleString()}\n`;
   }
   return txt;
 }
