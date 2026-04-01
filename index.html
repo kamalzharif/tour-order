@@ -1,473 +1,743 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <title>Sistem Order Makan — Grup Tour</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a1a; }
-  .page { max-width: 480px; margin: 0 auto; background: #fff; min-height: 100vh; }
-  .header-blue { background: #378ADD; padding: 40px 24px 32px; text-align: center; }
-  .header-blue h1 { font-size: 24px; font-weight: 600; color: #fff; margin-bottom: 6px; }
-  .header-blue p { font-size: 14px; color: rgba(255,255,255,0.8); }
-  .sticky-header { padding: 14px 16px; border-bottom: 1px solid #eee; position: sticky; top: 0; background: #fff; z-index: 10; display: flex; align-items: center; gap: 10px; }
-  .sticky-header h2 { font-size: 17px; font-weight: 600; flex: 1; }
-  .back-btn { font-size: 22px; background: none; border: none; cursor: pointer; color: #1a1a1a; line-height: 1; padding: 0; }
-  .body { padding: 20px 16px 100px; }
-  .slot-badge { display: flex; justify-content: space-between; align-items: center; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px; }
-  .slot-badge.ok { background: #e8f5e9; }
-  .slot-badge.warn { background: #fdecea; }
-  .slot-badge span { font-size: 14px; font-weight: 600; }
-  .slot-badge.ok span { color: #2e7d32; }
-  .slot-badge.warn span { color: #c62828; }
-  .btn-primary { width: 100%; padding: 17px 0; font-size: 16px; border-radius: 14px; cursor: pointer; background: #378ADD; border: none; color: #fff; font-weight: 600; margin-bottom: 12px; }
-  .btn-primary:disabled { background: #e0e0e0; color: #9e9e9e; cursor: not-allowed; }
-  .btn-secondary { width: 100%; padding: 15px 0; font-size: 15px; border-radius: 14px; cursor: pointer; background: #f5f5f5; border: 1px solid #ddd; color: #1a1a1a; }
-  .form-label { font-size: 13px; color: #666; display: block; margin-bottom: 8px; font-weight: 600; }
-  .form-input { width: 100%; padding: 14px; font-size: 16px; border-radius: 10px; border: 1px solid #ddd; background: #fff; color: #1a1a1a; margin-bottom: 18px; outline: none; }
-  .form-input:focus { border-color: #378ADD; }
-  .counter-wrap { display: flex; align-items: center; gap: 0; margin-bottom: 24px; background: #f5f5f5; border-radius: 12px; padding: 4px; width: fit-content; }
-  .counter-btn { width: 44px; height: 44px; border-radius: 10px; cursor: pointer; font-size: 20px; background: #fff; border: 1px solid #eee; color: #1a1a1a; line-height: 1; }
-  .counter-val { font-size: 20px; font-weight: 600; width: 52px; text-align: center; }
-  .person-label { font-size: 13px; font-weight: 600; background: #f0f0f0; display: inline-block; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px; }
-  .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
-  .menu-card { border-radius: 14px; border: 2.5px solid #eee; overflow: hidden; cursor: pointer; background: #fff; transition: border 0.1s; }
-  .menu-card.selected { border-color: #378ADD; background: #EBF4FB; }
-  .menu-img { width: 100%; height: 110px; object-fit: cover; display: block; background: #f0f0f0; }
-  .menu-img-placeholder { width: 100%; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 32px; background: #f5f5f5; }
-  .menu-check { position: absolute; top: 6px; right: 6px; background: #378ADD; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; }
-  .menu-img-wrap { position: relative; }
-  .menu-info { padding: 10px 10px 12px; }
-  .menu-name { font-size: 13px; font-weight: 600; color: #1a1a1a; line-height: 1.3; margin-bottom: 3px; }
-  .menu-desc { font-size: 11px; color: #888; line-height: 1.4; }
-  .error-box { background: #fdecea; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; font-size: 13px; color: #c62828; }
-  .fixed-bottom { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; padding: 12px 16px 28px; background: #fff; border-top: 1px solid #eee; }
-  .success-wrap { text-align: center; padding: 60px 24px; }
-  .success-icon { font-size: 64px; margin-bottom: 16px; }
-  .success-wrap h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
-  .success-wrap p { font-size: 15px; color: #666; margin-bottom: 4px; }
-  .success-wrap p.sub { font-size: 13px; color: #aaa; margin-bottom: 32px; }
-  .stat-row { display: flex; gap: 10px; margin-bottom: 20px; }
-  .stat-card { background: #f5f5f5; border-radius: 12px; padding: 14px 10px; flex: 1; text-align: center; }
-  .stat-card .stat-label { font-size: 11px; color: #888; margin-bottom: 4px; }
-  .stat-card .stat-val { font-size: 20px; font-weight: 600; }
-  .section-title { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
-  .list-card { background: #f5f5f5; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
-  .list-item { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid #eee; }
-  .list-item:last-child { border-bottom: none; }
-  .list-item span { font-size: 14px; }
-  .pax-badge { font-size: 13px; font-weight: 600; background: #EBF4FB; color: #1565C0; border-radius: 20px; padding: 2px 12px; }
-  .order-card { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; }
-  .order-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .order-card-name { font-size: 15px; font-weight: 600; }
-  .del-btn { font-size: 13px; color: #e53935; background: none; border: none; cursor: pointer; padding: 4px 8px; }
-  .tag { font-size: 12px; background: #f0f0f0; border-radius: 20px; padding: 4px 12px; color: #555; }
-  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
-  .admin-section { background: #f5f5f5; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
-  .admin-menu-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #eee; }
-  .admin-menu-item:last-child { border-bottom: none; }
-  .admin-thumb { width: 52px; height: 52px; border-radius: 10px; overflow: hidden; background: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-  .admin-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .admin-menu-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-  .upload-label { font-size: 12px; color: #378ADD; cursor: pointer; }
-  .add-menu-box { background: #f5f5f5; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-  .add-menu-box .form-input { margin-bottom: 10px; }
-  .upload-area { display: flex; align-items: center; justify-content: center; font-size: 14px; color: #888; cursor: pointer; padding: 13px 14px; border: 1.5px dashed #ddd; border-radius: 10px; background: #fff; margin-bottom: 10px; }
-  .btn-row { display: flex; gap: 10px; }
-  .btn-add { flex: 1; padding: 13px 0; border-radius: 12px; cursor: pointer; font-size: 14px; background: #fff; border: 1px solid #ddd; color: #1a1a1a; }
-  .btn-save { flex: 1; padding: 13px 0; border-radius: 12px; cursor: pointer; font-size: 14px; background: #378ADD; border: none; color: #fff; font-weight: 600; }
-  .lock-wrap { padding: 40px 24px; }
-  .lock-icon { text-align: center; margin-bottom: 28px; font-size: 44px; }
-  .loading { text-align: center; padding: 4rem; color: #888; font-size: 14px; }
-  .spinner { font-size: 32px; margin-bottom: 12px; }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#1a1a1a}
+.page{max-width:480px;margin:0 auto;background:#fff;min-height:100vh}
+.header-blue{background:#1a6b3c;padding:36px 24px 28px;text-align:center}
+.header-blue h1{font-size:22px;font-weight:600;color:#fff;margin-bottom:4px}
+.header-blue p{font-size:13px;color:rgba(255,255,255,0.8)}
+.sticky-top{padding:14px 16px;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;z-index:10;display:flex;align-items:center;gap:10px}
+.sticky-top h2{font-size:17px;font-weight:600;flex:1}
+.back-btn{font-size:22px;background:none;border:none;cursor:pointer;color:#1a1a1a;line-height:1;padding:0}
+.body{padding:20px 16px 100px}
+.btn-primary{width:100%;padding:17px 0;font-size:16px;border-radius:14px;cursor:pointer;background:#1a6b3c;border:none;color:#fff;font-weight:600;margin-bottom:12px}
+.btn-primary:disabled{background:#ccc;cursor:not-allowed}
+.btn-secondary{width:100%;padding:15px 0;font-size:15px;border-radius:14px;cursor:pointer;background:#f5f5f5;border:1px solid #ddd;color:#1a1a1a;margin-bottom:12px}
+.btn-danger{width:100%;padding:13px 0;font-size:14px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935}
+.form-label{font-size:13px;color:#666;display:block;margin-bottom:8px;font-weight:600}
+.form-input{width:100%;padding:14px;font-size:16px;border-radius:10px;border:1px solid #ddd;background:#fff;color:#1a1a1a;margin-bottom:14px;outline:none}
+.form-input:focus{border-color:#1a6b3c}
+.sesi-header{background:#1a6b3c;color:#fff;border-radius:12px;padding:12px 16px;margin-bottom:14px;margin-top:20px}
+.sesi-header h3{font-size:15px;font-weight:600;margin-bottom:2px}
+.sesi-header p{font-size:12px;opacity:0.85}
+.sesi-note{background:#fff8e1;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#856404;border-left:3px solid #ffc107}
+.menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.menu-card{border-radius:12px;border:2px solid #eee;overflow:hidden;cursor:pointer;background:#fff;transition:border 0.1s}
+.menu-card.selected{border-color:#1a6b3c;background:#f0f9f4}
+.menu-img-wrap{position:relative;width:100%;height:90px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.menu-img-wrap img{width:100%;height:100%;object-fit:cover}
+.menu-check{position:absolute;top:5px;right:5px;background:#1a6b3c;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff}
+.menu-info{padding:8px 10px 10px}
+.menu-name{font-size:12px;font-weight:600;color:#1a1a1a;line-height:1.3;margin-bottom:2px}
+.menu-price{font-size:11px;color:#1a6b3c;font-weight:600}
+.menu-desc{font-size:10px;color:#888;line-height:1.4;margin-top:2px}
+.error-box{background:#fdecea;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#c62828}
+.fixed-bottom{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;padding:12px 16px 28px;background:#fff;border-top:1px solid #eee}
+.progress-bar{display:flex;gap:6px;margin-bottom:20px}
+.progress-step{flex:1;height:4px;border-radius:2px;background:#eee}
+.progress-step.done{background:#1a6b3c}
+.progress-step.active{background:#1a6b3c;opacity:0.5}
+.success-wrap{text-align:center;padding:60px 24px}
+.success-icon{font-size:64px;margin-bottom:16px}
+.success-wrap h2{font-size:22px;font-weight:600;margin-bottom:8px}
+.success-wrap p{font-size:15px;color:#666;margin-bottom:4px}
+.success-wrap p.sub{font-size:13px;color:#aaa;margin-bottom:8px}
+.summary-box{background:#f9f9f9;border-radius:12px;padding:14px;margin:16px 0;text-align:left}
+.summary-box h4{font-size:13px;font-weight:600;margin-bottom:8px;color:#1a6b3c}
+.summary-item{font-size:12px;color:#555;padding:4px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between}
+.summary-item:last-child{border-bottom:none}
+.stat-row{display:flex;gap:10px;margin-bottom:20px}
+.stat-card{background:#f5f5f5;border-radius:12px;padding:14px 10px;flex:1;text-align:center}
+.stat-label{font-size:11px;color:#888;margin-bottom:4px}
+.stat-val{font-size:20px;font-weight:600;color:#1a1a1a}
+.section-title{font-size:15px;font-weight:600;margin-bottom:10px;margin-top:20px}
+.list-card{background:#f5f5f5;border-radius:12px;overflow:hidden;margin-bottom:16px}
+.list-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #eee}
+.list-item:last-child{border-bottom:none}
+.pax-badge{font-size:12px;font-weight:600;background:#e8f5e9;color:#1a6b3c;border-radius:20px;padding:2px 10px}
+.order-card{background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:8px}
+.order-name{font-size:15px;font-weight:600;margin-bottom:8px}
+.order-sesi{margin-bottom:8px}
+.order-sesi-title{font-size:11px;color:#1a6b3c;font-weight:600;margin-bottom:3px;text-transform:uppercase}
+.order-sesi-val{font-size:13px;color:#333}
+.del-btn{font-size:12px;color:#e53935;background:none;border:none;cursor:pointer;padding:4px 0;display:block;margin-top:8px}
+.trip-card{background:#fff;border:1px solid #eee;border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.trip-name{font-size:15px;font-weight:600;margin-bottom:4px}
+.trip-meta{font-size:12px;color:#888;margin-bottom:10px}
+.trip-link{font-size:11px;color:#1a6b3c;background:#f0f9f4;padding:6px 10px;border-radius:8px;word-break:break-all;margin-bottom:10px;display:block}
+.trip-actions{display:flex;gap:8px}
+.btn-sm{padding:8px 14px;font-size:12px;border-radius:8px;cursor:pointer;border:1px solid #ddd;background:#fff;color:#333}
+.btn-sm.green{background:#1a6b3c;border-color:#1a6b3c;color:#fff}
+.btn-sm.red{border-color:#e53935;color:#e53935}
+.add-box{background:#f9f9f9;border-radius:12px;padding:16px;margin-bottom:16px}
+.add-box .form-input{margin-bottom:10px}
+.lock-wrap{padding:40px 24px}
+.lock-icon{text-align:center;margin-bottom:28px;font-size:44px}
+.loading{text-align:center;padding:4rem;color:#888;font-size:14px}
+.tab-row{display:flex;gap:0;border-bottom:2px solid #eee;margin-bottom:16px}
+.tab-btn{flex:1;padding:10px 0;font-size:13px;background:none;border:none;cursor:pointer;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px}
+.tab-btn.active{color:#1a6b3c;border-bottom-color:#1a6b3c;font-weight:600}
+.export-btn{width:100%;padding:12px;font-size:13px;border-radius:10px;cursor:pointer;background:#fff;border:1px solid #1a6b3c;color:#1a6b3c;margin-bottom:10px}
+.vegan-tag{font-size:10px;background:#e8f5e9;color:#1a6b3c;border-radius:10px;padding:1px 6px;margin-left:4px}
+.special-tag{font-size:10px;background:#fff3e0;color:#e65100;border-radius:10px;padding:1px 6px;margin-left:4px}
 </style>
 </head>
 <body>
-<div class="page" id="app">
-  <div class="loading"><div class="spinner">🍱</div><p>Memuatkan...</p></div>
-</div>
+<div class="page" id="app"><div class="loading">🍱<br><br>Memuatkan...</div></div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {getFirestore,doc,getDoc,setDoc,deleteDoc,collection,onSnapshot,getDocs} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBdfyI1IHccekotNNRYwlr3U9JTkVc2uWI",
-  authDomain: "tour-order.firebaseapp.com",
-  projectId: "tour-order",
-  storageBucket: "tour-order.firebasestorage.app",
-  messagingSenderId: "411616788552",
-  appId: "1:411616788552:web:fd0a63dbe84c64334d987d",
-  measurementId: "G-3XQRSXRKRP"
-};
+const FC={apiKey:"AIzaSyBdfyI1IHccekotNNRYwlr3U9JTkVc2uWI",authDomain:"tour-order.firebaseapp.com",projectId:"tour-order",storageBucket:"tour-order.firebasestorage.app",messagingSenderId:"411616788552",appId:"1:411616788552:web:fd0a63dbe84c64334d987d"};
+const app=initializeApp(FC);
+const db=getFirestore(app);
+const ADMIN_PASS="admin123";
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const DEFAULT_TRIPS=[]; // trips stored in Firebase
 
-const MAX_TOTAL = 22;
-const ADMIN_PASS = "admin123";
-
-const DEFAULT_MENUS = [
-  { id: 1, name: "Chicken Katsu Set", desc: "Ayam goreng tepung gaya Jepun dengan nasi dan sos katsu" },
-  { id: 2, name: "Karaage Set", desc: "Ayam goreng Jepun rangup dengan sos mayo dan salad" },
-  { id: 3, name: "Dashimaki-egg Set", desc: "Telur gulung Jepun dengan nasi dan sup miso" },
-  { id: 4, name: "Gyudon Set", desc: "Mangkuk nasi dengan daging lembu dan bawang manis" },
-  { id: 5, name: "Chicken Ramen", desc: "Ramen berkuah pekat dengan ayam, telur rebus dan nori" },
+// Default menus for new trips
+const SESI_TEMPLATES=[
+  {
+    id:"fuji",
+    nama:"Bento di Fuji",
+    note:"Harga sudah termasuk cukai 10%",
+    showPrice:true,
+    menus:[
+      {id:1,name:"Yellow Chicken",price:1320,desc:"Rice Menu"},
+      {id:2,name:"Kawaguchiko Curry",price:1320,desc:"Rice Menu — Most Popular"},
+      {id:3,name:"Rice Curry",price:1100,desc:"Deliciously seasoned fried rice dish"},
+      {id:4,name:"Kebab Rice",price:1100,desc:"Juicy, Leg, Flavorful Chicken Steak"},
+      {id:5,name:"Spicy Noodle 🌶",price:1100,desc:"1 cili — sederhana pedas"},
+      {id:6,name:"Spicy Noodle 🌶🌶",price:1210,desc:"2 cili — pedas"},
+      {id:7,name:"Spicy Noodle 🌶🌶🌶",price:1320,desc:"3 cili — sangat pedas"},
+      {id:8,name:"Katsuretu Kawaguchiko Curry",price:1650,desc:"Fujisan Katsuretu — Beef"},
+      {id:9,name:"Miso Katsuretu Shingen",price:1320,desc:"Fujisan Katsuretu — Beef"},
+      {id:10,name:"Wrap Original (M)",price:880,desc:"Chicken & Vegetables Wrap"},
+      {id:11,name:"Wrap Spicy (M)",price:880,desc:"Chicken & Vegetables Wrap"},
+      {id:12,name:"Wrap Curry (M)",price:880,desc:"Chicken & Vegetables Wrap"},
+      {id:13,name:"Wrap Teriyaki (M)",price:880,desc:"Chicken & Vegetables Wrap"},
+      {id:14,name:"Wrap Wasabi (M)",price:880,desc:"Chicken & Vegetables Wrap"},
+      {id:15,name:"Wrap Miso (M)",price:880,desc:"Chicken & Vegetables Wrap"},
+    ]
+  },
+  {
+    id:"nara",
+    nama:"Makan Tengahari di Nara",
+    note:"",
+    showPrice:true,
+    menus:[
+      {id:1,name:"Beef Biryani",price:1700,desc:""},
+      {id:2,name:"Beef Khichuri",price:1700,desc:""},
+      {id:3,name:"Chicken Biryani",price:1500,desc:""},
+      {id:4,name:"Chicken Chili Rice",price:1500,desc:""},
+      {id:5,name:"Chicken Khichuri",price:1600,desc:""},
+      {id:6,name:"Chicken Korma Rice",price:1500,desc:""},
+      {id:7,name:"Lamb Biryani",price:1600,desc:""},
+      {id:8,name:"Lamb Khichuri",price:1700,desc:""},
+      {id:9,name:"Nasi Goreng",price:1600,desc:""},
+      {id:10,name:"Chicken Polao",price:1500,desc:""},
+      {id:11,name:"Shrimp Biryani",price:1500,desc:""},
+      {id:12,name:"Tandoori Biryani",price:1500,desc:""},
+      {id:13,name:"Vegetables Biryani",price:1500,desc:"Vegan",isVegan:true},
+      {id:14,name:"Vegetables Curry Rice",price:1500,desc:"Vegan",isVegan:true},
+    ]
+  },
+  {
+    id:"namba",
+    nama:"Makan Malam di Namba/Dotonbori",
+    note:"Semua order termasuk Regular size + Karaage 3pc (¥400)",
+    showPrice:false,
+    menus:[
+      {id:1,name:"Shoyu Ramen",price:1000,desc:"Regular + Karaage 3pc ¥400"},
+      {id:2,name:"Miso Ramen",price:1000,desc:"Regular + Karaage 3pc ¥400"},
+    ]
+  }
 ];
 
-let state = {
-  view: "home",
-  orders: [],
-  menus: DEFAULT_MENUS,
-  imgs: {},
-  adminUnlocked: false,
-  adminPass: "",
-  adminError: "",
-  adminMenus: [...DEFAULT_MENUS],
-  newMenu: { name: "", desc: "" },
-  newMenuFile: null,
-  orderForm: { name: "", items: [] },
-  orderCount: 1,
-  submitted: false,
-  orderError: "",
-  loading: true,
-  uploadingImg: {},
+let state={
+  view:"home",
+  tripId:null,
+  tripData:null,
+  trips:[],
+  orders:[],
+  adminUnlocked:false,
+  adminPass:"",
+  adminError:"",
+  adminTab:"orders",
+  orderForm:{name:"",s1:null,s2:null,s3:null},
+  orderStep:1,
+  submitted:false,
+  orderError:"",
+  loading:true,
+  newTrip:{nama:"",tarikh:"",pax:""},
+  addSpecial:{nama:"",sesi:""},
+  showAddSpecial:false,
+  imgs:{},
 };
 
-function fileToBase64(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result);
-    r.onerror = rej;
-    r.readAsDataURL(file);
+function f2b(file){return new Promise((r,j)=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=j;fr.readAsDataURL(file);})}
+
+async function loadTrips(){
+  try{
+    const snap=await getDocs(collection(db,"trips"));
+    state.trips=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){console.error(e);}
+}
+
+async function loadOrders(tripId){
+  try{
+    const snap=await getDocs(collection(db,"trips",tripId,"orders"));
+    state.orders=snap.docs.map(d=>d.data());
+  }catch(e){state.orders=[];}
+}
+
+async function listenOrders(tripId){
+  onSnapshot(collection(db,"trips",tripId,"orders"),snap=>{
+    state.orders=snap.docs.map(d=>d.data());
+    if(state.view==="admin"||state.view==="order") render();
   });
 }
 
-async function loadData() {
-  try {
-    const menuDoc = await getDoc(doc(db, "config", "menus"));
-    if (menuDoc.exists()) {
-      state.menus = menuDoc.data().list;
-      state.adminMenus = [...state.menus];
-    }
-    const imgDoc = await getDoc(doc(db, "config", "imgs"));
-    if (imgDoc.exists()) state.imgs = imgDoc.data();
-    const ordersSnap = await getDocs(collection(db, "orders"));
-    state.orders = ordersSnap.docs.map(d => d.data());
-  } catch(e) { console.error(e); }
-  state.loading = false;
-  render();
-  listenOrders();
+async function saveOrder(tripId,order){
+  await setDoc(doc(db,"trips",tripId,"orders",order.id),order);
 }
 
-function listenOrders() {
-  onSnapshot(collection(db, "orders"), snap => {
-    state.orders = snap.docs.map(d => d.data());
-    render();
+async function delOrder(tripId,orderId){
+  await deleteDoc(doc(db,"trips",tripId,"orders",orderId));
+}
+
+async function saveTrip(trip){
+  await setDoc(doc(db,"trips",trip.id),trip);
+}
+
+async function delTrip(tripId){
+  const snap=await getDocs(collection(db,"trips",tripId,"orders"));
+  for(const d of snap.docs) await deleteDoc(d.ref);
+  await deleteDoc(doc(db,"trips",tripId));
+}
+
+async function updateTripMenus(tripId,sesi){
+  const trip=state.trips.find(t=>t.id===tripId);
+  if(!trip) return;
+  trip.sesi=sesi;
+  await setDoc(doc(db,"trips",tripId),trip);
+}
+
+function tripLink(tripId){return `${window.location.origin}${window.location.pathname}?trip=${tripId}`;}
+
+function genId(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5);}
+
+async function init(){
+  // Check URL for trip
+  const params=new URLSearchParams(window.location.search);
+  const tid=params.get("trip");
+  if(tid){
+    try{
+      const d=await getDoc(doc(db,"trips",tid));
+      if(d.exists()){
+        state.tripId=tid;
+        state.tripData={id:tid,...d.data()};
+        await loadOrders(tid);
+        listenOrders(tid);
+        state.view="order";
+      } else {
+        state.view="notfound";
+      }
+    }catch(e){state.view="notfound";}
+  }
+  state.loading=false;
+  render();
+}
+
+function totalSesi(sesi,orders){
+  const cnt={};
+  orders.forEach(o=>{
+    const item=o[sesi];
+    if(item) cnt[item.name]=(cnt[item.name]||0)+1;
   });
-}
-
-async function saveMenus() {
-  await setDoc(doc(db, "config", "menus"), { list: state.adminMenus });
-  await setDoc(doc(db, "config", "imgs"), state.imgs);
-  state.menus = [...state.adminMenus];
-  alert("Menu dikemaskini!");
-  render();
-}
-
-async function saveOrder(order) {
-  const id = Date.now().toString();
-  await setDoc(doc(db, "orders", id), { ...order, id });
-}
-
-async function deleteOrder(id) {
-  const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-  await deleteDoc(doc(db, "orders", id));
-}
-
-function totalOrdered() { return state.orders.reduce((s, o) => s + (o.items ? o.items.length : 0), 0); }
-function remaining() { return MAX_TOTAL - totalOrdered(); }
-
-function menuCount() {
-  const cnt = {};
-  state.orders.forEach(o => (o.items || []).forEach(item => {
-    if (item) cnt[item.name] = (cnt[item.name] || 0) + 1;
-  }));
   return cnt;
 }
 
-function render() {
-  const el = document.getElementById("app");
-  if (state.loading) {
-    el.innerHTML = `<div class="loading"><div class="spinner">🍱</div><p>Memuatkan...</p></div>`;
-    return;
-  }
-  const v = state.view;
-  if (v === "home") el.innerHTML = renderHome();
-  else if (v === "order") el.innerHTML = renderOrder();
-  else if (v === "admin") el.innerHTML = renderAdmin();
+function exportText(tripId){
+  const trip=state.trips.find(t=>t.id===tripId)||state.tripData;
+  if(!trip) return;
+  const sesiList=trip.sesi||SESI_TEMPLATES;
+  let txt=`ORDER SUMMARY — ${trip.nama}\nTarikh: ${trip.tarikh||'-'}\nJumlah Peserta: ${state.orders.length}\n\n`;
+  sesiList.forEach(s=>{
+    txt+=`=== ${s.nama.toUpperCase()} ===\n`;
+    const cnt=totalSesi(s.id,state.orders);
+    if(Object.keys(cnt).length===0){txt+="Tiada order\n";}
+    else{Object.entries(cnt).forEach(([n,c])=>{
+      const menu=s.menus.find(m=>m.name===n);
+      const price=menu?menu.price:0;
+      txt+=`${n}: ${c} pax`;
+      if(s.showPrice) txt+=` (¥${price} x ${c} = ¥${price*c})`;
+      if(s.id==="namba") txt+=` + Karaage 3pc ¥${400*c}`;
+      txt+="\n";
+    });}
+    txt+="\n";
+  });
+  txt+="=== SENARAI PESERTA ===\n";
+  state.orders.forEach((o,i)=>{
+    txt+=`${i+1}. ${o.name}\n`;
+    sesiList.forEach(s=>{
+      const item=o[s.id];
+      txt+=`   ${s.nama}: ${item?item.name:'—'}`;
+      if(s.id==="namba"&&item) txt+=` (Regular + Karaage 3pc)`;
+      txt+="\n";
+    });
+  });
+  const blob=new Blob([txt],{type:"text/plain"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download=`order-${trip.nama||tripId}.txt`;a.click();
+}
+
+function render(){
+  const el=document.getElementById("app");
+  if(state.loading){el.innerHTML=`<div class="loading">🍱<br><br>Memuatkan...</div>`;return;}
+  if(state.view==="notfound"){el.innerHTML=`<div class="loading">❌<br><br>Link trip tidak sah atau sudah tamat.</div>`;return;}
+  if(state.view==="home") el.innerHTML=renderHome();
+  else if(state.view==="order") el.innerHTML=renderOrder();
+  else if(state.view==="admin") el.innerHTML=renderAdmin();
   attachEvents();
 }
 
-function renderHome() {
-  const rem = remaining();
+function renderHome(){
   return `
   <div class="header-blue">
-    <div style="font-size:48px;margin-bottom:10px">🍱</div>
+    <div style="font-size:44px;margin-bottom:10px">🍱</div>
     <h1>Sistem Order Makan</h1>
-    <p>Grup Tour • Maksimum ${MAX_TOTAL} pax</p>
+    <p>Grup Tour Management</p>
   </div>
   <div class="body">
-    <div class="slot-badge ${rem < 5 ? 'warn' : 'ok'}">
-      <span>Slot Tersedia</span>
-      <span>${rem} / ${MAX_TOTAL}</span>
-    </div>
-    <button class="btn-primary" id="go-order" ${rem === 0 ? 'disabled' : ''}>${rem === 0 ? 'Pesanan Penuh' : 'Buat Pesanan'}</button>
-    <button class="btn-secondary" id="go-admin">Paparan Admin</button>
+    <p style="font-size:14px;color:#666;margin-bottom:24px;text-align:center">Sila gunakan link trip yang diberikan oleh pengurus anda.</p>
+    <button class="btn-secondary" id="go-admin">Log Masuk Admin</button>
   </div>`;
 }
 
-function renderOrder() {
-  if (state.submitted) {
+function renderOrder(){
+  const trip=state.tripData;
+  if(!trip) return `<div class="loading">❌ Trip tidak dijumpai.</div>`;
+  const sesiList=trip.sesi||SESI_TEMPLATES;
+  const pax=trip.pax||22;
+  const filled=state.orders.length;
+  const rem=pax-filled;
+
+  if(state.submitted){
+    const o=state.orderForm;
     return `
-    <div class="sticky-header">
-      <button class="back-btn" id="back">←</button>
-      <h2>Buat Pesanan</h2>
+    <div class="sticky-top">
+      <h2>${trip.nama}</h2>
     </div>
     <div class="success-wrap">
       <div class="success-icon">✅</div>
       <h2>Pesanan Diterima!</h2>
-      <p>Terima kasih, <b>${state.orderForm.name}</b>.</p>
-      <p class="sub">Pesanan anda telah berjaya disimpan.</p>
-      <button class="btn-primary" id="back-home" style="max-width:200px;margin:0 auto">Kembali</button>
+      <p>Terima kasih, <b>${o.name}</b>.</p>
+      <p class="sub">Pesanan anda telah disimpan.</p>
+      <div class="summary-box">
+        <h4>Ringkasan Pesanan Anda</h4>
+        ${sesiList.map(s=>{
+          const item=o[s.id];
+          return `<div class="summary-item"><span>${s.nama}</span><span>${item?item.name:'—'}</span></div>`;
+        }).join("")}
+      </div>
     </div>`;
   }
-  const rem = remaining();
-  let personsHtml = "";
-  for (let idx = 0; idx < state.orderCount; idx++) {
-    let cardsHtml = state.menus.map(m => {
-      const sel = state.orderForm.items[idx] === m.id;
-      const imgSrc = state.imgs[m.id];
+
+  const step=state.orderStep;
+  const totalSteps=sesiList.length+1;
+
+  let content="";
+  if(step===1){
+    content=`
+    <div class="progress-bar">${Array.from({length:totalSteps}).map((_,i)=>`<div class="progress-step ${i<step?'done':i===step-1?'active':''}"></div>`).join("")}</div>
+    <p style="font-size:13px;color:#666;margin-bottom:6px">Slot tinggal: <b style="color:${rem<5?'#e53935':'#1a6b3c'}">${rem}</b> / ${pax}</p>
+    <label class="form-label">Nama Anda</label>
+    <input class="form-input" id="order-name" placeholder="cth: Ahmad bin Ali" value="${state.orderForm.name}"/>
+    ${state.orderError?`<div class="error-box">${state.orderError}</div>`:""}
+    <div class="fixed-bottom"><button class="btn-primary" id="next-step">Seterusnya →</button></div>`;
+  } else {
+    const sesiIdx=step-2;
+    const sesi=sesiList[sesiIdx];
+    if(!sesi) return "";
+    const sel=state.orderForm[sesi.id];
+    const menuCards=sesi.menus.map(m=>{
+      const isSel=sel&&sel.id===m.id;
       return `
-      <div class="menu-card ${sel ? 'selected' : ''}" data-idx="${idx}" data-menuid="${m.id}">
-        <div class="menu-img-wrap">
-          ${imgSrc ? `<img class="menu-img" src="${imgSrc}" alt="${m.name}" />` : `<div class="menu-img-placeholder">🍽️</div>`}
-          ${sel ? `<div class="menu-check">✓</div>` : ''}
-        </div>
+      <div class="menu-card ${isSel?'selected':''}" data-sesi="${sesi.id}" data-menuid="${m.id}">
+        <div class="menu-img-wrap"><span style="font-size:28px">🍽️</span>${isSel?'<div class="menu-check">✓</div>':''}</div>
         <div class="menu-info">
-          <div class="menu-name">${m.name}</div>
-          <div class="menu-desc">${m.desc}</div>
+          <div class="menu-name">${m.name}${m.isVegan?'<span class="vegan-tag">Vegan</span>':''}</div>
+          ${sesi.showPrice?`<div class="menu-price">¥${m.price.toLocaleString()}</div>`:''}
+          ${m.desc?`<div class="menu-desc">${m.desc}</div>`:''}
         </div>
       </div>`;
     }).join("");
-    personsHtml += `
-    <div>
-      <div class="person-label">${idx === 0 ? 'Pilihan anda' : `Orang ke-${idx + 1}`}</div>
-      <div class="menu-grid">${cardsHtml}</div>
+
+    const isLast=step===totalSteps;
+    content=`
+    <div class="progress-bar">${Array.from({length:totalSteps}).map((_,i)=>`<div class="progress-step ${i<step-1?'done':i===step-1?'active':''}"></div>`).join("")}</div>
+    <div class="sesi-header"><h3>${sesi.nama}</h3>${sesi.note?`<p>${sesi.note}</p>`:''}</div>
+    ${sesi.id==="namba"?`<div class="sesi-note">Semua order termasuk: Regular size + Karaage 3pc (¥400)</div>`:''}
+    <div class="menu-grid">${menuCards}</div>
+    ${state.orderError?`<div class="error-box">${state.orderError}</div>`:""}
+    <div class="fixed-bottom">
+      <div style="display:flex;gap:10px">
+        <button class="btn-secondary" id="prev-step" style="margin:0;padding:15px 0">← Balik</button>
+        <button class="btn-primary" id="next-step" style="margin:0">${isLast?'Hantar Pesanan ✓':'Seterusnya →'}</button>
+      </div>
     </div>`;
   }
+
   return `
-  <div class="sticky-header">
-    <button class="back-btn" id="back">←</button>
-    <h2>Buat Pesanan</h2>
-    <span style="font-size:12px;background:${rem<5?'#fdecea':'#e8f5e9'};color:${rem<5?'#c62828':'#2e7d32'};border-radius:20px;padding:3px 10px">${rem} slot tinggal</span>
+  <div class="sticky-top">
+    <h2>${trip.nama}</h2>
+    <span style="font-size:11px;background:#f0f9f4;color:#1a6b3c;border-radius:20px;padding:3px 10px">${trip.tarikh||''}</span>
   </div>
-  <div class="body">
-    <label class="form-label">Nama Anda (Wakil)</label>
-    <input class="form-input" id="order-name" placeholder="cth: Ahmad bin Ali" value="${state.orderForm.name}" />
-    <label class="form-label">Bilangan pesanan (termasuk diri sendiri)</label>
-    <div class="counter-wrap">
-      <button class="counter-btn" id="cnt-minus">−</button>
-      <div class="counter-val">${state.orderCount}</div>
-      <button class="counter-btn" id="cnt-plus">+</button>
-    </div>
-    ${personsHtml}
-    ${state.orderError ? `<div class="error-box">${state.orderError}</div>` : ''}
-  </div>
-  <div class="fixed-bottom">
-    <button class="btn-primary" id="submit-order">Hantar Pesanan</button>
-  </div>`;
+  <div class="body">${content}</div>`;
 }
 
-function renderAdmin() {
-  if (!state.adminUnlocked) {
+function renderAdmin(){
+  if(!state.adminUnlocked){
     return `
-    <div class="sticky-header">
+    <div class="sticky-top">
       <button class="back-btn" id="back">←</button>
-      <h2>Paparan Admin</h2>
+      <h2>Admin</h2>
     </div>
     <div class="lock-wrap">
       <div class="lock-icon">🔒</div>
-      <label class="form-label" style="text-align:center;display:block;margin-bottom:12px">Masukkan kata laluan admin</label>
-      <input class="form-input" type="password" id="admin-pass" placeholder="Kata laluan" value="${state.adminPass}" />
-      ${state.adminError ? `<div class="error-box">${state.adminError}</div>` : ''}
+      <label class="form-label" style="text-align:center;display:block;margin-bottom:12px">Kata laluan admin</label>
+      <input type="password" class="form-input" id="admin-pass" placeholder="Kata laluan" value="${state.adminPass}"/>
+      ${state.adminError?`<div class="error-box">${state.adminError}</div>`:''}
       <button class="btn-primary" id="admin-login">Log Masuk</button>
     </div>`;
   }
-  const tot = totalOrdered(); const rem = remaining(); const cnt = menuCount();
-  let menuSummary = state.menus.map(m => `
-    <div class="list-item">
-      <span>${m.name}</span>
-      <span class="pax-badge">${cnt[m.name] || 0} pax</span>
-    </div>`).join("");
-  let ordersList = state.orders.length === 0
-    ? `<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Tiada pesanan lagi.</div>`
-    : state.orders.map(o => `
-      <div class="order-card">
-        <div class="order-card-header">
-          <div class="order-card-name">${o.name}</div>
-          <button class="del-btn" data-orderid="${o.id}">Padam</button>
+
+  const tab=state.adminTab;
+
+  // TRIPS TAB
+  if(tab==="trips"){
+    const tripCards=state.trips.map(t=>{
+      const link=tripLink(t.id);
+      return `
+      <div class="trip-card">
+        <div class="trip-name">${t.nama}</div>
+        <div class="trip-meta">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax</div>
+        <span class="trip-link">${link}</span>
+        <div class="trip-actions">
+          <button class="btn-sm" data-copy="${link}">📋 Copy Link</button>
+          <button class="btn-sm green" data-view-trip="${t.id}">Lihat Order</button>
+          <button class="btn-sm red" data-del-trip="${t.id}">Padam</button>
         </div>
-        <div class="tags">${(o.items||[]).map(item => `<span class="tag">${item?.name||''}</span>`).join("")}</div>
+      </div>`;
+    }).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip lagi.</p>`;
+
+    return `
+    <div class="sticky-top">
+      <button class="back-btn" id="back">←</button>
+      <h2>Admin Panel</h2>
+    </div>
+    <div class="body" style="padding-bottom:40px">
+      <div class="tab-row">
+        <button class="tab-btn" id="tab-trips" data-tab="trips" style="border-bottom-color:#1a6b3c;color:#1a6b3c;font-weight:600">Trip</button>
+        <button class="tab-btn" id="tab-orders" data-tab="orders">Order</button>
+      </div>
+      <div class="section-title">Senarai Trip</div>
+      ${tripCards}
+      <div class="section-title">Tambah Trip Baru</div>
+      <div class="add-box">
+        <input class="form-input" id="new-trip-nama" placeholder="Nama trip (cth: Japan Nov 2025)" value="${state.newTrip.nama}"/>
+        <input class="form-input" id="new-trip-tarikh" placeholder="Tarikh (cth: 1-7 Nov 2025)" value="${state.newTrip.tarikh}"/>
+        <input class="form-input" id="new-trip-pax" placeholder="Jumlah peserta (cth: 22)" value="${state.newTrip.pax}" type="number"/>
+        <button class="btn-primary" id="add-trip">+ Cipta Trip Baru</button>
+      </div>
+    </div>`;
+  }
+
+  // ORDERS TAB
+  const selTrip=state.trips.find(t=>t.id===state.selectedTripId)||state.trips[0];
+  const sesiList=selTrip?(selTrip.sesi||SESI_TEMPLATES):SESI_TEMPLATES;
+  const orders=state.orders;
+
+  const tripSelector=state.trips.length>0?`
+  <select class="form-input" id="trip-selector" style="margin-bottom:16px">
+    ${state.trips.map(t=>`<option value="${t.id}" ${state.selectedTripId===t.id?'selected':''}>${t.nama}</option>`).join("")}
+  </select>`:`<p style="color:#aaa;font-size:13px">Tiada trip. Sila cipta trip dahulu.</p>`;
+
+  const stats=`
+  <div class="stat-row">
+    <div class="stat-card"><div class="stat-label">Pesanan</div><div class="stat-val">${orders.length}/${selTrip?selTrip.pax:22}</div></div>
+    <div class="stat-card"><div class="stat-label">Tinggal</div><div class="stat-val">${selTrip?(selTrip.pax||22)-orders.length:22}</div></div>
+  </div>`;
+
+  // Summary per sesi
+  const sesiSummary=sesiList.map(s=>{
+    const cnt=totalSesi(s.id,orders);
+    const rows=Object.keys(cnt).length===0
+      ?`<div style="padding:10px 16px;font-size:12px;color:#aaa">Tiada order</div>`
+      :Object.entries(cnt).map(([n,c])=>`
+        <div class="list-item">
+          <span style="font-size:13px">${n}</span>
+          <span class="pax-badge">${c} pax</span>
+        </div>`).join("");
+    return `
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:#1a6b3c;margin-bottom:6px">${s.nama}</div>
+      <div class="list-card">${rows}</div>
+    </div>`;
+  }).join("");
+
+  // Add special menu for namba
+  const nambaS=sesiList.find(s=>s.id==="namba");
+  const specialMenus=nambaS?nambaS.menus.filter(m=>m.isSpecial||m.isVegan):[]; 
+  const addSpecialHtml=`
+  <div style="margin-bottom:16px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px">Tambah Menu Khas (Namba)</div>
+    <div class="add-box">
+      <input class="form-input" id="special-nama" placeholder="Nama menu (cth: Vegan Ramen)" value="${state.addSpecial.nama}" style="margin-bottom:8px"/>
+      <button class="btn-primary" id="add-special-menu" style="margin-bottom:0">+ Tambah Menu</button>
+    </div>
+  </div>`;
+
+  // Orders list
+  const ordersList=orders.length===0
+    ?`<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Tiada pesanan lagi.</div>`
+    :orders.map(o=>`
+      <div class="order-card">
+        <div class="order-name">${o.name}</div>
+        ${sesiList.map(s=>{
+          const item=o[s.id];
+          return `<div class="order-sesi">
+            <div class="order-sesi-title">${s.nama}</div>
+            <div class="order-sesi-val">${item?item.name:'—'}${s.id==="namba"&&item?' <span style="font-size:11px;color:#888">(Regular + Karaage 3pc)</span>':''}</div>
+          </div>`;
+        }).join("")}
+        <button class="del-btn" data-del-order="${o.id}">Padam pesanan ini</button>
       </div>`).join("");
-  let adminMenuList = state.adminMenus.map(m => `
-    <div class="admin-menu-item">
-      <div class="admin-thumb">
-        ${state.imgs[m.id] ? `<img src="${state.imgs[m.id]}" alt="${m.name}" />` : '🍽️'}
-      </div>
-      <div style="flex:1;min-width:0">
-        <div class="admin-menu-name">${m.name}</div>
-        <label class="upload-label">
-          ${state.uploadingImg[m.id] ? 'Memuatkan...' : state.imgs[m.id] ? 'Tukar gambar' : 'Upload gambar'}
-          <input type="file" accept="image/*" style="display:none" data-uploadmenuid="${m.id}" class="upload-input" />
-        </label>
-      </div>
-      <button class="del-btn" data-delmenuid="${m.id}">Padam</button>
-    </div>`).join("");
+
   return `
-  <div class="sticky-header">
+  <div class="sticky-top">
     <button class="back-btn" id="back">←</button>
-    <h2>Paparan Admin</h2>
+    <h2>Admin Panel</h2>
   </div>
   <div class="body" style="padding-bottom:40px">
-    <div class="stat-row">
-      ${[['Pesanan',`${tot}/${MAX_TOTAL}`],['Tinggal',rem],['Wakil',state.orders.length]].map(([l,v])=>`
-      <div class="stat-card"><div class="stat-label">${l}</div><div class="stat-val">${v}</div></div>`).join("")}
+    <div class="tab-row">
+      <button class="tab-btn" data-tab="trips">Trip</button>
+      <button class="tab-btn active" data-tab="orders">Order</button>
     </div>
-    <div class="section-title">Ringkasan Menu</div>
-    <div class="list-card">${menuSummary}</div>
+    ${tripSelector}
+    ${stats}
+    <div class="section-title">Ringkasan Mengikut Sesi</div>
+    ${sesiSummary}
+    ${addSpecialHtml}
     <div class="section-title">Senarai Pesanan</div>
     ${ordersList}
-    <div class="section-title" style="margin-top:20px">Urus Menu & Gambar</div>
-    <div class="admin-section">${adminMenuList}</div>
-    <div class="section-title">Tambah Menu Baru</div>
-    <div class="add-menu-box">
-      <input class="form-input" id="new-menu-name" placeholder="Nama menu" value="${state.newMenu.name}" />
-      <input class="form-input" id="new-menu-desc" placeholder="Penerangan (pilihan)" value="${state.newMenu.desc}" />
-      <label class="upload-area">
-        ${state.newMenuFile ? `✓ ${state.newMenuFile.name}` : 'Upload gambar (pilihan)'}
-        <input type="file" accept="image/*" style="display:none" id="new-menu-file" />
-      </label>
-      <div class="btn-row">
-        <button class="btn-add" id="add-menu">+ Tambah</button>
-        <button class="btn-save" id="save-menus">Simpan Semua</button>
-      </div>
-    </div>
+    <button class="export-btn" id="export-btn">⬇ Export Order (Text)</button>
+    <button class="btn-danger" id="reset-trip">🗑 Reset Semua Pesanan Trip Ini</button>
   </div>`;
 }
 
-function attachEvents() {
-  const $ = id => document.getElementById(id);
-  const on = (id, ev, fn) => { const el = $(id); if (el) el.addEventListener(ev, fn); };
+function attachEvents(){
+  const $=id=>document.getElementById(id);
+  const on=(id,ev,fn)=>{const el=$(id);if(el)el.addEventListener(ev,fn);};
 
-  on("go-order", "click", () => {
-    state.submitted = false; state.orderForm = { name: "", items: [] }; state.orderCount = 1; state.orderError = "";
-    state.view = "order"; render();
+  on("go-admin","click",()=>{state.view="admin";render();});
+  on("back","click",()=>{
+    if(state.view==="admin"&&state.adminUnlocked){state.adminUnlocked=false;}
+    state.view="home";render();
   });
-  on("go-admin", "click", () => { state.view = "admin"; render(); });
-  on("back", "click", () => { state.view = "home"; render(); });
-  on("back-home", "click", () => { state.view = "home"; render(); });
-
-  on("order-name", "input", e => { state.orderForm.name = e.target.value; });
-  on("cnt-minus", "click", () => {
-    const val = Math.max(1, state.orderCount - 1);
-    state.orderCount = val; state.orderForm.items = Array(val).fill(null); render();
-  });
-  on("cnt-plus", "click", () => {
-    const val = Math.min(state.orderCount + 1, remaining());
-    state.orderCount = val; state.orderForm.items = Array(val).fill(null); render();
-  });
-
-  document.querySelectorAll(".menu-card").forEach(card => {
-    card.addEventListener("click", () => {
-      const idx = parseInt(card.dataset.idx);
-      const menuId = parseInt(card.dataset.menuid);
-      const items = [...state.orderForm.items];
-      items[idx] = menuId;
-      state.orderForm.items = items;
-      render();
-    });
-  });
-
-  on("submit-order", "click", async () => {
-    const name = $("order-name") ? $("order-name").value.trim() : state.orderForm.name.trim();
-    state.orderForm.name = name;
-    if (!name) { state.orderError = "Sila masukkan nama anda."; render(); return; }
-    if (state.orderForm.items.some(i => i === null || i === undefined)) { state.orderError = "Sila pilih menu untuk semua orang."; render(); return; }
-    if (state.orders.find(o => o.name.toLowerCase() === name.toLowerCase())) { state.orderError = "Nama ini sudah membuat pesanan."; render(); return; }
-    const order = { name, items: state.orderForm.items.map(id => state.menus.find(m => m.id === id)), id: Date.now().toString() };
-    await saveOrder(order);
-    state.submitted = true; state.orderError = ""; render();
-  });
-
-  on("admin-pass", "input", e => { state.adminPass = e.target.value; });
-  on("admin-login", "click", () => {
-    if (state.adminPass === ADMIN_PASS) { state.adminUnlocked = true; state.adminError = ""; }
-    else { state.adminError = "Kata laluan salah."; }
+  on("admin-pass","input",e=>state.adminPass=e.target.value);
+  on("admin-login","click",()=>{
+    if(state.adminPass===ADMIN_PASS){state.adminUnlocked=true;state.adminError="";loadTrips().then(render);}
+    else{state.adminError="Kata laluan salah.";}
     render();
   });
-  on("admin-pass", "keydown", e => { if (e.key === "Enter") $("admin-login")?.click(); });
+  on("admin-pass","keydown",e=>{if(e.key==="Enter")$("admin-login")?.click();});
 
-  document.querySelectorAll(".upload-input").forEach(input => {
-    input.addEventListener("change", async e => {
-      const menuId = parseInt(input.dataset.uploadmenuid);
-      const file = e.target.files[0];
-      if (!file) return;
-      state.uploadingImg[menuId] = true; render();
-      const b64 = await fileToBase64(file);
-      state.imgs[menuId] = b64;
-      state.uploadingImg[menuId] = false;
-      await setDoc(doc(db, "config", "imgs"), state.imgs);
+  // Tab switching
+  document.querySelectorAll("[data-tab]").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      state.adminTab=btn.dataset.tab;
+      if(state.adminTab==="orders"&&state.trips.length>0){
+        state.selectedTripId=state.selectedTripId||state.trips[0].id;
+        loadOrders(state.selectedTripId).then(render);
+      } else render();
+    });
+  });
+
+  // Trip selector
+  on("trip-selector","change",async e=>{
+    state.selectedTripId=e.target.value;
+    await loadOrders(state.selectedTripId);
+    render();
+  });
+
+  // Add trip
+  on("new-trip-nama","input",e=>state.newTrip.nama=e.target.value);
+  on("new-trip-tarikh","input",e=>state.newTrip.tarikh=e.target.value);
+  on("new-trip-pax","input",e=>state.newTrip.pax=e.target.value);
+  on("add-trip","click",async()=>{
+    if(!state.newTrip.nama.trim()){alert("Sila masukkan nama trip.");return;}
+    const id=genId();
+    const trip={id,nama:state.newTrip.nama,tarikh:state.newTrip.tarikh,pax:parseInt(state.newTrip.pax)||22,sesi:SESI_TEMPLATES};
+    await saveTrip(trip);
+    state.trips.push(trip);
+    state.newTrip={nama:"",tarikh:"",pax:""};
+    alert(`Trip "${trip.nama}" berjaya dicipta!\nLink: ${tripLink(id)}`);
+    render();
+  });
+
+  // Copy link
+  document.querySelectorAll("[data-copy]").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      navigator.clipboard.writeText(btn.dataset.copy).then(()=>alert("Link disalin!"));
+    });
+  });
+
+  // View trip orders
+  document.querySelectorAll("[data-view-trip]").forEach(btn=>{
+    btn.addEventListener("click",async()=>{
+      state.selectedTripId=btn.dataset.viewTrip;
+      state.adminTab="orders";
+      await loadOrders(state.selectedTripId);
       render();
     });
   });
 
-  document.querySelectorAll(".del-btn[data-orderid]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      await deleteOrder(btn.dataset.orderid);
-    });
-  });
-
-  document.querySelectorAll(".del-btn[data-delmenuid]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const id = parseInt(btn.dataset.delmenuid);
-      state.adminMenus = state.adminMenus.filter(m => m.id !== id);
-      delete state.imgs[id];
+  // Delete trip
+  document.querySelectorAll("[data-del-trip]").forEach(btn=>{
+    btn.addEventListener("click",async()=>{
+      if(!confirm("Padam trip ini dan semua ordernya?")) return;
+      await delTrip(btn.dataset.delTrip);
+      state.trips=state.trips.filter(t=>t.id!==btn.dataset.delTrip);
       render();
     });
   });
 
-  on("new-menu-name", "input", e => { state.newMenu.name = e.target.value; });
-  on("new-menu-desc", "input", e => { state.newMenu.desc = e.target.value; });
-  on("new-menu-file", "change", e => { state.newMenuFile = e.target.files[0] || null; render(); });
+  // Delete order
+  document.querySelectorAll("[data-del-order]").forEach(btn=>{
+    btn.addEventListener("click",async()=>{
+      const tid=state.selectedTripId||state.tripId;
+      await delOrder(tid,btn.dataset.delOrder);
+      state.orders=state.orders.filter(o=>o.id!==btn.dataset.delOrder);
+      render();
+    });
+  });
 
-  on("add-menu", "click", async () => {
-    if (!state.newMenu.name.trim()) return;
-    const m = { id: Date.now(), name: state.newMenu.name, desc: state.newMenu.desc };
-    state.adminMenus.push(m);
-    if (state.newMenuFile) {
-      const b64 = await fileToBase64(state.newMenuFile);
-      state.imgs[m.id] = b64;
+  // Export
+  on("export-btn","click",()=>{
+    const tid=state.selectedTripId||state.tripId;
+    exportText(tid);
+  });
+
+  // Reset trip
+  on("reset-trip","click",async()=>{
+    if(!confirm("Padam SEMUA pesanan trip ini? Tindakan tidak boleh dibatalkan.")) return;
+    const tid=state.selectedTripId;
+    const snap=await getDocs(collection(db,"trips",tid,"orders"));
+    for(const d of snap.docs) await deleteDoc(d.ref);
+    state.orders=[];
+    render();
+  });
+
+  // Add special menu (namba)
+  on("add-special-menu","click",async()=>{
+    const nama=($("special-nama")||{value:""}).value.trim();
+    if(!nama) return;
+    const tid=state.selectedTripId;
+    const trip=state.trips.find(t=>t.id===tid);
+    if(!trip) return;
+    const sesi=trip.sesi||SESI_TEMPLATES;
+    const namba=sesi.find(s=>s.id==="namba");
+    if(!namba) return;
+    const newMenu={id:Date.now(),name:nama,price:1000,desc:"Special Request",isSpecial:true};
+    namba.menus.push(newMenu);
+    await updateTripMenus(tid,sesi);
+    state.addSpecial={nama:"",sesi:""};
+    alert(`Menu "${nama}" berjaya ditambah ke sesi Namba.`);
+    render();
+  });
+
+  // Order flow
+  on("order-name","input",e=>state.orderForm.name=e.target.value);
+
+  on("next-step","click",async()=>{
+    const trip=state.tripData;
+    const sesiList=trip.sesi||SESI_TEMPLATES;
+    const pax=trip.pax||22;
+    const rem=pax-state.orders.length;
+
+    if(state.orderStep===1){
+      const name=($("order-name")||{}).value?.trim()||state.orderForm.name.trim();
+      state.orderForm.name=name;
+      if(!name){state.orderError="Sila masukkan nama anda.";render();return;}
+      if(state.orders.find(o=>o.name.toLowerCase()===name.toLowerCase())){state.orderError="Nama ini sudah membuat pesanan.";render();return;}
+      if(rem<=0){state.orderError="Maaf, slot pesanan sudah penuh.";render();return;}
+      state.orderError="";
+      state.orderStep=2;render();
+    } else {
+      const sesiIdx=state.orderStep-2;
+      const sesi=sesiList[sesiIdx];
+      if(!state.orderForm[sesi.id]){state.orderError="Sila pilih menu.";render();return;}
+      state.orderError="";
+      const isLast=state.orderStep===sesiList.length+1;
+      if(isLast){
+        // Submit
+        const order={id:genId(),name:state.orderForm.name};
+        sesiList.forEach(s=>{order[s.id]=state.orderForm[s.id]||null;});
+        await saveOrder(state.tripId,order);
+        state.submitted=true;render();
+      } else {
+        state.orderStep++;render();
+      }
     }
-    state.newMenu = { name: "", desc: "" }; state.newMenuFile = null;
-    render();
   });
 
-  on("save-menus", "click", saveMenus);
+  on("prev-step","click",()=>{
+    if(state.orderStep>1){state.orderStep--;state.orderError="";render();}
+  });
+
+  // Menu selection
+  document.querySelectorAll(".menu-card").forEach(card=>{
+    card.addEventListener("click",()=>{
+      const sesiId=card.dataset.sesi;
+      const menuId=parseInt(card.dataset.menuid);
+      const trip=state.tripData;
+      const sesiList=trip.sesi||SESI_TEMPLATES;
+      const sesi=sesiList.find(s=>s.id===sesiId);
+      if(!sesi) return;
+      const menu=sesi.menus.find(m=>m.id===menuId);
+      state.orderForm[sesiId]=menu;
+      state.orderError="";
+      render();
+    });
+  });
 }
 
-loadData();
+// Load trips for admin if needed
+async function initAdmin(){
+  await loadTrips();
+  if(state.trips.length>0) state.selectedTripId=state.trips[0].id;
+  render();
+}
+
+// Override init to also prep admin
+const origInit=init;
+window.addEventListener("DOMContentLoaded",async()=>{
+  await origInit();
+  if(state.view==="home"||state.view==="admin"){
+    await loadTrips();
+    if(state.trips.length>0) state.selectedTripId=state.trips[0].id;
+    render();
+  }
+});
 </script>
 </body>
 </html>
