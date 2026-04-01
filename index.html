@@ -413,11 +413,11 @@ function renderAdmin(){
   if(S.adminTab==="imgs"){
     const trip=S.trips.find(t=>t.id===S.selectedTripId);
     const sl=trip?(trip.sesi||SESI):SESI;
-    // Build flat menu list with keys
-    const allMenus=[];
-    sl.forEach(sesi=>sesi.menus.forEach(m=>allMenus.push({key:`${sesi.id}_${m.id}`,name:m.name,sesiNama:sesi.nama,sesiId:sesi.id})));
-    // Pending assignments (files picked but not yet saved)
     const pending=S.pendingImgs||{};
+    const pickedCount=(S.pickedFiles||[]).length;
+    const isAnalyzing=S.analyzingImgs||false;
+
+    // Build all menus flat list for display
     const rows=sl.map(sesi=>`
       <div class="section-title">${sesi.nama}</div>
       <div class="list-card" style="background:#fff;padding:0 14px">
@@ -429,33 +429,37 @@ function renderAdmin(){
             <div class="admin-thumb">${imgSrc?`<img src="${imgSrc}"/>`:'🍽️'}</div>
             <div style="flex:1;min-width:0">
               <div style="font-size:12px;font-weight:600">${m.name}</div>
-              <div style="font-size:11px;color:${isPending?'#e65100':'#1a6b3c'}">${isPending?'⏳ Belum disimpan':S.imgs[key]?'✓ Gambar ada':''}</div>
+              <div style="font-size:11px;color:${isPending?'#e65100':'#1a6b3c'}">${isPending?'⏳ Belum disimpan — '+pending[key].filename:S.imgs[key]?'✓ Gambar ada':''}</div>
             </div>
-            <select class="img-assign-select" data-key="${key}" style="font-size:11px;border:1px solid #ddd;border-radius:6px;padding:4px 6px;max-width:140px;color:#333">
-              <option value="">— tiada —</option>
-              ${(S.pickedFiles||[]).map((f,i)=>`<option value="${i}" ${pending[key]&&pending[key].fileIdx===i?'selected':''}>📷 ${f.name.length>18?f.name.substr(0,18)+'...':f.name}</option>`).join("")}
-            </select>
+            ${isPending?`<button class="btn-sm red" data-remove-pending="${key}" style="padding:4px 8px;font-size:11px">✕</button>`:''}
           </div>`;
         }).join("")}
       </div>`).join("");
 
-    const pickedCount=(S.pickedFiles||[]).length;
     return`<div class="sticky-top"><button class="back-btn" id="back-to-trips">←</button><h2>Urus Gambar Menu</h2></div>
     <div class="body" style="padding-bottom:100px">
       <div class="add-box" style="margin-bottom:16px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px">📂 Langkah 1 — Pilih semua gambar sekaligus</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px">🤖 Auto-Padanan AI</div>
+        <p style="font-size:12px;color:#666;margin-bottom:12px;line-height:1.5">Upload semua gambar sekaligus. AI akan baca setiap gambar dan padankan dengan menu secara automatik.</p>
         <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border:1.5px dashed #1a6b3c;border-radius:10px;cursor:pointer;font-size:13px;color:#1a6b3c;background:#f0f9f4">
-          📷 ${pickedCount>0?`${pickedCount} gambar dipilih — klik untuk tukar`:'Pilih gambar (boleh pilih banyak)'}
+          📷 ${pickedCount>0?`${pickedCount} gambar dipilih`:'Pilih gambar (boleh pilih banyak)'}
           <input type="file" accept="image/*" multiple style="display:none" id="bulk-file-pick"/>
         </label>
-        ${pickedCount>0?`<div style="margin-top:10px;font-size:12px;color:#666">Gambar dipilih:<br>${(S.pickedFiles||[]).map((f,i)=>`<span style="display:inline-block;background:#f0f9f4;border-radius:6px;padding:2px 8px;margin:2px;font-size:11px">📷 ${i+1}. ${f.name}</span>`).join("")}</div>`:''}
+        ${pickedCount>0?`
+        <div style="margin-top:10px;font-size:11px;color:#666;line-height:1.8">
+          ${(S.pickedFiles||[]).map((f,i)=>`<span style="display:inline-block;background:#f5f5f5;border-radius:6px;padding:2px 8px;margin:2px">📷 ${f.name}</span>`).join("")}
+        </div>
+        <button class="btn-primary" id="ai-analyze" style="margin-top:12px;margin-bottom:0" ${isAnalyzing?'disabled':''}>
+          ${isAnalyzing?'🤖 AI sedang analisa gambar...':'🤖 Analisa & Padankan dengan AI'}
+        </button>`:''}
       </div>
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px">🔗 Langkah 2 — Padankan gambar dengan menu</div>
-      <p style="font-size:12px;color:#888;margin-bottom:12px">Pilih gambar yang sesuai untuk setiap menu menggunakan dropdown di sebelah kanan.</p>
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px">Senarai Menu & Gambar</div>
       ${rows}
     </div>
     <div class="fixed-bottom">
-      <button class="btn-primary" id="save-all-imgs" ${pickedCount===0?'disabled':''}>💾 Simpan Semua Gambar</button>
+      <button class="btn-primary" id="save-all-imgs" ${Object.keys(pending).length===0?'disabled':''}>
+        💾 Simpan ${Object.keys(pending).length>0?Object.keys(pending).length+' ':' '}Gambar
+      </button>
     </div>`;
   }
 
@@ -548,68 +552,76 @@ function attachEvents(){
   // Manage images button
   document.querySelectorAll("[data-manage-imgs]").forEach(b=>b.addEventListener("click",async()=>{
     S.selectedTripId=b.dataset.manageImgs;S.adminTab="imgs";
-    S.pickedFiles=[];S.pendingImgs={};
+    S.pickedFiles=[];S.pendingImgs={};S.analyzingImgs=false;
     await loadImgs(S.selectedTripId);render();
   }));
 
   // Bulk file pick
-  on("bulk-file-pick","change",async e=>{
-    const files=Array.from(e.target.files);
-    S.pickedFiles=files;S.pendingImgs={};
-    // Auto-match by filename to menu name
-    const trip=S.trips.find(t=>t.id===S.selectedTripId);
-    const sl=trip?(trip.sesi||SESI):SESI;
-    for(const[fi,file] of files.entries()){
-      const fname=file.name.toLowerCase().replace(/[^a-z0-9]/g,' ');
-      for(const sesi of sl){
-        for(const m of sesi.menus){
-          const mname=m.name.toLowerCase().replace(/[^a-z0-9]/g,' ');
-          const words=mname.split(' ').filter(w=>w.length>2);
-          const match=words.filter(w=>fname.includes(w)).length>=Math.min(2,words.length);
-          if(match){
-            const key=`${sesi.id}_${m.id}`;
-            if(!S.pendingImgs[key]){
-              const preview=await f2b(file);
-              S.pendingImgs[key]={fileIdx:fi,preview,file};
-            }
-          }
-        }
-      }
-    }
-    render();
+  on("bulk-file-pick","change",e=>{
+    S.pickedFiles=Array.from(e.target.files);
+    S.pendingImgs={};render();
   });
 
-  // Dropdown assign
-  document.querySelectorAll(".img-assign-select").forEach(sel=>sel.addEventListener("change",async e=>{
-    const key=sel.dataset.key;const idx=parseInt(e.target.value);
-    if(isNaN(idx)||!S.pickedFiles[idx]){delete S.pendingImgs[key];render();return;}
-    const file=S.pickedFiles[idx];
-    const preview=await f2b(file);
-    S.pendingImgs[key]={fileIdx:idx,preview,file};
-    render();
+  // Remove pending
+  document.querySelectorAll("[data-remove-pending]").forEach(b=>b.addEventListener("click",()=>{
+    delete S.pendingImgs[b.dataset.removePending];render();
   }));
+
+  // AI Analyze
+  on("ai-analyze","click",async()=>{
+    if(!S.pickedFiles||!S.pickedFiles.length)return;
+    S.analyzingImgs=true;render();
+    const trip=S.trips.find(t=>t.id===S.selectedTripId);
+    const sl=trip?(trip.sesi||SESI):SESI;
+    // Build full menu list
+    const allMenus=[];
+    sl.forEach(sesi=>sesi.menus.forEach(m=>allMenus.push({key:`${sesi.id}_${m.id}`,name:m.name,sesi:sesi.nama})));
+    const menuListStr=allMenus.map((m,i)=>`${i+1}. [${m.key}] ${m.name} (${m.sesi})`).join("\n");
+
+    try{
+      for(const file of S.pickedFiles){
+        const b64full=await f2b(file);
+        const b64data=b64full.split(",")[1];
+        const mime=file.type||"image/jpeg";
+        // Call Claude API
+        const resp=await fetch("https://api.anthropic.com/v1/messages",{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({
+            model:"claude-sonnet-4-20250514",
+            max_tokens:200,
+            messages:[{
+              role:"user",
+              content:[
+                {type:"image",source:{type:"base64",media_type:mime,data:b64data}},
+                {type:"text",text:`Lihat gambar makanan ini. Padankan dengan menu yang paling sesuai dari senarai berikut:\n\n${menuListStr}\n\nBalas HANYA dengan format: KEY\nContoh: nara_3\n\nJika tiada padanan sesuai, balas: none`}
+              ]
+            }]
+          })
+        });
+        const data=await resp.json();
+        const answer=(data.content[0]?.text||"").trim().toLowerCase().replace(/\s/g,"");
+        const matched=allMenus.find(m=>m.key===answer);
+        if(matched&&!S.pendingImgs[matched.key]){
+          S.pendingImgs[matched.key]={preview:b64full,file,filename:file.name};
+        }
+      }
+    }catch(e){console.error(e);alert("Ralat semasa analisa AI. Cuba semula.");}
+    S.analyzingImgs=false;render();
+  });
 
   // Save all images
   on("save-all-imgs","click",async()=>{
     const keys=Object.keys(S.pendingImgs);
     if(!keys.length){alert("Tiada gambar untuk disimpan.");return;}
-    toast("⏳ Menyimpan gambar...");
+    toast("⏳ Menyimpan...");
     for(const key of keys){
-      const b64=await f2b(S.pendingImgs[key].file);
-      S.imgs[key]=b64;
+      const b64=await f2b(S.pendingImgs[key].file);S.imgs[key]=b64;
     }
     await saveImgs(S.selectedTripId);
     S.pendingImgs={};S.pickedFiles=[];
     toast(`✓ ${keys.length} gambar berjaya disimpan!`);render();
   });
-
-  // Image upload (single — kept for fallback)
-  document.querySelectorAll(".img-upload").forEach(inp=>inp.addEventListener("change",async e=>{
-    const key=inp.dataset.imgkey;const file=e.target.files[0];if(!file)return;
-    S.uploadingImg[key]=true;render();
-    const b64=await f2b(file);S.imgs[key]=b64;S.uploadingImg[key]=false;
-    await saveImgs(S.selectedTripId);toast("✓ Gambar disimpan!");render();
-  }));
 
   document.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>{navigator.clipboard.writeText(b.dataset.copy).then(()=>toast("✓ Link disalin!"));}));
   document.querySelectorAll("[data-view-trip]").forEach(b=>b.addEventListener("click",async()=>{S.selectedTripId=b.dataset.viewTrip;S.adminTab="orders";await loadOrders(S.selectedTripId);render();}));
