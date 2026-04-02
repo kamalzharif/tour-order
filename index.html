@@ -401,7 +401,34 @@ function renderOrder(){
   </div>`;
 }
 
-function renderLeader(){
+function renderCheck(){
+  const trip=S.tripData;
+  const sesiList=trip?trip.sesi||SESI:SESI;
+  const name=S.checkName||"";
+  const found=S.orders.find(o=>o.name.toLowerCase()===name.toLowerCase());
+  return`<div class="sticky-top"><button class="back-btn" id="back-check">←</button><h2>Semak Order</h2></div>
+  <div class="body">
+    <label class="form-label">Masukkan nama anda</label>
+    <input class="form-input" id="check-name-input" placeholder="cth: Ahmad bin Ali" value="${name}"/>
+    <button class="btn-primary" id="do-check">🔍 Cari Order</button>
+    ${S.checkDone?found?`
+    <div style="background:#f0f9f4;border-radius:12px;padding:16px;margin-top:16px;border:1px solid #1a6b3c">
+      <div style="font-size:15px;font-weight:600;margin-bottom:12px;color:#1a6b3c">✅ Order dijumpai — ${found.name}</div>
+      ${(found.persons||[]).map((p,pi)=>`
+        ${(found.persons||[]).length>1?`<div style="font-size:12px;font-weight:600;color:#666;margin:10px 0 4px">👤 ${pi===0?'Anda':'Orang '+(pi+1)}</div>`:''}
+        ${sesiList.map(s=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee;font-size:13px">
+          <span style="color:#666">${s.nama}</span>
+          <span style="font-weight:600">${p[s.id]?p[s.id].name:'—'}</span>
+        </div>`).join("")}`).join("")}
+      <p style="font-size:12px;color:#888;margin-top:12px">Jika ada perubahan, sila hubungi Tour Leader anda.</p>
+    </div>`:`
+    <div style="background:#fdecea;border-radius:12px;padding:16px;margin-top:16px;text-align:center">
+      <div style="font-size:32px;margin-bottom:8px">🔍</div>
+      <p style="font-size:14px;color:#c62828;font-weight:600">Tiada order dijumpai</p>
+      <p style="font-size:12px;color:#888;margin-top:4px">Nama "<b>${name}</b>" tidak ada dalam senarai.<br>Sila semak ejaan atau buat pesanan baru.</p>
+    </div>`:''}
+  </div>`;
+}
   if(!S.leaderUnlocked){
     return`<div class="sticky-top"><button class="back-btn" id="back">←</button><h2>Tour Leader</h2></div>
     <div class="lock-wrap"><div style="text-align:center;font-size:40px;margin-bottom:24px">👤</div>
@@ -808,7 +835,14 @@ function attachEvents(){
   });
 
   // Order flow
-  on("order-name","input",e=>S.orderForm.name=e.target.value);
+  on("check-order","click",()=>{S.view="check";S.checkName="";S.checkDone=false;render();});
+  on("back-check","click",()=>{S.view="order";S.orderStep=1;render();});
+  on("check-name-input","input",e=>S.checkName=e.target.value);
+  on("do-check","click",()=>{
+    const name=document.getElementById("check-name-input")?.value?.trim()||"";
+    S.checkName=name;S.checkDone=true;render();
+  });
+  on("check-name-input","keydown",e=>{if(e.key==="Enter")document.getElementById("do-check")?.click();});
   on("cnt-minus","click",()=>{S.orderForm.pax=Math.max(1,S.orderForm.pax-1);render();});
   on("cnt-plus","click",()=>{
     const trip=S.tripData;const pax=trip?trip.pax:22;
