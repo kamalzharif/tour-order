@@ -161,9 +161,24 @@ async function loadTrips(){try{const s=await getDocs(collection(db,"trips"));S.t
 async function loadOrders(tid){try{const s=await getDocs(collection(db,"trips",tid,"orders"));S.orders=s.docs.map(d=>d.data());}catch(e){S.orders=[];}}
 async function loadImgs(){
   S.imgs={};
-  try{const d=await getDoc(doc(db,"config","menuImgs"));if(d.exists()&&d.data())S.imgs={...d.data()};}catch(e){}
+  try{
+    const d=await getDoc(doc(db,"config","menuImgs"));
+    if(d.exists()&&d.data())S.imgs={...S.imgs,...d.data()};
+  }catch(e){}
+  try{
+    const d=await getDoc(doc(db,"config","menuImgs_15"));
+    if(d.exists()&&d.data())S.imgs={...S.imgs,...d.data()};
+  }catch(e){}
 }
-async function saveImgs(){await setDoc(doc(db,"config","menuImgs"),S.imgs);}
+async function saveImgs(){
+  // Split into chunks of max 15 images per doc to avoid 1MB limit
+  const entries=Object.entries(S.imgs);
+  const chunkSize=15;
+  for(let i=0;i<entries.length;i+=chunkSize){
+    const chunk=Object.fromEntries(entries.slice(i,i+chunkSize));
+    await setDoc(doc(db,"config",`menuImgs${i===0?'':'_'+i}`),chunk);
+  }
+}
 function listenOrders(tid){onSnapshot(collection(db,"trips",tid,"orders"),s=>{S.orders=s.docs.map(d=>d.data());render();});}
 async function saveOrder(tid,o){await setDoc(doc(db,"trips",tid,"orders",o.id),o);}
 async function delOrder(tid,oid){await deleteDoc(doc(db,"trips",tid,"orders",oid));}
@@ -716,7 +731,9 @@ function attachEvents(){
   // Images
   on("bulk-pick","change",async e=>{
     S.pickedFiles=Array.from(e.target.files);S.pendingImgs={};S.selectingFileIdx=null;
-    S.imgPreviews=await Promise.all(S.pickedFiles.map(f=>f2b(f)));render();
+    toast("⏳ Memproses gambar...");
+    S.imgPreviews=await Promise.all(S.pickedFiles.map(f=>compressImg(f,350)));
+    render();
   });
   document.querySelectorAll(".igitem").forEach(item=>item.addEventListener("click",()=>{S.selectingFileIdx=parseInt(item.dataset.fileidx);render();}));
   on("close-modal","click",()=>{S.selectingFileIdx=null;render();});
@@ -734,8 +751,11 @@ function attachEvents(){
   });
   on("save-imgs","click",async()=>{
     const keys=Object.keys(S.pendingImgs);if(!keys.length)return;
-    toast("⏳ Menyimpan...");
-    for(const key of keys){S.imgs[key]=await f2b(S.pendingImgs[key].file);}
+    toast("⏳ Menyimpan gambar...");
+    for(const key of keys){
+      // Use already-compressed preview
+      S.imgs[key]=S.pendingImgs[key].preview;
+    }
     await saveImgs();S.pendingImgs={};S.pickedFiles=[];S.imgPreviews=[];
     toast(`✓ ${keys.length} gambar disimpan!`);render();
   });
