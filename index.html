@@ -84,6 +84,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .skipbtn{width:100%;padding:13px 14px;border-radius:12px;border:2px solid #eee;background:#fff;cursor:pointer;font-size:13px;color:#888;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px}
 .skipbtn.sel{border-color:#e53935;background:#fdecea;color:#c62828}
 .skiptag{font-size:11px;background:#fdecea;color:#c62828;border-radius:10px;padding:2px 8px;font-weight:600}
+.bksec{background:#fff8e1;border-radius:12px;padding:14px;margin-bottom:14px;border-left:3px solid #ff9800}
+.bksec h4{font-size:13px;font-weight:600;margin-bottom:4px;color:#e65100}
+.bksec p{font-size:11px;color:#856404;margin-bottom:10px;line-height:1.5}
+.bcp.bk-fuji{border-color:#e65100;color:#e65100}
+.bcp.bk-fuji:hover{background:#fff3e0}
 </style>
 </head>
 <body>
@@ -148,7 +153,7 @@ img.onload=()=>{
 URL.revokeObjectURL(url);
 let w=img.width,h=img.height;
 const MAX=700;
-if(w>MAX||h>MAX){const ratio=Math.min(MAX/w,MAX/h);w=Math.round(wratio);h=Math.round(hratio);}
+if(w>MAX||h>MAX){const ratio=Math.min(MAX/w,MAX/h);w=Math.round(w*ratio);h=Math.round(h*ratio);}
 const canvas=document.createElement("canvas");
 canvas.width=w;canvas.height=h;
 canvas.getContext("2d").drawImage(img,0,0,w,h);
@@ -169,6 +174,17 @@ function addDays(ds,days){
 if(!ds)return'—';
 const d=new Date(ds);d.setDate(d.getDate()+days);
 return d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+function fmtDateLocale(ds,days,locale){
+if(!ds)return'—';
+const d=new Date(ds);d.setDate(d.getDate()+days);
+return d.toLocaleDateString(locale,{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+function getTarikhLoc(trip,sid,locale){
+if(!trip.tarikhMula)return'—';
+if(sid==="nara"||sid==="namba")return fmtDateLocale(trip.tarikhMula,1,locale);
+if(sid==="fuji")return fmtDateLocale(trip.tarikhMula,3,locale);
+return'—';
 }
 function getWaktu(trip,sid){
 const m=trip.mod||"tren";
@@ -217,20 +233,20 @@ function bFuji(trip,orders){
 const cnt={},pm={};
 orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p.fuji;if(i&&!i.skip){cnt[i.name]=(cnt[i.name]||0)+1;pm[i.name]=i.price||0;}}));
 const CATS=[
-{label:"🥩 KATSURETU MENU",items:["Katsuretu Kawaguchiko Curry","Miso Katsuretu Shingen"]},
-{label:"🍚 RICE DISHES",items:["Yellow Chicken","Kawaguchiko Curry","Rice Curry","Kebab Rice"]},
-{label:"🌯 WRAP / KEBAB MENU",items:["Wrap Original (M)","Wrap Spicy (M)","Wrap Curry (M)","Wrap Teriyaki (M)","Wrap Wasabi (M)","Wrap Miso (M)"]},
-{label:"🍜 NOODLES",items:["Spicy Noodle 🌶","Spicy Noodle 🌶🌶","Spicy Noodle 🌶🌶🌶"]},
+{label:"🥩 カツレツメニュー",items:["Katsuretu Kawaguchiko Curry","Miso Katsuretu Shingen"]},
+{label:"🍚 ライスメニュー",items:["Yellow Chicken","Kawaguchiko Curry","Rice Curry","Kebab Rice"]},
+{label:"🌯 ラップメニュー",items:["Wrap Original (M)","Wrap Spicy (M)","Wrap Curry (M)","Wrap Teriyaki (M)","Wrap Wasabi (M)","Wrap Miso (M)"]},
+{label:"🍜 ヌードル",items:["Spicy Noodle 🌶","Spicy Noodle 🌶🌶","Spicy Noodle 🌶🌶🌶"]},
 ];
-let txt=`🍱 *BENTO ORDER — FUJI*\n📌 Trip: ${trip.nama}\n📅 Date: ${getTarikh(trip,"fuji")}\n${'─'.repeat(28)}\n\n`;
+let txt=`🍱 *お弁当ご注文 — Masjid Fujikawaguchiko Cafe*\n📌 ツアー: ${trip.nama}\n📅 日付: ${getTarikhLoc(trip,"fuji","ja-JP")}\n${'─'.repeat(28)}\n\n`;
 let grand=0;
 CATS.forEach(cat=>{
 const ci=cat.items.filter(n=>cnt[n]);if(!ci.length)return;
 txt+=`*${cat.label}*\n`;let sub=0;
-ci.forEach(n=>{const c=cnt[n],p=pm[n]||0,tot=pc;sub+=tot;txt+=`  • ${n}: *${c} pax* (¥${p.toLocaleString()}×${c}=¥${tot.toLocaleString()})\n`;});
-txt+=`  Subtotal: ¥${sub.toLocaleString()}\n\n`;grand+=sub;
+ci.forEach(n=>{const c=cnt[n],p=pm[n]||0,tot=p*c;sub+=tot;txt+=`  ・ ${n}: *${c}個* (¥${p.toLocaleString()}×${c}=¥${tot.toLocaleString()})\n`;});
+txt+=`  小計: ¥${sub.toLocaleString()}\n\n`;grand+=sub;
 });
-return txt+`${'─'.repeat(28)}\n💴 *GRAND TOTAL: ¥${grand.toLocaleString()}*\n`;
+return txt+`${'─'.repeat(28)}\n💴 *合計金額: ¥${grand.toLocaleString()}*\n\nよろしくお願いいたします。🙏\n`;
 }
 function bNara(trip,orders){
 const cnt={},pm={};
@@ -239,7 +255,7 @@ const mod=trip.mod||"tren";
 let txt=`🍛 *LUNCH ORDER — NARA*\n📌 Trip: ${trip.nama}\n📅 Date: ${getTarikh(trip,"nara")}\n⏰ ${getWaktu(trip,"nara")} (${mod==="tren"?"by train":"by bus"})\n${'─'.repeat(28)}\n\n`;
 if(!Object.keys(cnt).length)return txt+"  No orders yet.\n";
 let sub=0;
-Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{const p=pm[n]||0,tot=pc;sub+=tot;txt+=`  • ${n}: *${c} pax* (¥${p.toLocaleString()}×${c}=¥${tot.toLocaleString()})\n`;});
+Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{const p=pm[n]||0,tot=p*c;sub+=tot;txt+=`  • ${n}: *${c} pax* (¥${p.toLocaleString()}×${c}=¥${tot.toLocaleString()})\n`;});
 return txt+`\n💴 *Total: ¥${sub.toLocaleString()}*\n`;
 }
 function bNamba(trip,orders){
@@ -249,8 +265,8 @@ const mod=trip.mod||"tren";
 let txt=`🍜 *DINNER ORDER — NAMBA/DOTONBORI*\n📌 Trip: ${trip.nama}\n📅 Date: ${getTarikh(trip,"namba")}\n⏰ ${getWaktu(trip,"namba")} (${mod==="tren"?"by train":"by bus"})\n${'─'.repeat(28)}\n\n`;
 if(!Object.keys(cnt).length)return txt+"  No orders yet.\n";
 const R=1000,K=400,tp=Object.values(cnt).reduce((a,b)=>a+b,0);let rt=0;
-Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{const tot=Rc;rt+=tot;txt+=`  • ${n} (Regular size)\n    ¥${R.toLocaleString()}×${c} pax=¥${tot.toLocaleString()}\n\n`;});
-const kt=Ktp;
+Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{const tot=R*c;rt+=tot;txt+=`  • ${n} (Regular size)\n    ¥${R.toLocaleString()}×${c} pax=¥${tot.toLocaleString()}\n\n`;});
+const kt=K*tp;
 return txt+`  • Karaage 3pc\n    ¥${K.toLocaleString()}×${tp} pax=¥${kt.toLocaleString()}\n\n${'─'.repeat(28)}\n🍜 Ramen: ¥${rt.toLocaleString()}\n🍗 Karaage: ¥${kt.toLocaleString()}\n💴 *GRAND TOTAL: ¥${(rt+kt).toLocaleString()}*\n`;
 }
 function bLeader(trip,orders){
@@ -282,6 +298,59 @@ if(s.showPrice&&sub>0)txt+=`  💴 Jumlah: ¥${sub.toLocaleString()}\n`;txt+='\n
 });
 return txt;
 }
+// ── Booking Restoran (slot tarikh & masa sahaja, tanpa menu) ────────
+function sortTrips(trips){
+return [...trips].sort((a,b)=>{
+const am=a.tarikhMula||'',bm=b.tarikhMula||'';
+return am.localeCompare(bm);
+});
+}
+function bBookingFuji(trips){
+const sorted=sortTrips(trips);
+let txt=`🍱 *ご予約のお願い — Masjid Fujikawaguchiko Cafe（お弁当）*\n\nAssalamualaikum 🙏\n\nこんにちは。お世話になっております。\n\nツアーグループ用のお弁当を、下記の日程でご予約させていただきたく存じます：\n\n${'─'.repeat(28)}\n\n`;
+let totalPax=0;
+sorted.forEach((t,i)=>{
+const pax=parseInt(t.pax)||22;
+totalPax+=pax;
+txt+=`*${i+1}. ${t.nama}*\n`;
+txt+=`  📅 ${getTarikhLoc(t,"fuji","ja-JP")}\n`;
+txt+=`  🍱 お弁当 ${pax}個（${pax}名様分）\n\n`;
+});
+txt+=`${'─'.repeat(28)}\n📊 *ご予約まとめ*\n  ・ ツアー数: ${sorted.length}件\n  ・ お弁当合計: ${totalPax}個\n\n_お弁当の種類（メニュー）につきましては、各日付の近くになりましたら改めてご連絡いたします。_\n\nご確認のほど、よろしくお願い申し上げます。\nありがとうございます。🙏`;
+return txt;
+}
+function bBookingNara(trips){
+const sorted=sortTrips(trips);
+let txt=`🍛 *TABLE BOOKING REQUEST — NARA RESTAURANT (LUNCH)*\n\nAssalamualaikum 🙏\n\nHello, hope you are doing well.\n\nWe would like to book tables for our tour groups as follows:\n\n${'─'.repeat(28)}\n\n`;
+let totalPax=0;
+sorted.forEach((t,i)=>{
+const pax=parseInt(t.pax)||22;
+totalPax+=pax;
+const mod=t.mod||"tren";
+txt+=`*${i+1}. ${t.nama}*\n`;
+txt+=`  📅 ${getTarikhLoc(t,"nara","en-GB")}\n`;
+txt+=`  ⏰ ${getWaktu(t,"nara")} (${mod==="tren"?"by train":"by bus"})\n`;
+txt+=`  👥 ${pax} pax\n\n`;
+});
+txt+=`${'─'.repeat(28)}\n📊 *Booking Summary*\n  • Number of trips: ${sorted.length}\n  • Total guests: ${totalPax} pax\n\n_Menu selections will be confirmed closer to each date._\n\nKindly confirm the reservation. Thank you very much. 🙏`;
+return txt;
+}
+function bBookingNamba(trips){
+const sorted=sortTrips(trips);
+let txt=`🍜 *BOOKING TEMPAT — NANIWAYA RAMEN (DINNER)*\n\nAssalamualaikum / Salam sejahtera 🙏\n\nKami ingin menempah tempat untuk grup tour seperti berikut:\n\n${'─'.repeat(28)}\n\n`;
+let totalPax=0;
+sorted.forEach((t,i)=>{
+const pax=parseInt(t.pax)||22;
+totalPax+=pax;
+const mod=t.mod||"tren";
+txt+=`*${i+1}. ${t.nama}*\n`;
+txt+=`  📅 ${getTarikhLoc(t,"namba","ms-MY")}\n`;
+txt+=`  ⏰ ${getWaktu(t,"namba")} (dengan ${mod==="tren"?"tren":"bas"})\n`;
+txt+=`  👥 ${pax} orang\n\n`;
+});
+txt+=`${'─'.repeat(28)}\n📊 *Ringkasan Booking*\n  • Bilangan trip: ${sorted.length}\n  • Jumlah keseluruhan: ${totalPax} orang\n\n_Menu pilihan akan dimaklumkan lebih dekat dengan tarikh masing-masing._\n\nMohon pengesahan tempahan. Terima kasih banyak. 🙏`;
+return txt;
+}
 // ── State ──────────────────────────────────────────
 const S={
 view:"home",tripId:null,tripData:null,trips:[],orders:[],
@@ -303,6 +372,17 @@ return`<div class="expsec"><h4>📤 Eksport & Kongsi</h4>
 <div style="font-size:12px;color:#666;margin:10px 0 6px;font-weight:600">Lain-lain:</div>
 <button class="bcp" id="cp-leader">👥 Copy — Untuk Tour Leader</button>
 <button class="bcp" id="cp-ringkasan">📊 Copy — Ringkasan Keseluruhan</button>
+</div>`;
+}
+function rBookingSec(){
+const n=S.trips.length;
+return`<div class="bksec">
+<h4>📅 Booking Slot Restoran (Tarikh & Masa Sahaja)</h4>
+<p>Hantar booking tempat sahaja kepada restoran melalui WhatsApp <b>tanpa butiran menu</b>. Akan termasuk SEMUA <b>${n}</b> trip di atas (disusun ikut tarikh).</p>
+${n===0?`<p style="font-size:11px;color:#c62828;text-align:center;padding:8px">⚠️ Tiada trip. Sila tambah trip dahulu.</p>`:`
+<button class="bcp" id="cp-bk-fuji" ${n===0?'disabled':''}>🍱 Copy — Booking Fuji (日本語)</button>
+<button class="bcp" id="cp-bk-nara" ${n===0?'disabled':''}>🍛 Copy — Booking Nara (English)</button>
+<button class="bcp" id="cp-bk-namba" ${n===0?'disabled':''}>🍜 Copy — Booking Naniwaya Ramen (BM)</button>`}
 </div>`;
 }
 function rSummary(sl,orders){
@@ -429,7 +509,9 @@ const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
 if(S.adminTab==="trips"){
 const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax &nbsp;🚌 ${t.mod||'tren'}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
-return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn active" data-tab="trips">🗺️ Trip</button> <button class="tabbtn" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> <div class="stitle">Senarai Trip</div>${cards} <div class="stitle">Tambah Trip Baru</div> <div class="abox"> <input class="inp" id="nt-nama" placeholder="Nama trip" value="${S.newTrip.nama}"/> <input class="inp" id="nt-tarikh" placeholder="Tarikh (cth: 1-7 Nov 2025)" value="${S.newTrip.tarikh}"/> <label class="lbl">Tarikh mula di Osaka</label> <input class="inp" id="nt-mula" type="date" value="${S.newTrip.tarikhMula||''}"/> <label class="lbl">Mod pengangkutan</label> <select class="inp" id="nt-mod"> <option value="tren" ${(S.newTrip.mod||'tren')==='tren'?'selected':''}>🚃 Tren (Nara:11am | Namba:5pm)</option> <option value="bas" ${S.newTrip.mod==='bas'?'selected':''}>🚌 Bas (Nara:11:30am | Namba:5:30pm)</option> </select> <input class="inp" id="nt-pax" placeholder="Jumlah peserta" value="${S.newTrip.pax}" type="number"/> <button class="b1" id="add-trip" style="margin-bottom:0">+ Cipta Trip Baru</button> </div></div>`;
+return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn active" data-tab="trips">🗺️ Trip</button> <button class="tabbtn" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> <div class="stitle">Senarai Trip</div>${cards}
+${rBookingSec()}
+<div class="stitle">Tambah Trip Baru</div> <div class="abox"> <input class="inp" id="nt-nama" placeholder="Nama trip" value="${S.newTrip.nama}"/> <input class="inp" id="nt-tarikh" placeholder="Tarikh (cth: 1-7 Nov 2025)" value="${S.newTrip.tarikh}"/> <label class="lbl">Tarikh mula di Osaka</label> <input class="inp" id="nt-mula" type="date" value="${S.newTrip.tarikhMula||''}"/> <label class="lbl">Mod pengangkutan</label> <select class="inp" id="nt-mod"> <option value="tren" ${(S.newTrip.mod||'tren')==='tren'?'selected':''}>🚃 Tren (Nara:11am | Namba:5pm)</option> <option value="bas" ${S.newTrip.mod==='bas'?'selected':''}>🚌 Bas (Nara:11:30am | Namba:5:30pm)</option> </select> <input class="inp" id="nt-pax" placeholder="Jumlah peserta" value="${S.newTrip.pax}" type="number"/> <button class="b1" id="add-trip" style="margin-bottom:0">+ Cipta Trip Baru</button> </div></div>`;
 }
 if(S.adminTab==="orders"){
 const sel=S.trips.length>0?`<select class="inp" id="trip-sel">${S.trips.map(t=>`<option value="${t.id}" ${S.selTrip===t.id?'selected':''}>${t.nama}</option>`).join("")}</select>`:`<p style="color:#aaa;font-size:13px">Tiada trip.</p>`;
@@ -620,6 +702,10 @@ document.querySelectorAll("[data-dtrip]").forEach(b=>b.addEventListener("click",
 if(!confirm("Padam trip ini dan semua ordernya?"))return;
 await delTrip(b.dataset.dtrip);S.trips=S.trips.filter(t=>t.id!==b.dataset.dtrip);render();
 }));
+// Booking restoran (slot sahaja)
+on("cp-bk-fuji","click",()=>{if(S.trips.length===0){toast("⚠️ Tiada trip");return;}cp(bBookingFuji(S.trips));});
+on("cp-bk-nara","click",()=>{if(S.trips.length===0){toast("⚠️ Tiada trip");return;}cp(bBookingNara(S.trips));});
+on("cp-bk-namba","click",()=>{if(S.trips.length===0){toast("⚠️ Tiada trip");return;}cp(bBookingNamba(S.trips));});
 // Delete order
 document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
 const isLeader=b.dataset.leader==="1";
