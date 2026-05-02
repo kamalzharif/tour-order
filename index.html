@@ -357,8 +357,19 @@ return orders.find(o=>{const np=norm(o.name);return inpWords.every(w=>np.include
 function suggestTripNama(itin,room){
 const dt=room.tarikhTrip||'';
 const grp=itin.groupName||'';
-if(dt&&grp)return`Japan ${dt} (${grp})`;
-if(dt)return`Japan ${dt}`;
+// Ekstrak kod EE sahaja (cth: "EE22169" dari "EE22169 2026 Group9")
+let code='';
+if(itin.bookingRef){
+const m=itin.bookingRef.match(/\b(EE\d+)\b/i);
+if(m)code=m[1].toUpperCase();
+}
+const parts=[];
+if(grp)parts.push(grp);
+if(code)parts.push(code);
+const prefix=parts.length?parts.join(' • '):'';
+if(prefix&&dt)return`${prefix} — ${dt}`;
+if(prefix)return prefix;
+if(dt)return dt;
 if(itin.bookingRef)return itin.bookingRef;
 return'';
 }
