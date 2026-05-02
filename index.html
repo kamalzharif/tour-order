@@ -89,6 +89,44 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .bksec p{font-size:11px;color:#856404;margin-bottom:10px;line-height:1.5}
 .bcp.bk-fuji{border-color:#e65100;color:#e65100}
 .bcp.bk-fuji:hover{background:#fff3e0}
+/* PDF Import */
+.pdfbtn{width:100%;padding:14px 0;font-size:14px;border-radius:14px;cursor:pointer;background:#f0f9f4;border:2px dashed #1a6b3c;color:#1a6b3c;font-weight:600;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.pdfdrop{border:2px dashed #1a6b3c;border-radius:12px;padding:18px;text-align:center;background:#f0f9f4;color:#1a6b3c;font-size:13px;margin-bottom:10px;cursor:pointer;display:block}
+.pdfdrop.has-file{background:#e8f5e9;border-style:solid}
+.pdfdrop input{display:none}
+.pdfprev{background:#f9f9f9;border-radius:12px;padding:14px;margin-bottom:14px}
+.pdfprev .row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee;font-size:13px}
+.pdfprev .row:last-child{border-bottom:none}
+.pdfprev .lbl-row{color:#666;font-size:12px}
+.pdfprev .val-row{font-weight:600;text-align:right}
+.plist{max-height:340px;overflow-y:auto;border-radius:10px;border:1px solid #eee;background:#fff;margin-bottom:10px}
+.pitem{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #f0f0f0;font-size:13px}
+.pitem:last-child{border-bottom:none}
+.pitem .pn{color:#888;font-size:11px;min-width:24px}
+.pitem .pname{flex:1;color:#1a1a1a}
+.pitem.tl{background:#fff8e1}
+.pitem.tl .pname::after{content:" ⭐ TL";font-size:10px;color:#e65100;font-weight:600}
+.pitem .px{font-size:11px;color:#e53935;background:none;border:none;cursor:pointer;padding:4px 6px}
+.pitem input{flex:1;font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;outline:none}
+.pitem input:focus{border-color:#1a6b3c}
+.tlsec{background:#e8f5e9;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#1a6b3c;border-left:3px solid #1a6b3c;line-height:1.5}
+.warnsec{background:#fff3e0;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#e65100;border-left:3px solid #ff9800;line-height:1.5}
+/* Tracking dashboard */
+.trkbox{background:#f0f9f4;border-radius:12px;padding:14px;margin-bottom:14px;border-left:3px solid #1a6b3c}
+.trkbox h4{font-size:13px;font-weight:600;margin-bottom:8px;color:#1a6b3c}
+.trkrow{display:flex;gap:8px;margin-bottom:10px}
+.trksc{flex:1;background:#fff;border-radius:10px;padding:10px 8px;text-align:center}
+.trksc .v{font-size:20px;font-weight:600}
+.trksc .v.ok{color:#1a6b3c}
+.trksc .v.pending{color:#e65100}
+.trksc .l{font-size:10px;color:#888;margin-top:2px}
+.trkbar{height:8px;background:#fff;border-radius:4px;overflow:hidden;margin-bottom:10px}
+.trkbar .fill{height:100%;background:#1a6b3c;transition:width 0.3s}
+.trklist{max-height:240px;overflow-y:auto;background:#fff;border-radius:8px;padding:6px 0;margin-top:8px}
+.trkname{padding:6px 12px;font-size:12px;display:flex;align-items:center;gap:8px}
+.trkname .stat{font-size:11px;min-width:18px}
+.trkname.ok{color:#1a6b3c}
+.trkname.pending{color:#888}
 </style>
 </head>
 <body>
@@ -97,6 +135,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{getFirestore,doc,getDoc,setDoc,deleteDoc,collection,onSnapshot,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import*as pdfjsLib from"https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/+esm";
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs";
 const db=getFirestore(initializeApp({apiKey:"AIzaSyBdfyI1IHccekotNNRYwlr3U9JTkVc2uWI",authDomain:"tour-order.firebaseapp.com",projectId:"tour-order",storageBucket:"tour-order.firebasestorage.app",messagingSenderId:"411616788552",appId:"1:411616788552:web:fd0a63dbe84c64334d987d"}));
 const APASS="admin123",LPASS="leader123";
 const SESI=[
@@ -197,6 +237,130 @@ if(!trip.tarikhMula)return'—';
 if(sid==="nara"||sid==="namba")return addDays(trip.tarikhMula,1);
 if(sid==="fuji")return addDays(trip.tarikhMula,3);
 return'—';
+}
+// ── PDF Parser (pdf.js) ──────────────────────────────────────────
+async function pdfToLines(file){
+const data=await file.arrayBuffer();
+const pdf=await pdfjsLib.getDocument({data}).promise;
+const allLines=[];
+for(let i=1;i<=pdf.numPages;i++){
+const page=await pdf.getPage(i);
+const content=await page.getTextContent();
+const items=content.items.map(it=>({x:it.transform[4],y:it.transform[5],str:it.str}));
+items.sort((a,b)=>b.y-a.y||a.x-b.x);
+let curY=null,curLine=[];
+const lines=[];
+for(const it of items){
+if(!it.str.trim())continue;
+if(curY===null){curY=it.y;curLine=[it];}
+else if(Math.abs(it.y-curY)<3){curLine.push(it);}
+else{lines.push(curLine.map(c=>c.str).join(' ').replace(/\s+/g,' ').trim());curLine=[it];curY=it.y;}
+}
+if(curLine.length)lines.push(curLine.map(c=>c.str).join(' ').replace(/\s+/g,' ').trim());
+allLines.push(...lines.filter(l=>l));
+}
+return allLines;
+}
+const MONTH_MAP={jan:'01',feb:'02',mac:'03',mar:'03',apr:'04',may:'05',mei:'05',jun:'06',jul:'07',jul:'07',aug:'08',ogo:'08',sep:'09',oct:'10',okt:'10',nov:'11',dec:'12',dis:'12'};
+function parseItinerary(lines){
+const text=lines.join('\n');
+const out={tarikhMula:null,bookingRef:null,mod:'tren',pax:null,groupName:null,dayModes:{}};
+// Day 1 date — format: "Day 1 25-May-26 (Mon)"
+const m=text.match(/Day\s*1\s+(\d{1,2})[-/](\w+)[-/](\d{2,4})/i);
+if(m){
+const day=m[1].padStart(2,'0');
+const monKey=m[2].toLowerCase().substr(0,3);
+const month=MONTH_MAP[monKey];
+let year=m[3];if(year.length===2)year='20'+year;
+if(month)out.tarikhMula=`${year}-${month}-${day}`;
+}
+// Booking Ref
+const r=text.match(/Booking\s*Ref\.?\s*:?\s*([A-Z0-9][^\n]*?)(?:\n|$)/i);
+if(r)out.bookingRef=r[1].trim().replace(/\s+\d+\s*days?$/i,'').trim();
+// Group name
+const g=text.match(/Group\s*(\d+)/i);
+if(g)out.groupName=`Group ${g[1]}`;
+// Pax (rujukan sahaja — kita guna senarai peserta sebagai pax sebenar)
+const p=text.match(/(\d{1,3})\s+PAX/i);
+if(p)out.pax=parseInt(p[1]);
+// Day-by-day mode detection
+const dayRe=/Day\s*(\d+)\s+\d{1,2}[-/]\w+[-/]\d{2,4}/gi;
+const dMatches=[...text.matchAll(dayRe)];
+// Cari end marker — guna pattern unik kepada penghujung dokumen (bukan header)
+const endM=text.match(/TOUR\s*REMARKS|Bank\s*Details|Acceptance\s+\d/i);
+const endPos=endM?text.indexOf(endM[0],dMatches[0]?dMatches[0].index:0):text.length;
+const positions=dMatches.map(x=>x.index).concat([endPos]);
+for(let i=0;i<dMatches.length;i++){
+const day=parseInt(dMatches[i][1]);
+const section=text.substring(positions[i],positions[i+1]);
+let dm='tren';
+if(/no\s*bus\s*service/i.test(section))dm='tren';
+else if(/big\s*bus/i.test(section))dm='bas';
+else if(/by\s*train|bullet\s*train/i.test(section))dm='tren';
+out.dayModes[day]=dm;
+}
+// Set mod sistem berdasarkan Day 2 (hari Nara/Namba) — kerana itu yang penting untuk booking
+if(out.dayModes[2])out.mod=out.dayModes[2];
+else if(/big\s*bus/i.test(text))out.mod='bas';
+return out;
+}
+function parseRoomingList(lines){
+const out={peserta:[],tarikhTrip:null};
+for(const line of lines){
+const t=line.match(/TARIKH\s*TRIP\s*:?\s*(.+)/i);
+if(t)out.tarikhTrip=t[1].trim();
+// Cari passport: letter + 7-9 digit (handle 'X6851600' which has 7 digits)
+const pm=line.match(/\b([A-Z])(\d{7,9})\b/);
+if(!pm)continue;
+let before=line.substring(0,pm.index).trim();
+// Strip leading number (1-3 digit)
+before=before.replace(/^\d{1,3}\s+/,'');
+// Strip phone number at end (e.g., '019-2933445', '60-12-3456789')
+before=before.replace(/\s+\d{2,4}-\d{2,4}-?\d{0,7}\s*$/,'');
+// Detect TL: (TL) atau (TOUR LEADER) atau plain 'TOUR LEADER'
+const isTL=/\(\s*TL\s*\)|\(\s*TOUR\s*LEADER\s*\)|tour\s*leader/i.test(before);
+let nama=before.replace(/\(\s*TL\s*\)|\(\s*TOUR\s*LEADER\s*\)/gi,'').replace(/\s+/g,' ').trim();
+// Validate looks like name
+if(nama.length<4)continue;
+if(!/^[A-Z]/.test(nama))continue;
+if(!/[A-Z]\s+[A-Z]/.test(nama))continue;
+// Skip flight/hotel/airline noise that may have caps + passport-like
+if(/AIRASIA|AIRPORT|HOTEL|FLIGHT|KUL|KIX|HND|\bD7\s/i.test(nama))continue;
+out.peserta.push({nama,isTL});
+}
+return out;
+}
+function fuzzyMatchPeserta(input,peserta){
+if(!input||!peserta||!peserta.length)return null;
+const norm=s=>(s||'').toLowerCase().replace(/[.,]/g,' ').replace(/\s+/g,' ').trim();
+const inp=norm(input);
+if(!inp)return null;
+const exact=peserta.find(p=>norm(p.nama)===inp);
+if(exact)return{match:exact,confidence:'exact'};
+const inpWords=inp.split(' ').filter(w=>w.length>2&&!['bin','binti','bte','bt','b'].includes(w));
+if(!inpWords.length)return null;
+const partial=peserta.find(p=>{const np=norm(p.nama);return inpWords.every(w=>np.includes(w));});
+if(partial)return{match:partial,confidence:'partial'};
+return null;
+}
+function findOrderByName(input,orders){
+if(!input||!orders||!orders.length)return null;
+const norm=s=>(s||'').toLowerCase().replace(/[.,]/g,' ').replace(/\s+/g,' ').trim();
+const inp=norm(input);
+if(!inp)return null;
+const exact=orders.find(o=>norm(o.name)===inp);
+if(exact)return exact;
+const inpWords=inp.split(' ').filter(w=>w.length>2&&!['bin','binti','bte','bt','b'].includes(w));
+if(!inpWords.length)return null;
+return orders.find(o=>{const np=norm(o.name);return inpWords.every(w=>np.includes(w));});
+}
+function suggestTripNama(itin,room){
+const dt=room.tarikhTrip||'';
+const grp=itin.groupName||'';
+if(dt&&grp)return`Japan ${dt} (${grp})`;
+if(dt)return`Japan ${dt}`;
+if(itin.bookingRef)return itin.bookingRef;
+return'';
 }
 // ── Firebase ──────────────────────────────────────────
 async function loadTrips(){
@@ -361,6 +525,8 @@ newTrip:{nama:"",tarikh:"",tarikhMula:"",mod:"tren",pax:""},
 addSpecial:"",imgs:{},
 pendingImgs:{},pickedFiles:[],imgPreviews:[],selectingFileIdx:null,
 checkName:"",checkDone:false,
+pdfFlow:{step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""},
+editing:{active:false,orderId:null,origView:null,returnSelTrip:null},
 };
 // ── Render helpers ──────────────────────────────────────────
 function rExpSec(){
@@ -385,6 +551,156 @@ ${n===0?`<p style="font-size:11px;color:#c62828;text-align:center;padding:8px">�
 <button class="bcp" id="cp-bk-namba" ${n===0?'disabled':''}>🍜 Copy — Booking Naniwaya Ramen (BM)</button>`}
 </div>`;
 }
+function rPdfImport(){
+const f=S.pdfFlow;
+if(f.step==="upload"){
+const itinOK=!!f.itinFile;
+const roomOK=!!f.roomFile;
+const ready=itinOK&&roomOK;
+return`<div class="stk"><button class="bk" id="go-back">←</button><h2>📄 Cipta Trip dari PDF</h2></div>
+<div class="body" style="padding-bottom:120px">
+<div class="tlsec">📌 <b>Format yang disokong:</b><br>
+• Itinerari: PDF Confirmation & Invoice dari Seishin International (Crystal)<br>
+• Senarai Peserta: PDF Rooming List (Google Sheets export)<br>
+Sistem akan ekstrak nama, tarikh, mod, & senarai peserta secara automatik.</div>
+
+<div class="stitle">Langkah 1 — Upload PDF Itinerari</div>
+<label class="pdfdrop ${itinOK?'has-file':''}">
+${itinOK?`✅ ${f.itinFile.name}<br><span style="font-size:11px;color:#666">Klik untuk tukar</span>`:`📋 Klik untuk pilih PDF Itinerari<br><span style="font-size:11px;color:#888">(Confirmation & Invoice dari Seishin)</span>`}
+<input type="file" accept="application/pdf" id="pdf-itin"/>
+</label>
+
+<div class="stitle">Langkah 2 — Upload PDF Senarai Peserta</div>
+<label class="pdfdrop ${roomOK?'has-file':''}">
+${roomOK?`✅ ${f.roomFile.name}<br><span style="font-size:11px;color:#666">Klik untuk tukar</span>`:`👥 Klik untuk pilih PDF Rooming List<br><span style="font-size:11px;color:#888">(senarai nama peserta + Tour Leader)</span>`}
+<input type="file" accept="application/pdf" id="pdf-room"/>
+</label>
+
+${f.err?`<div class="err">${f.err}</div>`:''}
+</div>
+<div class="fb"><button class="b1" id="pdf-process" ${!ready?'disabled':''}>🔍 Proses & Pratonton</button></div>`;
+}
+if(f.step==="processing"){
+return`<div class="stk"><h2>📄 Cipta Trip dari PDF</h2></div>
+<div class="body" style="text-align:center;padding-top:80px">
+<div style="font-size:48px;margin-bottom:20px">⏳</div>
+<p style="font-size:14px;color:#666">Memproses PDF...</p>
+<p style="font-size:12px;color:#888;margin-top:8px">Mengeluarkan butiran trip dan senarai peserta</p>
+</div>`;
+}
+if(f.step==="preview"){
+const p=f.parsed;
+const ed=f.editing;
+const tlCount=ed.peserta.filter(x=>x.isTL).length;
+return`<div class="stk"><button class="bk" id="pdf-back">←</button><h2>📄 Pratonton Trip</h2></div>
+<div class="body" style="padding-bottom:120px">
+<div class="tlsec">✅ <b>Berjaya proses!</b> Sila semak dan edit jika perlu, kemudian sahkan.</div>
+
+<div class="stitle">Butiran Trip</div>
+<div class="abox">
+<label class="lbl">Nama Trip</label>
+<input class="inp" id="pf-nama" value="${(ed.nama||'').replace(/"/g,'&quot;')}"/>
+<label class="lbl">Tarikh (display)</label>
+<input class="inp" id="pf-tarikh" value="${(ed.tarikh||'').replace(/"/g,'&quot;')}"/>
+<label class="lbl">Tarikh Mula di Osaka</label>
+<input class="inp" id="pf-mula" type="date" value="${ed.tarikhMula||''}"/>
+${Object.keys(ed.dayModes||{}).length>0?`
+<label class="lbl">Mod Pengangkutan Per Hari (Auto-detect)</label>
+<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+${Object.keys(ed.dayModes).sort((a,b)=>parseInt(a)-parseInt(b)).map(d=>{
+const dm=ed.dayModes[d];
+const isNara=parseInt(d)===2;
+const isFuji=parseInt(d)===4;
+return `<div style="font-size:12px;padding:4px 0;display:flex;justify-content:space-between;align-items:center">
+<span>Day ${d}${isNara?' <span style="font-size:10px;color:#1a6b3c">(Nara/Namba)</span>':isFuji?' <span style="font-size:10px;color:#e65100">(Fuji)</span>':''}</span>
+<span style="font-weight:600;color:${dm==='bas'?'#e65100':'#1a6b3c'}">${dm==='bas'?'🚌 Bas':'🚃 Tren'}</span>
+</div>`;
+}).join('')}
+${(()=>{
+const bas=Object.values(ed.dayModes).filter(x=>x==='bas').length;
+const tren=Object.values(ed.dayModes).filter(x=>x==='tren').length;
+return `<div style="font-size:11px;color:#666;margin-top:6px;padding-top:6px;border-top:1px solid #eee">📊 Total: <b>${bas} hari Bas + ${tren} hari Tren</b></div>`;
+})()}
+</div>` : ''}
+<label class="lbl">Mod Sistem (untuk masa booking Nara/Namba)</label>
+<select class="inp" id="pf-mod">
+<option value="tren" ${ed.mod==="tren"?'selected':''}>🚃 Tren — Nara 11:00am, Namba 5:00pm</option>
+<option value="bas" ${ed.mod==="bas"?'selected':''}>🚌 Bas — Nara 11:30am, Namba 5:30pm</option>
+</select>
+${ed.dayModes&&ed.dayModes[2]?`<p style="font-size:11px;color:#666;margin-top:-6px;margin-bottom:10px">💡 Auto-set ikut Day 2 (hari Nara/Namba). Boleh ubah jika perlu.</p>`:''}
+</div>
+
+${p.itin.pax&&p.itin.pax!==ed.peserta.length?`<div class="warnsec">⚠️ <b>Nota:</b> Itinerari menyatakan <b>${p.itin.pax} PAX</b>, tetapi senarai peserta hanya ada <b>${ed.peserta.length} nama</b>. Sistem akan guna senarai peserta sebagai sumber rasmi.</div>`:''}
+
+<div class="stitle">Senarai Peserta (${ed.peserta.length})${tlCount>0?` <span style="font-size:11px;color:#e65100;font-weight:400">⭐ ${tlCount} Tour Leader</span>`:''}</div>
+<div class="plist" id="pl">
+${ed.peserta.map((px,i)=>`<div class="pitem ${px.isTL?'tl':''}">
+<span class="pn">${i+1}.</span>
+<span class="pname">${px.nama}</span>
+<button class="px" data-rmp="${i}">✕</button>
+</div>`).join('')}
+</div>
+<div style="display:flex;gap:6px;margin-bottom:14px">
+<input class="inp" id="add-name" placeholder="Tambah nama (manual)" style="margin:0;flex:1"/>
+<button class="bsm g" id="add-name-btn" style="padding:13px 14px">+ Tambah</button>
+</div>
+
+<div class="abox" style="margin-bottom:14px">
+<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#1a6b3c">
+<input type="checkbox" id="incl-guide" ${ed.includeGuide?'checked':''} style="width:18px;height:18px"/>
++ 1 untuk Tour Guide (Crystal/Seishin)
+</label>
+<p style="font-size:11px;color:#666;margin-top:6px;margin-left:26px">Guide tidak masuk dalam senarai peserta tetapi dikira dalam jumlah pax untuk booking restoran.</p>
+</div>
+
+<div class="abox" style="background:#f0f9f4;border-left:3px solid #1a6b3c">
+<div style="font-size:13px;font-weight:600;color:#1a6b3c;margin-bottom:6px">📊 Jumlah Pax untuk Booking</div>
+<div style="font-size:12px;color:#333">${ed.peserta.length} peserta${ed.includeGuide?' + 1 guide':''} = <b style="font-size:16px;color:#1a6b3c">${ed.peserta.length+(ed.includeGuide?1:0)} pax</b></div>
+</div>
+
+</div>
+<div class="fb"><button class="b1" id="pdf-confirm">✅ Sahkan & Cipta Trip</button></div>`;
+}
+return'';
+}
+function rTracking(trip,orders){
+if(!trip||!trip.peserta||!trip.peserta.length)return'';
+const orderedNames=new Set();
+orders.forEach(o=>{
+const m=fuzzyMatchPeserta(o.name,trip.peserta);
+if(m)orderedNames.add(m.match.nama);
+});
+const tot=trip.peserta.length;
+const ok=orderedNames.size;
+const pct=tot>0?Math.round(ok/tot*100):0;
+const pending=trip.peserta.filter(p=>!orderedNames.has(p.nama));
+return`<div class="trkbox">
+<h4>📊 Status Pesanan Peserta</h4>
+<div class="trkrow">
+<div class="trksc"><div class="v ok">${ok}</div><div class="l">Sudah order</div></div>
+<div class="trksc"><div class="v pending">${tot-ok}</div><div class="l">Belum order</div></div>
+<div class="trksc"><div class="v">${pct}%</div><div class="l">Progress</div></div>
+</div>
+<div class="trkbar"><div class="fill" style="width:${pct}%"></div></div>
+${pending.length>0?`<button class="bcp" id="cp-pending" style="margin-top:6px">📋 Copy Senarai Belum Order (${pending.length})</button>`:'<p style="font-size:12px;color:#1a6b3c;text-align:center;font-weight:600">🎉 Semua peserta sudah order!</p>'}
+<div class="trklist">
+${trip.peserta.map(p=>{
+const done=orderedNames.has(p.nama);
+return`<div class="trkname ${done?'ok':'pending'}"><span class="stat">${done?'✅':'⏳'}</span><span style="flex:1">${p.nama}${p.isTL?' ⭐':''}</span></div>`;
+}).join('')}
+</div>
+</div>`;
+}
+function bPendingList(trip,orders){
+if(!trip||!trip.peserta)return"";
+const orderedNames=new Set();
+orders.forEach(o=>{const m=fuzzyMatchPeserta(o.name,trip.peserta);if(m)orderedNames.add(m.match.nama);});
+const pending=trip.peserta.filter(p=>!orderedNames.has(p.nama));
+let txt=`📋 *PESERTA BELUM ORDER*\n📌 ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
+pending.forEach((p,i)=>{txt+=`${i+1}. ${p.nama}${p.isTL?' ⭐ (TL)':''}\n`;});
+txt+=`\n${'─'.repeat(28)}\n👥 Tinggal ${pending.length} / ${trip.peserta.length} peserta`;
+return txt;
+}
 function rSummary(sl,orders){
   return sl.map(s=>{
     const cnt={};orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p[s.id];if(i&&!i.skip)cnt[i.name]=(cnt[i.name]||0)+1;}));
@@ -398,7 +714,7 @@ function rOrderList(sl,orders,canDel,isLeader){
   if(!orders.length)return`<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Tiada pesanan lagi.</div>`;
   return orders.map(o=>`<div class="ocard">
     <div class="oname"><span>${o.name}${(o.persons||[]).length>1?` <span style="font-size:11px;color:#888;font-weight:400">(${o.persons.length} orang)</span>`:''}</span>
-    ${canDel?`<button style="font-size:11px;color:#e53935;background:none;border:none;cursor:pointer" data-del="${o.id}" data-leader="${isLeader?1:0}">✕</button>`:''}</div>
+    ${canDel?`<div style="display:flex;gap:4px"><button style="font-size:14px;color:#1a6b3c;background:none;border:none;cursor:pointer;padding:0 4px" data-edit="${o.id}" data-eview="${isLeader?'leader':'admin'}" title="Edit pesanan">✏️</button><button style="font-size:13px;color:#e53935;background:none;border:none;cursor:pointer;padding:0 4px" data-del="${o.id}" data-leader="${isLeader?1:0}" title="Padam">✕</button></div>`:''}</div>
     ${(o.persons||[]).map((p,pi)=>`
       ${(o.persons||[]).length>1?`<div style="font-size:11px;font-weight:600;color:#888;margin:5px 0 2px">👤 Orang ${pi+1}</div>`:''}
       ${sl.map(s=>`<div class="osesi"><div class="ost">${s.nama}</div>
@@ -414,6 +730,20 @@ function rLock(title,icon,btnId){
     ${S.passErr?`<div class="err">${S.passErr}</div>`:''}
     <button class="b1" id="${btnId}">Log Masuk</button>
   </div>`;
+}
+function rTripSelect(){
+if(!S.trips.length)return`<p style="color:#aaa;font-size:13px">Tiada trip.</p>`;
+const sorted=[...S.trips].sort((a,b)=>{
+const am=a.tarikhMula||'',bm=b.tarikhMula||'';
+if(!am&&!bm)return 0;
+if(!am)return 1;
+if(!bm)return -1;
+return am.localeCompare(bm);
+});
+return`<select class="inp" id="trip-sel">${sorted.map(t=>{
+const tarikh=t.tarikh?` — ${t.tarikh}`:(t.tarikhMula?` — ${t.tarikhMula}`:'');
+return`<option value="${t.id}" ${S.selTrip===t.id?'selected':''}>${t.nama}${tarikh}</option>`;
+}).join("")}</select>`;
 }
 // ── Main render functions ──────────────────────────────────────────
 function rHome(){
@@ -432,7 +762,8 @@ const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
 const rem=pax-used;
 if(S.submitted){
 const o=S.form;
-return`<div class="stk"><h2>${trip.nama}</h2></div> <div style="text-align:center;padding:50px 24px"> <div style="font-size:56px;margin-bottom:14px">✅</div> <h2 style="font-size:22px;font-weight:600;margin-bottom:8px">Pesanan Diterima!</h2> <p style="font-size:15px;color:#666;margin-bottom:4px">Terima kasih, <b>${o.name}</b>.</p> <p style="font-size:13px;color:#aaa;margin-bottom:16px">${o.pax} orang telah dibuat pesanan.</p> <div style="background:#f9f9f9;border-radius:12px;padding:14px;text-align:left;margin:14px 0"> <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#1a6b3c">Ringkasan Pesanan</div> ${(o.persons||[]).map((p,i)=>`
+const wasEdit=S.lastWasEdit;
+return`<div class="stk"><h2>${trip.nama}</h2></div> <div style="text-align:center;padding:50px 24px"> <div style="font-size:56px;margin-bottom:14px">${wasEdit?'💾':'✅'}</div> <h2 style="font-size:22px;font-weight:600;margin-bottom:8px">${wasEdit?'Perubahan Disimpan!':'Pesanan Diterima!'}</h2> <p style="font-size:15px;color:#666;margin-bottom:4px">${wasEdit?'Pesanan dikemas kini untuk':'Terima kasih,'} <b>${o.name}</b>.</p> <p style="font-size:13px;color:#aaa;margin-bottom:16px">${o.pax} orang.</p> <div style="background:#f9f9f9;border-radius:12px;padding:14px;text-align:left;margin:14px 0"> <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#1a6b3c">Ringkasan Pesanan</div> ${(o.persons||[]).map((p,i)=>`
 ${o.pax>1?`<div style="font-size:11px;font-weight:600;color:#888;margin:8px 0 4px">👤 ${i===0?'Anda':'Orang '+(i+1)}</div>`:''}
 ${sl.map(s=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee;font-size:12px"> <span style="color:#666">${s.nama}</span><span style="font-weight:600;${p[s.id]&&p[s.id].skip?'color:#c62828':''}">${p[s.id]?(p[s.id].skip?'🚫 Tidak order':p[s.id].name):'—'}</span> </div>`).join("")}`).join("")} </div> <button class="b2" id="go-back" style="margin-top:8px">Kembali</button> </div>`;
 }
@@ -451,8 +782,9 @@ const isSel=sel&&sel.id===m.id;
 const img=S.imgs[`${sesi.id}_${m.id}`];
 return`<div class="mcard ${isSel?'sel':''}" data-sesi="${sesi.id}" data-pid="${ap}" data-mid="${m.id}"> <div class="mwrap">${img?`<img src="${img}" alt="${m.name}"/>`:`<span style="font-size:26px">🍽️</span>`}${isSel?'<div class="mchk">✓</div>':''}</div> <div class="minfo"> <div class="mname">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''}</div> ${sesi.showPrice?`<div class="mprice">¥${m.price.toLocaleString()}</div>`:''} ${m.desc?`<div class="mdesc">${m.desc}</div>`:''} </div> </div>`;
 }).join("");
-return`<div class="stk"><h2>${trip.nama}</h2></div>
+return`<div class="stk"><h2>${S.editing.active?'✏️ Edit Pesanan':trip.nama}</h2>${S.editing.active?'<button class="bk" id="cancel-edit" title="Batal" style="font-size:18px">✕</button>':''}</div>
 <div class="body">
+    ${S.editing.active?`<div class="warnsec">✏️ <b>Mod Edit:</b> Mengedit pesanan untuk <b>${S.form.name}</b>. Klik <b>"💾 Simpan Perubahan"</b> untuk menyimpan, atau <b>✕</b> untuk batal.</div>`:''}
     <div class="pb">${Array.from({length:sl.length+1}).map((_,i)=>`<div class="ps ${i<S.sesiIdx+1?'done':i===S.sesiIdx+1?'active':''}"></div>`).join("")}</div>
     <div class="shdr"><h3>${sesi.nama}</h3>${sesi.note?`<p>${sesi.note}</p>`:''}</div>
     ${sesi.id==="namba"?`<div class="snote">✅ Semua order termasuk Regular size + Karaage 3pc (¥400)</div>`:''}
@@ -470,14 +802,14 @@ return`<div class="stk"><h2>${trip.nama}</h2></div>
   </div>
   <div class="fb"><div style="display:flex;gap:8px">
     <button class="b2" id="prev-step" style="margin:0;flex:1;padding:14px 0">← Balik</button>
-    <button class="b1" id="next-step" style="margin:0;flex:2">${isLast?'✅ Hantar Pesanan':'Seterusnya →'}</button>
+    <button class="b1" id="next-step" style="margin:0;flex:2">${isLast?(S.editing.active?'💾 Simpan Perubahan':'✅ Hantar Pesanan'):'Seterusnya →'}</button>
   </div></div>`;
 }
 function rCheck(){
 const trip=S.tripData;
 const sl=trip?trip.sesi||SESI:SESI;
 const name=S.checkName||"";
-const found=S.checkDone?S.orders.find(o=>o.name.toLowerCase()===name.toLowerCase()):null;
+const found=S.checkDone?findOrderByName(name,S.orders):null;
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Semak Order</h2></div>
 <div class="body">
     <label class="lbl">Masukkan nama anda</label>
@@ -492,7 +824,8 @@ return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Semak Or
           <span style="color:#666">${s.nama}</span>
           <span style="font-weight:600;${p[s.id]&&p[s.id].skip?'color:#c62828':''}">${p[s.id]?(p[s.id].skip?'🚫 Tidak order':p[s.id].name):'—'}</span>
         </div>`).join("")}`).join("")}
-      <p style="font-size:12px;color:#888;margin-top:12px">Jika ada perubahan, sila hubungi Tour Leader anda.</p>
+      <button class="b1" id="check-edit" style="margin-top:14px;margin-bottom:0">✏️ Edit Pesanan Saya</button>
+      <p style="font-size:11px;color:#888;margin-top:10px;text-align:center">Atau hubungi Tour Leader untuk perubahan rasmi.</p>
     </div>`:`
     <div style="background:#fdecea;border-radius:12px;padding:16px;margin-top:16px;text-align:center">
       <div style="font-size:32px;margin-bottom:8px">🔍</div>
@@ -511,11 +844,11 @@ if(S.adminTab==="trips"){
 const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax &nbsp;🚌 ${t.mod||'tren'}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn active" data-tab="trips">🗺️ Trip</button> <button class="tabbtn" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> <div class="stitle">Senarai Trip</div>${cards}
 ${rBookingSec()}
-<div class="stitle">Tambah Trip Baru</div> <div class="abox"> <input class="inp" id="nt-nama" placeholder="Nama trip" value="${S.newTrip.nama}"/> <input class="inp" id="nt-tarikh" placeholder="Tarikh (cth: 1-7 Nov 2025)" value="${S.newTrip.tarikh}"/> <label class="lbl">Tarikh mula di Osaka</label> <input class="inp" id="nt-mula" type="date" value="${S.newTrip.tarikhMula||''}"/> <label class="lbl">Mod pengangkutan</label> <select class="inp" id="nt-mod"> <option value="tren" ${(S.newTrip.mod||'tren')==='tren'?'selected':''}>🚃 Tren (Nara:11am | Namba:5pm)</option> <option value="bas" ${S.newTrip.mod==='bas'?'selected':''}>🚌 Bas (Nara:11:30am | Namba:5:30pm)</option> </select> <input class="inp" id="nt-pax" placeholder="Jumlah peserta" value="${S.newTrip.pax}" type="number"/> <button class="b1" id="add-trip" style="margin-bottom:0">+ Cipta Trip Baru</button> </div></div>`;
+<div class="stitle">Tambah Trip Baru</div> <button class="pdfbtn" id="open-pdf-import">📄 Cipta Trip dari PDF (Auto)</button> <div class="abox"> <input class="inp" id="nt-nama" placeholder="Nama trip" value="${S.newTrip.nama}"/> <input class="inp" id="nt-tarikh" placeholder="Tarikh (cth: 1-7 Nov 2025)" value="${S.newTrip.tarikh}"/> <label class="lbl">Tarikh mula di Osaka</label> <input class="inp" id="nt-mula" type="date" value="${S.newTrip.tarikhMula||''}"/> <label class="lbl">Mod pengangkutan</label> <select class="inp" id="nt-mod"> <option value="tren" ${(S.newTrip.mod||'tren')==='tren'?'selected':''}>🚃 Tren (Nara:11am | Namba:5pm)</option> <option value="bas" ${S.newTrip.mod==='bas'?'selected':''}>🚌 Bas (Nara:11:30am | Namba:5:30pm)</option> </select> <input class="inp" id="nt-pax" placeholder="Jumlah peserta" value="${S.newTrip.pax}" type="number"/> <button class="b1" id="add-trip" style="margin-bottom:0">+ Cipta Trip Baru (manual)</button> </div></div>`;
 }
 if(S.adminTab==="orders"){
-const sel=S.trips.length>0?`<select class="inp" id="trip-sel">${S.trips.map(t=>`<option value="${t.id}" ${S.selTrip===t.id?'selected':''}>${t.nama}</option>`).join("")}</select>`:`<p style="color:#aaa;font-size:13px">Tiada trip.</p>`;
-return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div> <input class="inp" id="sp-nama" placeholder="cth: Vegan Ramen" value="${S.addSpecial}"/> <button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false)} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>`;
+const sel=rTripSelect();
+return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div> <input class="inp" id="sp-nama" placeholder="cth: Vegan Ramen" value="${S.addSpecial}"/> <button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false)} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>`;
 }
 if(S.adminTab==="imgs"){
 const pending=S.pendingImgs||{};
@@ -619,15 +952,17 @@ const trip=S.trips.find(t=>t.id===S.selTrip)||S.trips[0];
 const sl=trip?(trip.sesi||SESI):SESI;
 const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-const sel=S.trips.length>0?`<select class="inp" id="trip-sel">${S.trips.map(t=>`<option value="${t.id}" ${S.selTrip===t.id?'selected':''}>${t.nama}</option>`).join("")}</select>`:`<p style="color:#aaa;font-size:13px">Tiada trip.</p>`;
+const sel=rTripSelect();
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tour Leader</h2></div>
 <div class="body" style="padding-bottom:40px">
+    <label class="lbl">Pilih trip yang anda bawa:</label>
     ${sel}
     <div class="srow">
       <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div>
       <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div>
       <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div>
     </div>
+    ${rTracking(trip,orders)}
     ${rExpSec()}
     <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)}
     <div class="stitle">Senarai Pesanan</div>
@@ -645,6 +980,7 @@ else if(S.view==="order")el.innerHTML=rOrder();
 else if(S.view==="check")el.innerHTML=rCheck();
 else if(S.view==="admin")el.innerHTML=rAdmin();
 else if(S.view==="leader")el.innerHTML=rLeader();
+else if(S.view==="pdf")el.innerHTML=rPdfImport();
 attachEvents();
 }
 // ── Events ──────────────────────────────────────────
@@ -658,6 +994,11 @@ on("go-back","click",()=>{
 if(S.view==="admin"){S.adminOn=false;S.view="home";}
 else if(S.view==="leader"){S.leaderOn=false;S.view="home";}
 else if(S.view==="check"){S.view="order";S.step=1;}
+else if(S.view==="pdf"){S.view="admin";S.adminTab="trips";}
+else if(S.view==="order"&&S.submitted&&S.lastWasEdit){
+S.view="check";S.checkDone=true;S.submitted=false;S.lastWasEdit=false;
+S.step=1;S.form={name:"",pax:1,persons:[]};
+}
 else{S.view="home";}
 render();
 });
@@ -702,6 +1043,110 @@ document.querySelectorAll("[data-dtrip]").forEach(b=>b.addEventListener("click",
 if(!confirm("Padam trip ini dan semua ordernya?"))return;
 await delTrip(b.dataset.dtrip);S.trips=S.trips.filter(t=>t.id!==b.dataset.dtrip);render();
 }));
+// Edit order — start (peserta self / TL / admin)
+function startEdit(orderId,origView){
+const order=S.orders.find(o=>o.id===orderId);
+if(!order){toast("Order tidak ditemui.");return;}
+// Untuk TL/admin: pastikan tripData diset ikut selTrip
+if(origView==="leader"||origView==="admin"){
+const trip=S.trips.find(t=>t.id===S.selTrip);
+if(!trip){toast("Trip tidak ditemui.");return;}
+S.tripId=trip.id;S.tripData=trip;
+}
+S.editing={active:true,orderId:order.id,origView,returnSelTrip:S.selTrip};
+S.form={name:order.name,pax:(order.persons||[]).length||1,persons:JSON.parse(JSON.stringify(order.persons||[]))};
+S.step=2;S.sesiIdx=0;S.activePerson=0;S.submitted=false;S.formErr="";
+S.view="order";render();
+}
+function cancelEdit(){
+const back=S.editing.origView;
+S.editing={active:false,orderId:null,origView:null,returnSelTrip:null};
+S.form={name:"",pax:1,persons:[]};S.step=1;S.submitted=false;S.formErr="";
+if(back==="check"){S.view="check";}
+else if(back==="leader"||back==="admin"){S.view=back;}
+else {S.view="home";}
+render();
+}
+on("cancel-edit","click",()=>{
+if(confirm("Batal edit? Perubahan tidak akan disimpan."))cancelEdit();
+});
+on("check-edit","click",()=>{
+const found=findOrderByName(S.checkName,S.orders);
+if(found)startEdit(found.id,"check");
+});
+document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>{
+const oid=b.dataset.edit;
+const ev=b.dataset.eview||"admin";
+startEdit(oid,ev);
+}));
+// PDF Import flow
+on("open-pdf-import","click",()=>{S.view="pdf";S.pdfFlow={step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""};render();});
+on("pdf-itin","change",e=>{const f=e.target.files[0];if(f)S.pdfFlow.itinFile=f;S.pdfFlow.err="";render();});
+on("pdf-room","change",e=>{const f=e.target.files[0];if(f)S.pdfFlow.roomFile=f;S.pdfFlow.err="";render();});
+on("pdf-back","click",()=>{S.pdfFlow.step="upload";S.pdfFlow.err="";render();});
+on("pdf-process","click",async()=>{
+const f=S.pdfFlow;if(!f.itinFile||!f.roomFile)return;
+S.pdfFlow.step="processing";render();
+try{
+const itinLines=await pdfToLines(f.itinFile);
+const roomLines=await pdfToLines(f.roomFile);
+const itin=parseItinerary(itinLines);
+const room=parseRoomingList(roomLines);
+if(!itin.tarikhMula){throw new Error("Tidak dapat ekstrak tarikh dari itinerari. Sila pastikan format Seishin International.");}
+if(!room.peserta.length){throw new Error("Tidak dapat ekstrak senarai peserta dari rooming list. Sila semak format PDF.");}
+S.pdfFlow.parsed={itin,room};
+S.pdfFlow.editing={
+nama:suggestTripNama(itin,room),
+tarikh:room.tarikhTrip||'',
+tarikhMula:itin.tarikhMula,
+mod:itin.mod||'tren',
+peserta:[...room.peserta],
+includeGuide:true,
+dayModes:itin.dayModes||{},
+};
+S.pdfFlow.step="preview";
+render();
+}catch(e){
+console.error(e);
+S.pdfFlow.step="upload";
+S.pdfFlow.err=e.message||"Ralat semasa proses PDF.";
+render();
+}
+});
+on("pf-nama","input",e=>S.pdfFlow.editing.nama=e.target.value);
+on("pf-tarikh","input",e=>S.pdfFlow.editing.tarikh=e.target.value);
+on("pf-mula","input",e=>S.pdfFlow.editing.tarikhMula=e.target.value);
+on("pf-mod","change",e=>S.pdfFlow.editing.mod=e.target.value);
+on("incl-guide","change",e=>{S.pdfFlow.editing.includeGuide=e.target.checked;render();});
+document.querySelectorAll("[data-rmp]").forEach(b=>b.addEventListener("click",()=>{
+const i=parseInt(b.dataset.rmp);
+if(confirm(`Buang "${S.pdfFlow.editing.peserta[i].nama}" dari senarai?`)){
+S.pdfFlow.editing.peserta.splice(i,1);render();
+}
+}));
+on("add-name-btn","click",()=>{
+const v=$("add-name")?.value?.trim();if(!v)return;
+const isTL=/\(TL\)|\(TOUR\s*LEADER\)/i.test(v);
+const nama=v.replace(/\(TL\)|\(TOUR\s*LEADER\)/gi,'').trim();
+S.pdfFlow.editing.peserta.push({nama,isTL});render();
+});
+on("add-name","keydown",e=>{if(e.key==="Enter")$("add-name-btn")?.click();});
+on("pdf-confirm","click",async()=>{
+const ed=S.pdfFlow.editing;
+if(!ed.nama.trim()){alert("Sila masukkan nama trip.");return;}
+if(!ed.tarikhMula){alert("Sila masukkan tarikh mula.");return;}
+if(ed.peserta.length===0){alert("Senarai peserta kosong.");return;}
+const id=genId();
+const guideCount=ed.includeGuide?1:0;
+const t={id,nama:ed.nama.trim(),tarikh:ed.tarikh.trim(),tarikhMula:ed.tarikhMula,mod:ed.mod,pax:ed.peserta.length+guideCount,sesi:SESI,peserta:ed.peserta};
+await saveTrip(t);S.trips.push(t);
+S.pdfFlow={step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""};
+S.view="admin";S.adminTab="trips";S.selTrip=id;
+alert(`✅ Trip "${t.nama}" berjaya dicipta!\n\n👥 ${t.peserta.length} peserta + ${guideCount} guide = ${t.pax} pax\n\n🔗 Link:\n${tLink(id)}`);
+render();
+});
+// Tracking - copy senarai belum order
+on("cp-pending","click",()=>{const t=S.trips.find(x=>x.id===S.selTrip);if(t)cp(bPendingList(t,S.orders));});
 // Booking restoran (slot sahaja)
 on("cp-bk-fuji","click",()=>{if(S.trips.length===0){toast("⚠️ Tiada trip");return;}cp(bBookingFuji(S.trips));});
 on("cp-bk-nara","click",()=>{if(S.trips.length===0){toast("⚠️ Tiada trip");return;}cp(bBookingNara(S.trips));});
@@ -800,9 +1245,19 @@ if(S.step===1){
 const name=$("order-name")?.value?.trim()||S.form.name.trim();
 S.form.name=name;
 if(!name){S.formErr="Sila masukkan nama anda.";render();return;}
-if(S.orders.find(o=>o.name.toLowerCase()===name.toLowerCase())){S.formErr="Nama ini sudah membuat pesanan.";render();return;}
+if(findOrderByName(name,S.orders)){S.formErr="Nama ini sudah membuat pesanan. Klik 'Semak Order Saya' untuk edit.";render();return;}
 if(rem<=0){S.formErr="Slot pesanan sudah penuh.";render();return;}
 if(S.form.pax>rem){S.formErr=`Hanya ${rem} slot tinggal.`;render();return;}
+// Validation: jika trip ada senarai peserta, semak nama
+if(trip.peserta&&trip.peserta.length>0){
+const m=fuzzyMatchPeserta(name,trip.peserta);
+if(!m){
+const ok=confirm(`⚠️ Nama "${name}" tidak ditemui dalam senarai peserta.\n\nSila semak ejaan, atau klik OK jika anda pasti nama anda betul untuk teruskan.`);
+if(!ok){S.formErr="Sila semak ejaan nama anda atau hubungi Tour Leader.";render();return;}
+} else if(m.confidence==="partial"){
+S.form.name=m.match.nama;
+}
+}
 S.form.persons=Array.from({length:S.form.pax},()=>({}));
 S.sesiIdx=0;S.activePerson=0;S.formErr="";S.step=2;render();
 } else {
@@ -814,12 +1269,30 @@ S.activePerson=missing;S.formErr=`Sila pilih menu untuk semua ${S.form.pax} oran
 }
 S.formErr="";
 if(S.sesiIdx===sl.length-1){
-const order={id:genId(),name:S.form.name,persons:S.form.persons};
-await saveOrder(S.tripId,order);S.submitted=true;render();
+const isEdit=S.editing.active;
+const order={id:isEdit?S.editing.orderId:genId(),name:S.form.name,persons:S.form.persons};
+await saveOrder(S.tripId,order);
+if(isEdit){
+S.lastWasEdit=true;
+const back=S.editing.origView;
+const trip=S.tripId;
+S.editing={active:false,orderId:null,origView:null,returnSelTrip:null};
+if(back==="check"){S.submitted=true;render();}
+else if(back==="leader"||back==="admin"){
+S.view=back;S.step=1;S.submitted=false;S.form={name:"",pax:1,persons:[]};
+await loadOrders(S.selTrip||trip);render();toast("✓ Perubahan disimpan!");
+} else {S.submitted=true;render();}
+} else {
+S.lastWasEdit=false;S.submitted=true;render();
+}
 } else {S.sesiIdx++;S.activePerson=0;render();}
 }
 });
 on("prev-step","click",()=>{
+if(S.editing.active&&S.sesiIdx===0){
+if(confirm("Batal edit? Perubahan tidak akan disimpan."))cancelEdit();
+return;
+}
 if(S.sesiIdx>0){S.sesiIdx--;S.activePerson=0;S.formErr="";}
 else{S.step=1;S.formErr="";}render();
 });
