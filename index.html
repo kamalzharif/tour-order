@@ -131,18 +131,47 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v4.1 — 2026-05-02 — lazy-load pdf.js -->
-<div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div></div></div>
+<!-- BUILD: v4.2 — 2026-05-02 — visible error catcher + eruda -->
+<div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
+console.log("[Tour-Order] Build v4.2 starting…");
+
+// Tangkap dan papar SEBARANG ralat secara visual
+function showError(label, details){
+var ed=document.getElementById(‘error-display’);
+if(!ed)return;
+ed.style.display=‘block’;
+ed.textContent=(ed.textContent?ed.textContent+’\n\n’:’’)+‘⚠️ ‘+label+’\n’+details;
+}
+window.addEventListener(‘error’,function(e){
+var msg=(e.message||‘Unknown’)+’\n’+(e.filename||’’)+’:’+(e.lineno||’’)+’:’+(e.colno||’’);
+if(e.error&&e.error.stack)msg+=’\n’+e.error.stack.split(’\n’).slice(0,3).join(’\n’);
+showError(‘JavaScript Error’,msg);
+});
+window.addEventListener(‘unhandledrejection’,function(e){
+var msg=e.reason?(e.reason.message||String(e.reason)):‘Unknown rejection’;
+if(e.reason&&e.reason.stack)msg+=’\n’+e.reason.stack.split(’\n’).slice(0,3).join(’\n’);
+showError(‘Promise Rejection’,msg);
+});
+
+// Auto-show fallback selepas 8 saat jika module belum load
 setTimeout(function(){
-var fb=document.getElementById('load-fallback');
-var il=document.getElementById('initial-load');
-if(fb&&il&&il.parentNode){fb.style.display='block';}
+var fb=document.getElementById(‘load-fallback’);
+var il=document.getElementById(‘initial-load’);
+if(fb&&il&&il.parentNode){fb.style.display=‘block’;}
 },8000);
-console.log("[Tour-Order] Build v4.1 starting…");
+
+// Eruda (mobile DevTools) — aktif dengan ?debug=1
+if(location.search.indexOf(‘debug=1’)>=0){
+var s=document.createElement(‘script’);
+s.src=‘https://cdn.jsdelivr.net/npm/eruda’;
+s.onload=function(){eruda.init();console.log(”[Eruda] Mobile DevTools loaded”);};
+document.head.appendChild(s);
+}
 </script>
+
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{getFirestore,doc,getDoc,setDoc,deleteDoc,collection,onSnapshot,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -610,8 +639,7 @@ ${roomOK?`✅ ${f.roomFile.name}<br><span style="font-size:11px;color:#666">Klik
 <input type="file" accept="application/pdf" id="pdf-room"/>
 </label>
 
-${f.err?`<div class="err">${f.err}</div>`:’’}
-
+${f.err?`<div class="err">${f.err}</div>`:''}
 </div>
 <div class="fb"><button class="b1" id="pdf-process" ${!ready?'disabled':''}>🔍 Proses & Pratonton</button></div>`;
 }
@@ -665,7 +693,7 @@ return `<div style="font-size:11px;color:#666;margin-top:6px;padding-top:6px;bor
 ${ed.dayModes&&ed.dayModes[2]?`<p style="font-size:11px;color:#666;margin-top:-6px;margin-bottom:10px">💡 Auto-set ikut Day 2 (hari Nara/Namba). Boleh ubah jika perlu.</p>`:''}
 </div>
 
-${p.itin.pax&&p.itin.pax!==ed.peserta.length?`<div class="warnsec">⚠️ <b>Nota:</b> Itinerari menyatakan <b>${p.itin.pax} PAX</b>, tetapi senarai peserta hanya ada <b>${ed.peserta.length} nama</b>. Sistem akan guna senarai peserta sebagai sumber rasmi.</div>`:’’}
+${p.itin.pax&&p.itin.pax!==ed.peserta.length?`<div class="warnsec">⚠️ <b>Nota:</b> Itinerari menyatakan <b>${p.itin.pax} PAX</b>, tetapi senarai peserta hanya ada <b>${ed.peserta.length} nama</b>. Sistem akan guna senarai peserta sebagai sumber rasmi.</div>`:''}
 
 <div class="stitle">Senarai Peserta (${ed.peserta.length})${tlCount>0?` <span style="font-size:11px;color:#e65100;font-weight:400">⭐ ${tlCount} Tour Leader</span>`:''}</div>
 <div class="plist" id="pl">
@@ -914,85 +942,81 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
         }).join("")}
       </div>`).join("");
 
-```
-const grid=previews.length>0?`
-  <div style="font-size:13px;font-weight:600;margin:16px 0 6px">🖼️ Langkah 2 — Klik gambar untuk padankan</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
-    ${previews.map((prev,i)=>{
-      const ak=assignedIdx[i];const am=ak?allMenus.find(m=>m.key===ak):null;
-      return`<div class="igitem" data-fileidx="${i}" style="border:2.5px solid ${am?'#1a6b3c':'#eee'}">
-        <img src="${prev}" style="width:100%;height:80px;object-fit:cover;display:block"/>
-        <div style="padding:4px 5px;font-size:9px;min-height:28px;color:${am?'#1a6b3c':'#888'}">${am?`✓ ${am.name}`:'Klik padankan'}</div>
-        ${am?`<div style="position:absolute;top:3px;right:3px;background:#1a6b3c;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">✓</div>`:''}
-      </div>`;
-    }).join("")}
-  </div>`:'';
+    const grid=previews.length>0?`
+      <div style="font-size:13px;font-weight:600;margin:16px 0 6px">🖼️ Langkah 2 — Klik gambar untuk padankan</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+        ${previews.map((prev,i)=>{
+          const ak=assignedIdx[i];const am=ak?allMenus.find(m=>m.key===ak):null;
+          return`<div class="igitem" data-fileidx="${i}" style="border:2.5px solid ${am?'#1a6b3c':'#eee'}">
+            <img src="${prev}" style="width:100%;height:80px;object-fit:cover;display:block"/>
+            <div style="padding:4px 5px;font-size:9px;min-height:28px;color:${am?'#1a6b3c':'#888'}">${am?`✓ ${am.name}`:'Klik padankan'}</div>
+            ${am?`<div style="position:absolute;top:3px;right:3px;background:#1a6b3c;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">✓</div>`:''}
+          </div>`;
+        }).join("")}
+      </div>`:'';
 
-const modal=S.selectingFileIdx!=null?`
-<div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;display:flex;align-items:flex-end;justify-content:center" id="modal-overlay">
-  <div style="background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:16px;max-height:75vh;overflow-y:auto">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-size:15px;font-weight:600">Pilih menu untuk gambar ini</div>
-      <button id="close-modal" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">✕</button>
+    const modal=S.selectingFileIdx!=null?`
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;display:flex;align-items:flex-end;justify-content:center" id="modal-overlay">
+      <div style="background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:16px;max-height:75vh;overflow-y:auto">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:15px;font-weight:600">Pilih menu untuk gambar ini</div>
+          <button id="close-modal" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">✕</button>
+        </div>
+        <img src="${previews[S.selectingFileIdx]}" style="width:100%;height:130px;object-fit:cover;border-radius:10px;margin-bottom:12px"/>
+        ${SESI.map(sesi=>`
+          <div style="font-size:10px;font-weight:600;color:#1a6b3c;margin:8px 0 4px;text-transform:uppercase">${sesi.nama}</div>
+          ${sesi.menus.map(m=>{
+            const key=`${sesi.id}_${m.id}`;
+            const isA=pending[key]&&pending[key].fileIdx===S.selectingFileIdx;
+            return`<div class="modal-item" data-key="${key}" data-fi="${S.selectingFileIdx}"
+              style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;margin-bottom:4px;cursor:pointer;background:${isA?'#f0f9f4':'#f9f9f9'};border:1.5px solid ${isA?'#1a6b3c':'transparent'}">
+              <div style="width:32px;height:32px;border-radius:6px;overflow:hidden;background:#eee;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">
+                ${S.imgs[key]?`<img src="${S.imgs[key]}" style="width:100%;height:100%;object-fit:cover"/>`:'🍽️'}
+              </div>
+              <span style="font-size:13px;flex:1">${m.name}</span>
+              ${isA?'<span style="color:#1a6b3c;font-weight:600">✓</span>':''}
+            </div>`;
+          }).join("")}`).join("")}
+        <button id="remove-assign" style="width:100%;padding:10px;margin-top:8px;border-radius:10px;border:1px solid #e53935;background:#fff;color:#e53935;font-size:13px;cursor:pointer">✕ Buang Padanan</button>
+      </div>
+    </div>`:'';
+
+    return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div>
+    <div class="body" style="padding-bottom:100px">
+      <div class="tabrow">
+        <button class="tabbtn" data-tab="trips">🗺️ Trip</button>
+        <button class="tabbtn" data-tab="orders">📋 Order</button>
+        <button class="tabbtn active" data-tab="imgs">🖼️ Menu</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <div style="flex:1;background:#f0f9f4;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#1a6b3c">${hasImg}</div><div style="font-size:11px;color:#666">Ada gambar</div></div>
+        <div style="flex:1;background:#f9f9f9;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#888">${total-hasImg}</div><div style="font-size:11px;color:#666">Tiada gambar</div></div>
+        <div style="flex:1;background:#fff8e1;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#e65100">${Object.keys(pending).length}</div><div style="font-size:11px;color:#666">Belum simpan</div></div>
+      </div>
+      <div class="stitle">Status Semua Menu</div>${statusGrid}
+      <div class="abox" style="margin-top:16px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px">📂 Langkah 1 — Upload gambar</div>
+        <p style="font-size:11px;color:#888;margin-bottom:10px">Gambar akan dikecilkan automatik supaya muat dalam sistem.</p>
+        <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border:1.5px dashed #1a6b3c;border-radius:10px;cursor:pointer;font-size:13px;color:#1a6b3c;background:#f0f9f4">
+          📷 ${previews.length>0?`${previews.length} gambar dipilih — klik untuk tukar`:'Pilih gambar (boleh pilih banyak)'}
+          <input type="file" accept="image/*" multiple style="display:none" id="bulk-pick"/>
+        </label>
+      </div>
+      ${grid}
     </div>
-    <img src="${previews[S.selectingFileIdx]}" style="width:100%;height:130px;object-fit:cover;border-radius:10px;margin-bottom:12px"/>
-    ${SESI.map(sesi=>`
-      <div style="font-size:10px;font-weight:600;color:#1a6b3c;margin:8px 0 4px;text-transform:uppercase">${sesi.nama}</div>
-      ${sesi.menus.map(m=>{
-        const key=`${sesi.id}_${m.id}`;
-        const isA=pending[key]&&pending[key].fileIdx===S.selectingFileIdx;
-        return`<div class="modal-item" data-key="${key}" data-fi="${S.selectingFileIdx}"
-          style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;margin-bottom:4px;cursor:pointer;background:${isA?'#f0f9f4':'#f9f9f9'};border:1.5px solid ${isA?'#1a6b3c':'transparent'}">
-          <div style="width:32px;height:32px;border-radius:6px;overflow:hidden;background:#eee;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">
-            ${S.imgs[key]?`<img src="${S.imgs[key]}" style="width:100%;height:100%;object-fit:cover"/>`:'🍽️'}
-          </div>
-          <span style="font-size:13px;flex:1">${m.name}</span>
-          ${isA?'<span style="color:#1a6b3c;font-weight:600">✓</span>':''}
-        </div>`;
-      }).join("")}`).join("")}
-    <button id="remove-assign" style="width:100%;padding:10px;margin-top:8px;border-radius:10px;border:1px solid #e53935;background:#fff;color:#e53935;font-size:13px;cursor:pointer">✕ Buang Padanan</button>
-  </div>
-</div>`:'';
-
-return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div>
-<div class="body" style="padding-bottom:100px">
-  <div class="tabrow">
-    <button class="tabbtn" data-tab="trips">🗺️ Trip</button>
-    <button class="tabbtn" data-tab="orders">📋 Order</button>
-    <button class="tabbtn active" data-tab="imgs">🖼️ Menu</button>
-  </div>
-  <div style="display:flex;gap:8px;margin-bottom:16px">
-    <div style="flex:1;background:#f0f9f4;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#1a6b3c">${hasImg}</div><div style="font-size:11px;color:#666">Ada gambar</div></div>
-    <div style="flex:1;background:#f9f9f9;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#888">${total-hasImg}</div><div style="font-size:11px;color:#666">Tiada gambar</div></div>
-    <div style="flex:1;background:#fff8e1;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#e65100">${Object.keys(pending).length}</div><div style="font-size:11px;color:#666">Belum simpan</div></div>
-  </div>
-  <div class="stitle">Status Semua Menu</div>${statusGrid}
-  <div class="abox" style="margin-top:16px">
-    <div style="font-size:13px;font-weight:600;margin-bottom:6px">📂 Langkah 1 — Upload gambar</div>
-    <p style="font-size:11px;color:#888;margin-bottom:10px">Gambar akan dikecilkan automatik supaya muat dalam sistem.</p>
-    <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border:1.5px dashed #1a6b3c;border-radius:10px;cursor:pointer;font-size:13px;color:#1a6b3c;background:#f0f9f4">
-      📷 ${previews.length>0?`${previews.length} gambar dipilih — klik untuk tukar`:'Pilih gambar (boleh pilih banyak)'}
-      <input type="file" accept="image/*" multiple style="display:none" id="bulk-pick"/>
-    </label>
-  </div>
-  ${grid}
-</div>
-<div class="fb"><button class="b1" id="save-imgs" ${Object.keys(pending).length===0?'disabled':''}>💾 Simpan ${Object.keys(pending).length>0?Object.keys(pending).length+' gambar':'Gambar'}</button></div>
-${modal}`;
-```
-
+    <div class="fb"><button class="b1" id="save-imgs" ${Object.keys(pending).length===0?'disabled':''}>💾 Simpan ${Object.keys(pending).length>0?Object.keys(pending).length+' gambar':'Gambar'}</button></div>
+    ${modal}`;
 }
-return’’;
+return'';
 }
 function rLeader(){
-if(!S.leaderOn)return rLock(“Tour Leader”,“👤”,“leader-login”);
+if(!S.leaderOn)return rLock("Tour Leader","👤","leader-login");
 const trip=S.trips.find(t=>t.id===S.selTrip)||S.trips[0];
 const sl=trip?(trip.sesi||SESI):SESI;
 const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
 const sel=rTripSelect();
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tour Leader</h2></div>
-
 <div class="body" style="padding-bottom:40px">
     <label class="lbl">Pilih trip yang anda bawa:</label>
     ${sel}
@@ -1393,5 +1417,6 @@ console.log("[Tour-Order] DOM already ready, dispatching DOMContentLoaded manual
 setTimeout(()=>window.dispatchEvent(new Event("DOMContentLoaded")),0);
 }
 </script>
+
 </body>
 </html>
