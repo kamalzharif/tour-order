@@ -131,8 +131,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<div class="page" id="app"><div class="loading">🍱<br><br>Memuatkan...</div></div>
+<!-- BUILD: v4.1 — 2026-05-02 — lazy-load pdf.js -->
+<div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div></div></div>
 <div class="toast" id="toast"></div>
+<script>
+// Plain script (bukan module) — fallback jika module gagal load
+setTimeout(function(){
+var fb=document.getElementById('load-fallback');
+var il=document.getElementById('initial-load');
+if(fb&&il&&il.parentNode){fb.style.display='block';}
+},8000);
+console.log("[Tour-Order] Build v4.1 starting…");
+</script>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{getFirestore,doc,getDoc,setDoc,deleteDoc,collection,onSnapshot,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -1355,7 +1365,9 @@ on("do-check","click",()=>{S.checkName=$("check-inp")?.value?.trim()||"";S.check
 on("check-inp","keydown",e=>{if(e.key==="Enter")$("do-check")?.click();});
 }
 // ── Init ──────────────────────────────────────────
+console.log("[Tour-Order] Module loaded, registering DOMContentLoaded listener");
 window.addEventListener("DOMContentLoaded",async()=>{
+console.log("[Tour-Order] DOMContentLoaded fired, init starting");
 try{
 const params=new URLSearchParams(location.search);
 const tid=params.get("trip");
@@ -1371,9 +1383,15 @@ S.view="notfound";
 }
 await loadTrips();await loadImgs();
 if(S.trips.length>0)S.selTrip=S.trips[0].id;
-}catch(e){console.error(e);}
+console.log("[Tour-Order] Init complete, rendering");
+}catch(e){console.error("[Tour-Order] Init error:",e);}
 S.loading=false;render();
 });
+// Failsafe: jika DOMContentLoaded sudah fire sebelum module ini load
+if(document.readyState==="complete"||document.readyState==="interactive"){
+console.log("[Tour-Order] DOM already ready, dispatching DOMContentLoaded manually");
+setTimeout(()=>window.dispatchEvent(new Event("DOMContentLoaded")),0);
+}
 </script>
 </body>
 </html>
