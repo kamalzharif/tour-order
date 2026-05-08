@@ -1102,8 +1102,11 @@ return`<div class="stk"><h2>${trip.nama}</h2><span style="font-size:11px;backgro
 <div class="body">
 <div class="pb">${Array.from({length:sl.length+1}).map((_,i)=>`<div class="ps ${i===0?'active':''}"></div>`).join("")}</div>
 <div class="ins">📋 <b>Panduan untuk peserta:</b><br>
+<b>Untuk buat pesanan baharu:</b><br>
 1. Isi <b>nama anda</b> dan <b>bilangan orang</b> yang anda wakili<br>
-${trip.peserta&&trip.peserta.length>0?'2. Pilih nama ahli rombongan yang anda order untuk (jika lebih dari 1)<br>3. ':'2. '}Tekan butang <b>"Seterusnya"</b> di bawah untuk lihat menu makanan</div>
+${trip.peserta&&trip.peserta.length>0?'2. Pilih nama ahli rombongan yang anda order untuk (jika lebih dari 1)<br>3. ':'2. '}Tekan butang <b>"Seterusnya"</b> di bawah untuk lihat menu makanan<br>
+<br>
+<b>Sudah pernah order?</b> Tekan butang <b>"🔍 Semak Order Saya"</b> di bawah untuk lihat pesanan & <b>harga</b> anda, atau edit menu pilihan.</div>
 <p style="font-size:13px;color:#666;margin-bottom:16px">Slot tinggal: <b style="color:${rem<5?'#e53935':'#1a6b3c'}">${rem}</b> / ${pax}</p>
 <label class="lbl">Nama Anda (Wakil)</label>
 <input class="inp" id="order-name" placeholder="cth: Ahmad bin Ali" value="${S.form.name}"/>
@@ -1196,18 +1199,37 @@ return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Semak Or
     <label class="lbl">Masukkan nama anda</label>
     <input class="inp" id="check-inp" placeholder="cth: Ahmad bin Ali" value="${name}"/>
     <button class="b1" id="do-check">🔍 Cari Order</button>
-    ${S.checkDone?found?`
+    ${S.checkDone?found?(()=>{
+const grandTot=(found.persons||[]).reduce((sum,p)=>{
+return sum+sl.reduce((sumS,s)=>{
+const it=p[s.id];
+if(!it||it.skip||!s.showPrice)return sumS;
+return sumS+(it.price||0);
+},0);
+},0);
+return`
     <div style="background:#f0f9f4;border-radius:12px;padding:16px;margin-top:16px;border:1px solid #1a6b3c">
       <div style="font-size:15px;font-weight:600;margin-bottom:12px;color:#1a6b3c">✅ Order dijumpai — ${found.name}</div>
       ${(found.persons||[]).map((p,pi)=>`
         ${(found.persons||[]).length>1?`<div style="font-size:12px;font-weight:600;color:#1a6b3c;margin:10px 0 4px">👤 ${p.personName||(pi===0?'Anda':'Orang '+(pi+1))}</div>`:''}
-        ${sl.map(s=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee;font-size:13px">
-          <span style="color:#666">${s.nama}</span>
-          <span style="font-weight:600;${p[s.id]&&p[s.id].skip?'color:#c62828':''}">${p[s.id]?(p[s.id].skip?'🚫 Tidak order':p[s.id].name):'—'}</span>
-        </div>`).join("")}`).join("")}
+        ${sl.map(s=>{
+const it=p[s.id];
+const skip=it&&it.skip;
+const showPrice=s.showPrice&&it&&!skip&&it.price;
+const priceTag=showPrice?`<span style="font-size:11px;color:#888;font-weight:500;margin-left:6px">¥${it.price.toLocaleString()}</span>`:'';
+return`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee;font-size:13px;gap:8px">
+          <span style="color:#666;flex-shrink:0">${s.nama}</span>
+          <span style="font-weight:600;text-align:right;${skip?'color:#c62828':''}">${it?(skip?'🚫 Tidak order':it.name):'—'}${priceTag}</span>
+        </div>`;
+}).join("")}`).join("")}
+      ${grandTot>0?`<div style="display:flex;justify-content:space-between;padding:10px 0 4px;font-size:13px;border-top:2px solid #1a6b3c;margin-top:8px">
+        <span style="color:#1a6b3c;font-weight:700">💴 Jumlah perlu dibayar</span>
+        <span style="font-weight:700;color:#e65100;font-size:15px">¥${grandTot.toLocaleString()}</span>
+      </div>
+      <p style="font-size:10px;color:#888;margin-top:4px;text-align:right">_(Fuji + Nara sahaja — Namba disupport)_</p>`:''}
       <button class="b1" id="check-edit" style="margin-top:14px;margin-bottom:0">✏️ Edit Pesanan Saya</button>
       <p style="font-size:11px;color:#888;margin-top:10px;text-align:center">Atau hubungi Tour Leader untuk perubahan rasmi.</p>
-    </div>`:`
+    </div>`;})():`
     <div style="background:#fdecea;border-radius:12px;padding:16px;margin-top:16px;text-align:center">
       <div style="font-size:32px;margin-bottom:8px">🔍</div>
       <p style="font-size:14px;color:#c62828;font-weight:600">Tiada order dijumpai</p>
