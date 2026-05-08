@@ -534,6 +534,40 @@ for(const[key,url] of Object.entries(S.imgs)){
 await setDoc(doc(db,"config","menuImgs","items",key),{url});
 }
 }
+async function loadMenuDefaults(){
+try{
+const d=await getDoc(doc(db,"config","menuDefaults"));
+if(d.exists()){
+const prices=d.data().prices||{};
+S.defaultPrices=prices;
+// Apply ke SESI in-place untuk new trip auto-pakai harga lalai
+SESI.forEach(s=>{
+if(!s.menus)return;
+s.menus.forEach(m=>{
+const key=`${s.id}_${m.id}`;
+if(prices[key]!==undefined)m.price=prices[key];
+});
+});
+}
+}catch(e){console.error("loadMenuDefaults:",e);}
+}
+async function saveMenuDefaults(){
+const prices={...S.defaultPrices};
+// Apply drafts: drafts overwrite previous defaults & SESI
+Object.entries(S.priceDrafts).forEach(([key,val])=>{prices[key]=val;});
+await setDoc(doc(db,"config","menuDefaults"),{prices,updatedAt:new Date().toISOString()},{merge:false});
+S.defaultPrices=prices;
+// Apply drafts ke SESI in-place
+Object.entries(S.priceDrafts).forEach(([key,val])=>{
+const[sid,midStr]=key.split('_');
+const mid=parseInt(midStr);
+const sesi=SESI.find(s=>s.id===sid);
+if(!sesi)return;
+const menu=sesi.menus.find(m=>m.id===mid);
+if(menu)menu.price=val;
+});
+S.priceDrafts={};
+}
 function listenOrders(tid){
 onSnapshot(collection(db,"trips",tid,"orders"),s=>{S.orders=s.docs.map(d=>d.data());render();});
 }
@@ -677,6 +711,7 @@ submitted:false,formErr:"",loading:true,
 newTrip:{nama:"",tarikh:"",tarikhMula:"",mod:"tren",pax:""},
 addSpecial:"",imgs:{},
 pendingImgs:{},pickedFiles:[],imgPreviews:[],selectingFileIdx:null,
+priceDrafts:{},defaultPrices:{},
 checkName:"",checkDone:false,
 pdfFlow:{step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""},
 editing:{active:false,orderId:null,origView:null,returnSelTrip:null},
@@ -950,24 +985,35 @@ return sl.map(s=>{
 const menuMap=grouped[s.id]||{};
 const sortedMenus=Object.keys(menuMap).sort((a,b)=>menuMap[b].names.length-menuMap[a].names.length);
 if(!sortedMenus.length)return`<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:6px">${s.nama}</div><div style="padding:10px 14px;font-size:12px;color:#aaa;background:#f9f9f9;border-radius:10px">Tiada order</div></div>`;
-const sesSub=sortedMenus.reduce((acc,m)=>acc+menuMap[m].total,0);
+const sesSubMenus=sortedMenus.reduce((acc,m)=>acc+menuMap[m].total,0);
 const sesPax=sortedMenus.reduce((acc,m)=>acc+menuMap[m].names.length,0);
+const isNamba=s.id==="namba";
+const karaagePax=isNamba?sesPax:0;
+const karaageTotal=karaagePax*400;
+const sesSub=sesSubMenus+karaageTotal;
+const hasAnyPrice=sesSubMenus>0||karaageTotal>0;
 return`<div style="margin-bottom:14px">
-<div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:6px">${s.nama}</div>
+<div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:6px">${s.nama}${isNamba?' <span style="font-size:9px;color:#888;font-weight:400">(disupport — info untuk TL)</span>':''}</div>
 ${sortedMenus.map(menu=>{
 const data=menuMap[menu];
-const showPrice=s.showPrice&&data.unit>0;
+const showMenuPrice=data.unit>0;
 return`<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:10px 14px;margin-bottom:6px">
 <div style="font-size:13px;font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px">
-<span style="flex:1">${menu}${showPrice?` <span style="font-size:11px;color:#888;font-weight:500">¥${data.unit.toLocaleString()}</span>`:''}</span>
-<span style="font-size:11px;background:#f0f9f4;color:#1a6b3c;border-radius:20px;padding:2px 10px;flex-shrink:0">${data.names.length} pax${showPrice?` · ¥${data.total.toLocaleString()}`:''}</span>
+<span style="flex:1">${menu}${showMenuPrice?` <span style="font-size:11px;color:#888;font-weight:500">¥${data.unit.toLocaleString()}</span>`:''}</span>
+<span style="font-size:11px;background:#f0f9f4;color:#1a6b3c;border-radius:20px;padding:2px 10px;flex-shrink:0">${data.names.length} pax${showMenuPrice?` · ¥${data.total.toLocaleString()}`:''}</span>
 </div>
 <ol style="margin:0;padding-left:22px;font-size:12px;color:#333;line-height:1.7">
 ${data.names.map(n=>`<li>${n}</li>`).join('')}
 </ol>
 </div>`;
 }).join('')}
-${s.showPrice&&sesSub>0?`<div style="text-align:right;font-size:12px;color:#1a6b3c;font-weight:600;padding:6px 4px 0">💴 Subtotal ${s.nama.replace(/^[\W_]+/,'').split(' ').slice(0,3).join(' ')}: ${sesPax} pax — <span style="font-size:14px">¥${sesSub.toLocaleString()}</span></div>`:''}
+${isNamba&&karaagePax>0?`<div style="background:#fff;border:1px dashed #ffb74d;border-radius:10px;padding:10px 14px;margin-bottom:6px">
+<div style="font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px">
+<span style="flex:1;color:#e65100">+ Karaage 3pc <span style="font-size:11px;color:#888;font-weight:500">¥400</span></span>
+<span style="font-size:11px;background:#fff3e0;color:#e65100;border-radius:20px;padding:2px 10px;flex-shrink:0">${karaagePax} pax · ¥${karaageTotal.toLocaleString()}</span>
+</div>
+</div>`:''}
+${hasAnyPrice?`<div style="text-align:right;font-size:12px;color:#1a6b3c;font-weight:600;padding:6px 4px 0">💴 Subtotal: ${sesPax} pax — <span style="font-size:14px">¥${sesSub.toLocaleString()}</span></div>`:''}
 </div>`;
 }).join('');
 }
@@ -987,21 +1033,24 @@ grouped[s.id][item.name].total+=(item.price||0);
 });
 let txt=`📢 *PANDUAN PANGGIL NAMA*\n📌 ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n`;
 sl.forEach(s=>{
-txt+=`\n*${s.nama}*\n`;
+txt+=`\n*${s.nama}*${s.id==="namba"?'\n_(disupport — info untuk TL)_':''}\n`;
 const menuMap=grouped[s.id]||{};
 const sortedMenus=Object.keys(menuMap).sort((a,b)=>menuMap[b].names.length-menuMap[a].names.length);
 if(!sortedMenus.length){txt+='  _(Tiada order)_\n';return;}
 sortedMenus.forEach(menu=>{
 const data=menuMap[menu];
-const showPrice=s.showPrice&&data.unit>0;
+const showPrice=data.unit>0;
 txt+=`\n📋 *${menu}*${showPrice?` (¥${data.unit.toLocaleString()})`:''} — ${data.names.length} pax${showPrice?` = ¥${data.total.toLocaleString()}`:''}\n`;
 data.names.forEach((n,i)=>{txt+=`  ${i+1}. ${n}\n`;});
 });
-if(s.showPrice){
-const sub=sortedMenus.reduce((acc,m)=>acc+menuMap[m].total,0);
-const pax=sortedMenus.reduce((acc,m)=>acc+menuMap[m].names.length,0);
-if(sub>0)txt+=`\n💴 *Subtotal: ${pax} pax — ¥${sub.toLocaleString()}*\n`;
-}
+const sesSubMenus=sortedMenus.reduce((acc,m)=>acc+menuMap[m].total,0);
+const sesPax=sortedMenus.reduce((acc,m)=>acc+menuMap[m].names.length,0);
+const isNamba=s.id==="namba";
+const karaagePax=isNamba?sesPax:0;
+const karaageTotal=karaagePax*400;
+if(isNamba&&karaagePax>0){txt+=`\n📋 *+ Karaage 3pc* (¥400) — ${karaagePax} pax = ¥${karaageTotal.toLocaleString()}\n`;}
+const sub=sesSubMenus+karaageTotal;
+if(sub>0)txt+=`\n💴 *Subtotal: ${sesPax} pax — ¥${sub.toLocaleString()}*\n`;
 });
 return txt;
 }
@@ -1275,6 +1324,7 @@ return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Pa
 }
 if(S.adminTab==="imgs"){
 const pending=S.pendingImgs||{};
+const pdrafts=S.priceDrafts||{};
 const previews=S.imgPreviews||[];
 const allMenus=[];
 SESI.forEach(sesi=>sesi.menus.forEach(m=>allMenus.push({key:`${sesi.id}_${m.id}`,name:m.name,sesiNama:sesi.nama})));
@@ -1289,15 +1339,24 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
           const key=`${sesi.id}_${m.id}`;
           const src=pending[key]?pending[key].preview:S.imgs[key];
           const isPending=!!pending[key];const hasEx=!!S.imgs[key];
-          return`<div style="border-radius:10px;overflow:hidden;border:2px solid ${isPending?'#e65100':hasEx?'#1a6b3c':'#eee'};background:#fff;position:relative">
+          const curPrice=pdrafts[key]!==undefined?pdrafts[key]:m.price;
+          const isPriceDraft=pdrafts[key]!==undefined;
+          const showPriceField=m.price!==undefined;
+          const isFreeSession=!sesi.showPrice;
+          return`<div style="border-radius:10px;overflow:hidden;border:2px solid ${isPending||isPriceDraft?'#e65100':hasEx?'#1a6b3c':'#eee'};background:#fff;position:relative">
             <div style="width:100%;height:70px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;overflow:hidden">
               ${src?`<img src="${src}" style="width:100%;height:100%;object-fit:cover"/>`:`<span style="font-size:24px">🍽️</span>`}
             </div>
             <div style="padding:5px 7px">
-              <div style="font-size:10px;font-weight:600;color:#1a1a1a;line-height:1.3">${m.name}</div>
-              <div style="font-size:9px;margin-top:2px;color:${isPending?'#e65100':hasEx?'#1a6b3c':'#bbb'}">${isPending?'⏳ Belum simpan':hasEx?'✓ Ada gambar':'Tiada gambar'}</div>
+              <div style="font-size:10px;font-weight:600;color:#1a1a1a;line-height:1.3;margin-bottom:3px">${m.name}</div>
+              ${showPriceField?`<div style="display:flex;align-items:center;gap:3px;margin-bottom:3px">
+                <span style="font-size:9px;color:#888;font-weight:600">¥</span>
+                <input type="number" min="0" step="50" value="${curPrice}" data-pricedraft="${key}" inputmode="numeric" style="flex:1;padding:3px 5px;font-size:10px;border:1px solid ${isPriceDraft?'#ff9800':'#ddd'};border-radius:5px;background:${isPriceDraft?'#fff8e1':'#fff'};text-align:right;outline:none;width:100%;min-width:0"/>
+                ${isFreeSession?'<span style="font-size:8px;color:#888">📌</span>':''}
+              </div>${isFreeSession?'<div style="font-size:8px;color:#888;font-style:italic;margin-bottom:3px">Disupport — peserta tidak nampak harga</div>':''}`:'<div style="font-size:9px;color:#bbb;margin-bottom:3px">_(percuma)_</div>'}
+              <div style="font-size:9px;color:${isPending?'#e65100':hasEx?'#1a6b3c':'#bbb'}">${isPending?'⏳ Belum simpan':hasEx?'✓ Ada gambar':'Tiada gambar'}</div>
             </div>
-            ${isPending?`<div style="position:absolute;top:4px;right:4px;background:#e65100;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">!</div>`:hasEx?`<div style="position:absolute;top:4px;right:4px;background:#1a6b3c;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">✓</div>`:''}
+            ${isPending||isPriceDraft?`<div style="position:absolute;top:4px;right:4px;background:#e65100;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">!</div>`:hasEx?`<div style="position:absolute;top:4px;right:4px;background:#1a6b3c;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">✓</div>`:''}
           </div>`;
         }).join("")}
       </div>`).join("");
@@ -1348,11 +1407,12 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
         <button class="tabbtn" data-tab="orders">📋 Order</button>
         <button class="tabbtn active" data-tab="imgs">🖼️ Menu</button>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:16px">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
         <div style="flex:1;background:#f0f9f4;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#1a6b3c">${hasImg}</div><div style="font-size:11px;color:#666">Ada gambar</div></div>
         <div style="flex:1;background:#f9f9f9;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#888">${total-hasImg}</div><div style="font-size:11px;color:#666">Tiada gambar</div></div>
-        <div style="flex:1;background:#fff8e1;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#e65100">${Object.keys(pending).length}</div><div style="font-size:11px;color:#666">Belum simpan</div></div>
+        <div style="flex:1;background:#fff8e1;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#e65100">${Object.keys(pending).length+Object.keys(pdrafts).length}</div><div style="font-size:11px;color:#666">Belum simpan</div></div>
       </div>
+      <div class="warnsec" style="font-size:11px;line-height:1.5">💡 <b>Edit harga di sini</b> akan jadi <b>harga lalai</b> untuk trip baharu. Untuk ubah harga trip sedia ada, gunakan butang <b>💴 Harga</b> pada kad trip itu.</div>
       <div class="stitle">Status Semua Menu</div>${statusGrid}
       <div class="abox" style="margin-top:16px">
         <div style="font-size:13px;font-weight:600;margin-bottom:6px">📂 Langkah 1 — Upload gambar</div>
@@ -1364,7 +1424,7 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
       </div>
       ${grid}
     </div>
-    <div class="fb"><button class="b1" id="save-imgs" ${Object.keys(pending).length===0?'disabled':''}>💾 Simpan ${Object.keys(pending).length>0?Object.keys(pending).length+' gambar':'Gambar'}</button></div>
+    <div class="fb"><button class="b1" id="save-imgs" ${Object.keys(pending).length===0&&Object.keys(pdrafts).length===0?'disabled':''}>💾 Simpan${Object.keys(pending).length>0?` ${Object.keys(pending).length} gambar`:''}${Object.keys(pending).length>0&&Object.keys(pdrafts).length>0?' +':''}${Object.keys(pdrafts).length>0?` ${Object.keys(pdrafts).length} harga`:''}${Object.keys(pending).length===0&&Object.keys(pdrafts).length===0?' Perubahan':''}</button></div>
     ${modal}`;
 }
 return'';
@@ -1727,23 +1787,64 @@ Object.keys(S.pendingImgs).forEach(k=>{if(S.pendingImgs[k].fileIdx===fi)delete S
 S.selectingFileIdx=null;render();
 });
 on("save-imgs","click",async()=>{
-const keys=Object.keys(S.pendingImgs);if(!keys.length)return;
-toast("⏳ Menyimpan gambar...");
-let saved=0;
-for(const key of keys){
+const imgKeys=Object.keys(S.pendingImgs);
+const priceKeys=Object.keys(S.priceDrafts);
+if(!imgKeys.length&&!priceKeys.length)return;
+toast("⏳ Menyimpan...");
+let savedImgs=0;
+for(const key of imgKeys){
 try{
 S.imgs[key]=S.pendingImgs[key].preview;
 await setDoc(doc(db,"config","menuImgs","items",key),{url:S.pendingImgs[key].preview});
-saved++;
+savedImgs++;
 }catch(e){
 console.error("Gagal simpan:",key,e);
 toast(`❌ Gambar "${key}" masih terlalu besar. Cuba gambar lebih kecil.`);
 }
 }
+let savedPrices=0;
+if(priceKeys.length>0){
+try{
+await saveMenuDefaults();
+savedPrices=priceKeys.length;
+}catch(e){
+console.error("Gagal simpan harga lalai:",e);
+toast("❌ Gagal simpan harga.");
+}
+}
 S.pendingImgs={};S.pickedFiles=[];S.imgPreviews=[];
-if(saved>0)toast(`✓ ${saved} gambar disimpan!`);
+const parts=[];
+if(savedImgs>0)parts.push(`${savedImgs} gambar`);
+if(savedPrices>0)parts.push(`${savedPrices} harga`);
+if(parts.length)toast(`✓ ${parts.join(' + ')} disimpan!`);
 render();
 });
+document.querySelectorAll("[data-pricedraft]").forEach(inp=>inp.addEventListener("input",e=>{
+const key=inp.dataset.pricedraft;
+const[sid,midStr]=key.split('_');
+const mid=parseInt(midStr);
+const sesi=SESI.find(s=>s.id===sid);
+if(!sesi)return;
+const menu=sesi.menus.find(m=>m.id===mid);
+if(!menu)return;
+const newVal=parseInt(e.target.value)||0;
+if(newVal===menu.price){delete S.priceDrafts[key];}
+else{S.priceDrafts[key]=newVal;}
+// Visual feedback tanpa re-render (jangan kehilangan focus input)
+if(S.priceDrafts[key]!==undefined){
+e.target.style.background='#fff8e1';
+e.target.style.borderColor='#ff9800';
+}else{
+e.target.style.background='#fff';
+e.target.style.borderColor='#ddd';
+}
+// Update butang simpan keadaan
+const btn=document.getElementById('save-imgs');
+if(btn){
+const total=Object.keys(S.pendingImgs).length+Object.keys(S.priceDrafts).length;
+btn.disabled=total===0;
+}
+}));
 // Order
 on("order-name","input",e=>S.form.name=e.target.value);
 on("cnt-minus","click",()=>{
@@ -1891,6 +1992,7 @@ console.log("[Tour-Order] Module loaded, registering DOMContentLoaded listener")
 window.addEventListener("DOMContentLoaded",async()=>{
 console.log("[Tour-Order] DOMContentLoaded fired, init starting");
 try{
+await loadMenuDefaults();
 const params=new URLSearchParams(location.search);
 const tid=params.get("trip");
 if(tid){
