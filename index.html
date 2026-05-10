@@ -770,7 +770,7 @@ checkName:"",checkDone:false,
 pdfFlow:{step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""},
 editing:{active:false,orderId:null,origView:null,returnSelTrip:null},
 priceEditor:{active:false,tripId:null,sesiCopy:null,originalSesi:null},
-payCollect:{selected:[],sesiFilter:"all"},
+payCollect:{selected:[],sesiFilter:"all",searchQuery:""},
 };
 // ── Render helpers ──────────────────────────────────────────
 function rExpSec(){
@@ -913,14 +913,17 @@ if(!trip)return'';
 const filter=(S.payCollect&&S.payCollect.sesiFilter)||'all';
 const sum=getPaymentSummary(trip,orders,filter);
 if(sum.payableSesi.length===0)return'';
-// Stats keseluruhan (untuk progress bar global, kira tanpa filter)
 const sumAll=getPaymentSummary(trip,orders);
 if(sumAll.totalBills===0)return'';
 const pct=sum.totalBills>0?Math.round(sum.totalPaid/sum.totalBills*100):0;
 const sel=(S.payCollect&&S.payCollect.selected)||[];
-const selKey=u=>`${u.orderId}|${u.personIdx}`;
-const selectedTotal=sum.unpaid.filter(u=>sel.includes(selKey(u))).reduce((acc,u)=>acc+u.total,0);
-const selectedCount=sum.unpaid.filter(u=>sel.includes(selKey(u))).length;
+// Item-level keys: "orderId|personIdx|sesiId"
+const itemKey=(u,it)=>`${u.orderId}|${u.personIdx}|${it.sId}`;
+const personKeys=u=>u.items.map(it=>itemKey(u,it));
+let selectedTotal=0,selectedCount=0;
+sum.unpaid.forEach(u=>u.items.forEach(it=>{
+if(sel.includes(itemKey(u,it))){selectedTotal+=it.amount;selectedCount++;}
+}));
 const filterLabel=filter==='all'?'Fuji + Nara':filter==='fuji'?'Fuji sahaja':filter==='nara'?'Nara sahaja':filter;
 const filterChip=(id,label)=>`<button class="bsm" data-pfilter="${id}" style="${filter===id?'background:#1a6b3c;color:#fff;border-color:#1a6b3c':'background:#fff;color:#1a6b3c;border-color:#1a6b3c'};font-size:11px;padding:5px 12px">${label}</button>`;
 return`<div class="paybox">
@@ -938,23 +941,52 @@ ${sumAll.payableSesi.map(s=>filterChip(s.id,s.id==='fuji'?'🍱 Fuji':s.id==='na
 <div class="trkbar"><div class="fill" style="width:${pct}%"></div></div>
 <div style="font-size:11px;color:#666;text-align:center;margin-bottom:10px">Jumlah bil ${filter==='all'?'keseluruhan':filterLabel.toLowerCase()}: ¥${sum.totalBills.toLocaleString()}</div>
 ${sum.unpaid.length>0?`<button class="bcp" id="cp-unpaid" style="margin-top:0">📋 Copy Senarai Belum Bayar (${sum.unpaid.length} orang)</button>
-<div style="font-size:11px;color:#666;background:#fff;padding:8px 12px;border-radius:8px;margin-top:8px;border-left:3px solid #1a6b3c">💡 <b>Tap pada nama</b> untuk pilih beberapa orang sekaligus. Hanya item ${filterLabel} akan ditandakan dibayar.</div>
-<div style="background:#fff;border-radius:8px;margin-top:8px;max-height:320px;overflow-y:auto">
-${sum.unpaid.map(u=>{
-const k=selKey(u);
-const isSel=sel.includes(k);
-return`<div class="payper" data-paycollect="${k}" style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:${isSel?'#f0f9f4':'#fff'};transition:background 0.15s">
-<div style="width:22px;height:22px;border:2px solid ${isSel?'#1a6b3c':'#ccc'};border-radius:5px;background:${isSel?'#1a6b3c':'#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;margin-top:1px">${isSel?'✓':''}</div>
-<div style="flex:1">
-<div class="pn"><span>${u.personName}</span><span>¥${u.total.toLocaleString()}</span></div>
-${u.items.map(it=>`<div style="font-size:11px;color:#666;padding-left:6px">• ${it.sName}: ${it.mName} (¥${it.amount.toLocaleString()})</div>`).join('')}
+<div style="font-size:11px;color:#666;background:#fff;padding:8px 12px;border-radius:8px;margin-top:8px;border-left:3px solid #1a6b3c">💡 <b>Tap item</b> untuk pilih satu sesi sahaja, atau <b>tap nama</b> untuk pilih semua sesi peserta itu.</div>
+<div style="position:relative;margin-top:8px">
+<input class="inp" id="paysearch" placeholder="🔍 Cari nama peserta..." value="${(S.payCollect&&S.payCollect.searchQuery)||''}" style="margin-bottom:0;padding-right:36px;font-size:13px"/>
+${(S.payCollect&&S.payCollect.searchQuery)?`<button id="paysearch-clear" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:#eee;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;color:#666;display:flex;align-items:center;justify-content:center;font-weight:700">×</button>`:''}
 </div>
+<div id="paysearch-count" style="font-size:11px;color:#666;text-align:center;margin-top:6px;display:${(S.payCollect&&S.payCollect.searchQuery)?'block':'none'}"></div>
+<div style="background:#fff;border-radius:8px;margin-top:8px;max-height:380px;overflow-y:auto">
+${(()=>{
+const query=((S.payCollect&&S.payCollect.searchQuery)||'').toLowerCase().trim();
+const sorted=[...sum.unpaid].sort((a,b)=>a.personName.localeCompare(b.personName));
+return sorted.map(u=>{
+const personLower=u.personName.toLowerCase();
+const isHidden=query&&!personLower.includes(query);
+const keys=personKeys(u);
+const allSel=keys.every(k=>sel.includes(k));
+const someSel=keys.some(k=>sel.includes(k));
+const headerCheck=allSel?'✓':someSel?'−':'';
+const headerBg=allSel?'#1a6b3c':someSel?'#ff9800':'#fff';
+const headerBd=allSel||someSel?(allSel?'#1a6b3c':'#ff9800'):'#ccc';
+return`<div data-paycollect-person="${u.orderId}|${u.personIdx}" data-personname="${personLower.replace(/"/g,'&quot;')}" style="display:${isHidden?'none':'block'};border-bottom:1px solid #f0f0f0;padding:8px 12px;background:${someSel?'#f0f9f4':'#fff'}">
+<div style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;color:#e65100;font-size:13px;margin-bottom:4px">
+<div style="width:22px;height:22px;border:2px solid ${headerBd};border-radius:5px;background:${headerBg};color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">${headerCheck}</div>
+<span style="flex:1">${u.personName}</span>
+<span>¥${u.total.toLocaleString()}</span>
+</div>
+<div style="padding-left:32px">
+${u.items.map(it=>{
+const ik=itemKey(u,it);
+const itSel=sel.includes(ik);
+const sBg=it.sId==='fuji'?'#fff8e1':it.sId==='nara'?'#e3f2fd':'#f5f5f5';
+const sColor=it.sId==='fuji'?'#e65100':it.sId==='nara'?'#1565c0':'#666';
+return`<div data-paycollect-item="${ik}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:6px;background:${itSel?'#f0f9f4':'transparent'};margin-bottom:2px;transition:background 0.15s">
+<div style="width:18px;height:18px;border:2px solid ${itSel?'#1a6b3c':'#ccc'};border-radius:4px;background:${itSel?'#1a6b3c':'#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${itSel?'✓':''}</div>
+<span style="font-size:10px;font-weight:600;background:${sBg};color:${sColor};padding:2px 8px;border-radius:8px;flex-shrink:0">${it.sId==='fuji'?'🍱 Fuji':it.sId==='nara'?'🍛 Nara':it.sName}</span>
+<span style="font-size:11px;color:#666;flex:1">${it.mName}</span>
+<span style="font-size:11px;font-weight:600;color:#333">¥${it.amount.toLocaleString()}</span>
 </div>`;
 }).join('')}
 </div>
+</div>`;
+}).join('');
+})()}
+</div>
 ${selectedCount>0?`<div style="position:sticky;bottom:0;margin-top:10px;background:#1a6b3c;color:#fff;padding:12px 14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 -4px 12px rgba(0,0,0,0.15);z-index:5">
 <div style="flex:1;min-width:0">
-<div style="font-size:11px;opacity:0.9">Pilih: ${selectedCount} orang · ${filter==='all'?'Semua sesi':filterLabel}</div>
+<div style="font-size:11px;opacity:0.9">Pilih: ${selectedCount} item</div>
 <div style="font-size:18px;font-weight:700">¥${selectedTotal.toLocaleString()}</div>
 </div>
 <div style="display:flex;gap:6px;flex-shrink:0">
@@ -1794,23 +1826,72 @@ if(t)cp(bUnpaidList(t,S.orders,filter));
 });
 // Filter chips untuk sesi pembayaran
 document.querySelectorAll("[data-pfilter]").forEach(b=>b.addEventListener("click",()=>{
-if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all'};
+if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all',searchQuery:''};
 S.payCollect.sesiFilter=b.dataset.pfilter;
 S.payCollect.selected=[]; // reset selection bila filter berubah
+S.payCollect.searchQuery=''; // reset search juga
 render();
 }));
-// Multi-select payment collection
-document.querySelectorAll("[data-paycollect]").forEach(row=>row.addEventListener("click",e=>{
-if(e.target.tagName==='BUTTON'||e.target.classList.contains('paybadge'))return;
-const key=row.dataset.paycollect;
-if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all'};
+// Search bar — filter via DOM tanpa re-render (kekalkan focus)
+const paysearchInp=document.getElementById("paysearch");
+if(paysearchInp){
+paysearchInp.addEventListener("input",e=>{
+if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all',searchQuery:''};
+const query=e.target.value.toLowerCase().trim();
+S.payCollect.searchQuery=query;
+let visible=0,total=0;
+document.querySelectorAll("[data-paycollect]").forEach(row=>{
+const name=row.dataset.personname||"";
+const matches=!query||name.includes(query);
+row.style.display=matches?"flex":"none";
+total++;if(matches)visible++;
+});
+const countEl=document.getElementById("paysearch-count");
+if(countEl){
+countEl.style.display=query?"block":"none";
+countEl.textContent=query?(visible===0?`Tiada peserta menyamai "${query}"`:`${visible} daripada ${total} peserta`):"";
+}
+});
+}
+on("paysearch-clear","click",()=>{
+if(S.payCollect)S.payCollect.searchQuery="";
+render();
+});
+// Multi-select payment collection — per ITEM (sesi) atau per ORANG
+document.querySelectorAll("[data-paycollect-item]").forEach(row=>row.addEventListener("click",e=>{
+e.stopPropagation();
+const key=row.dataset.paycollectItem;
+if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all',searchQuery:''};
 const idx=S.payCollect.selected.indexOf(key);
 if(idx>=0)S.payCollect.selected.splice(idx,1);
 else S.payCollect.selected.push(key);
 render();
 }));
+document.querySelectorAll("[data-paycollect-person]").forEach(row=>row.addEventListener("click",e=>{
+// Hanya respond bila tap pada area HEADER (tak dalam item)
+if(e.target.closest("[data-paycollect-item]"))return;
+const personKey=row.dataset.paycollectPerson;
+if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all',searchQuery:''};
+// Cari semua item key untuk peserta ini
+const trip=S.trips.find(t=>t.id===(S.tripId||S.selTrip))||S.tripData;
+if(!trip)return;
+const filter=S.payCollect.sesiFilter||'all';
+const sum=getPaymentSummary(trip,S.orders,filter);
+const matched=sum.unpaid.find(u=>`${u.orderId}|${u.personIdx}`===personKey);
+if(!matched)return;
+const itemKeys=matched.items.map(it=>`${matched.orderId}|${matched.personIdx}|${it.sId}`);
+const allSelected=itemKeys.every(k=>S.payCollect.selected.includes(k));
+if(allSelected){
+// Deselect semua untuk peserta ini
+S.payCollect.selected=S.payCollect.selected.filter(k=>!itemKeys.includes(k));
+}else{
+// Select semua yang belum dipilih
+itemKeys.forEach(k=>{if(!S.payCollect.selected.includes(k))S.payCollect.selected.push(k);});
+}
+render();
+}));
 on("clear-paycollect","click",()=>{
-if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all'};
+if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all',searchQuery:''};
 S.payCollect.selected=[];render();
 });
 on("commit-paycollect","click",async()=>{
@@ -1818,37 +1899,53 @@ if(!S.payCollect||!S.payCollect.selected.length)return;
 const trip=S.trips.find(t=>t.id===(S.tripId||S.selTrip))||S.tripData;
 if(!trip)return;
 const sl=trip.sesi||SESI;
-const filter=S.payCollect.sesiFilter||'all';
-const sum=getPaymentSummary(trip,S.orders,filter);
-const selKey=u=>`${u.orderId}|${u.personIdx}`;
-const selectedUnpaid=sum.unpaid.filter(u=>S.payCollect.selected.includes(selKey(u)));
-if(!selectedUnpaid.length){toast("Tiada orang dipilih.");return;}
-const total=selectedUnpaid.reduce((acc,u)=>acc+u.total,0);
-const names=selectedUnpaid.map(u=>u.personName).join('\n• ');
-const filterLabel=filter==='all'?'Fuji + Nara':filter==='fuji'?'Fuji sahaja':filter==='nara'?'Nara sahaja':filter;
-if(!confirm(`Tandakan dibayar ¥${total.toLocaleString()} untuk ${selectedUnpaid.length} orang?\n\nSesi: ${filterLabel}\n\n• ${names}`))return;
-// Mark hanya items yang match filter
-const ordersToSave={};
-selectedUnpaid.forEach(u=>{
-const order=S.orders.find(o=>o.id===u.orderId);
-if(!order)return;
-const person=order.persons[u.personIdx];
-if(!person)return;
-sl.forEach(s=>{
-if(getPayType(s)!=='pay')return;
-if(filter!=='all'&&s.id!==filter)return; // hormat filter
-const it=person[s.id];
-if(it&&!it.skip&&!it.paid)it.paid=true;
+// Group selected keys by orderId|personIdx untuk papar nama dalam confirmation
+const byPerson={};
+S.payCollect.selected.forEach(key=>{
+const[orderId,pidxStr,sesiId]=key.split('|');
+const pkey=`${orderId}|${pidxStr}`;
+if(!byPerson[pkey])byPerson[pkey]={orderId,pidx:parseInt(pidxStr),sesis:[]};
+byPerson[pkey].sesis.push(sesiId);
 });
-ordersToSave[u.orderId]=order;
+// Bina senarai nama + total
+let total=0;
+const personLines=[];
+Object.values(byPerson).forEach(({orderId,pidx,sesis})=>{
+const order=S.orders.find(o=>o.id===orderId);
+if(!order)return;
+const person=order.persons[pidx];
+if(!person)return;
+const personName=person.personName||(pidx===0?order.name:`${order.name} (Orang ${pidx+1})`);
+let pTot=0;
+sesis.forEach(sid=>{
+const it=person[sid];
+if(it&&!it.skip&&!it.paid)pTot+=(it.price||0);
+});
+total+=pTot;
+const sesiLabels=sesis.map(s=>s==='fuji'?'Fuji':s==='nara'?'Nara':s).join('+');
+personLines.push(`${personName} (${sesiLabels}) — ¥${pTot.toLocaleString()}`);
+});
+if(total===0){toast("Tiada item dipilih.");return;}
+if(!confirm(`Tandakan dibayar ¥${total.toLocaleString()} untuk ${S.payCollect.selected.length} item?\n\n• ${personLines.join('\n• ')}`))return;
+// Mark hanya items yang dipilih
+const ordersToSave={};
+S.payCollect.selected.forEach(key=>{
+const[orderId,pidxStr,sesiId]=key.split('|');
+const order=S.orders.find(o=>o.id===orderId);
+if(!order)return;
+const person=order.persons[parseInt(pidxStr)];
+if(!person)return;
+const it=person[sesiId];
+if(it&&!it.skip&&!it.paid)it.paid=true;
+ordersToSave[orderId]=order;
 });
 toast("⏳ Menyimpan...");
 try{
 for(const order of Object.values(ordersToSave)){
 await saveOrder(S.tripId||S.selTrip,order);
 }
-toast(`✓ ¥${total.toLocaleString()} ditandakan dibayar untuk ${selectedUnpaid.length} orang (${filterLabel})`);
-S.payCollect={selected:[],sesiFilter:filter}; // kekalkan filter
+toast(`✓ ¥${total.toLocaleString()} ditandakan dibayar untuk ${S.payCollect.selected.length} item`);
+S.payCollect.selected=[];
 render();
 }catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");render();}
 });
