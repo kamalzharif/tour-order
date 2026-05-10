@@ -1462,6 +1462,46 @@ return`<div style="display:flex;justify-content:space-between;padding:7px 0;bord
         </div>`:`<div style="font-size:12px;color:#1a6b3c;text-align:center;font-weight:700;margin-top:6px;background:#1a6b3c;color:#fff;border-radius:8px;padding:6px">🎉 Semua sudah dibayar!</div>`}
         <p style="font-size:10px;color:#888;margin-top:6px;text-align:right">_(Fuji + Nara sahaja — Namba disupport)_</p>
       </div>`:''}
+      ${(()=>{
+// Kumpul transaksi (group by paidTxnId)
+const txns={};
+(found.persons||[]).forEach((p,pi)=>{
+const personLabel=(found.persons||[]).length>1?(p.personName||(pi===0?'Anda':'Orang '+(pi+1))):'';
+sl.forEach(s=>{
+const it=p[s.id];
+if(it&&it.paid&&it.paidTxnId){
+if(!txns[it.paidTxnId])txns[it.paidTxnId]={paidAt:it.paidAt,received:it.paidReceived||0,change:it.paidChange||0,bundleTotal:it.paidBundleTotal||0,items:[]};
+txns[it.paidTxnId].items.push({sName:s.nama,mName:it.name,amount:it.price||0,personLabel});
+}
+});
+});
+const txnList=Object.values(txns).sort((a,b)=>(b.paidAt||'').localeCompare(a.paidAt||''));
+if(txnList.length===0)return'';
+return`<div style="margin-top:14px;padding:12px;background:#f5f5f5;border-radius:10px">
+<div style="font-size:12px;font-weight:700;color:#1a6b3c;margin-bottom:8px">📝 Riwayat Transaksi (${txnList.length})</div>
+${txnList.map(t=>{
+let dateStr='—';
+try{
+const d=new Date(t.paidAt);
+dateStr=d.toLocaleString('ms-MY',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tokyo'});
+}catch(e){}
+const personItemsTotal=t.items.reduce((acc,it)=>acc+it.amount,0);
+const isFullTransaction=Math.abs(personItemsTotal-t.bundleTotal)<1; // Sama ada transaksi ini cuma untuk peserta ini sahaja
+return`<div style="background:#fff;border-radius:8px;padding:10px;margin-bottom:6px;font-size:11px;border-left:3px solid #1a6b3c">
+<div style="color:#666;font-size:10px;margin-bottom:6px">📅 ${dateStr}</div>
+<div style="margin-bottom:6px">
+${t.items.map(it=>`<div style="padding:2px 0;color:#333">• ${it.personLabel?`<b style="color:#1a6b3c">${it.personLabel}</b> — `:''}${it.sName}: ${it.mName} <span style="color:#888">(¥${it.amount.toLocaleString()})</span></div>`).join('')}
+</div>
+${!isFullTransaction?`<div style="font-size:10px;color:#888;font-style:italic;padding:4px 0;border-top:1px dotted #ddd">Transaksi penuh ¥${t.bundleTotal.toLocaleString()} (termasuk peserta lain)</div>`:''}
+<div style="display:flex;justify-content:space-between;font-weight:600;border-top:1px dotted #ddd;padding-top:6px;margin-top:4px;font-size:11px">
+<span style="color:#1a6b3c">💴 Diterima: ¥${t.received.toLocaleString()}</span>
+${t.change>0?`<span style="color:#e65100">↩ Pulangan ¥${t.change.toLocaleString()}</span>`:t.change<0?`<span style="color:#c62828">⚠ Kurang ¥${Math.abs(t.change).toLocaleString()}</span>`:`<span style="color:#1a6b3c">✓ Tepat</span>`}
+</div>
+</div>`;
+}).join('')}
+<p style="font-size:10px;color:#888;margin-top:8px;text-align:center;font-style:italic">Simpan rekod ini untuk rujukan</p>
+</div>`;
+})()}
       <button class="b1" id="check-edit" style="margin-top:14px;margin-bottom:0">✏️ Edit Pesanan Saya</button>
       <p style="font-size:11px;color:#888;margin-top:10px;text-align:center">Atau hubungi Tour Leader untuk perubahan rasmi.</p>
     </div>`;})():`
@@ -1982,7 +2022,11 @@ const total=S.payDialog.total;
 if(received<total){
 if(!confirm(`⚠️ Duit diterima (¥${received.toLocaleString()}) KURANG dari jumlah perlu bayar (¥${total.toLocaleString()}).\n\nKurang ¥${(total-received).toLocaleString()}.\n\nSahkan tetap tandakan dibayar?`))return;
 }
-// Mark hanya items yang dipilih
+// Cipta ID transaksi unik supaya items dalam transaksi yang sama boleh di-group
+const txnId='txn_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+const paidAt=new Date().toISOString();
+const change=received-total;
+// Mark hanya items yang dipilih + simpan butiran transaksi
 const ordersToSave={};
 S.payCollect.selected.forEach(key=>{
 const[orderId,pidxStr,sesiId]=key.split('|');
@@ -1991,7 +2035,14 @@ if(!order)return;
 const person=order.persons[parseInt(pidxStr)];
 if(!person)return;
 const it=person[sesiId];
-if(it&&!it.skip&&!it.paid)it.paid=true;
+if(it&&!it.skip&&!it.paid){
+it.paid=true;
+it.paidAt=paidAt;
+it.paidTxnId=txnId;
+it.paidReceived=received;
+it.paidChange=change;
+it.paidBundleTotal=total;
+}
 ordersToSave[orderId]=order;
 });
 toast("⏳ Menyimpan...");
@@ -1999,7 +2050,6 @@ try{
 for(const order of Object.values(ordersToSave)){
 await saveOrder(S.tripId||S.selTrip,order);
 }
-const change=received-total;
 const msg=change>0?`✓ Dibayar! Pulangkan baki ¥${change.toLocaleString()} kepada peserta`:change<0?`✓ Dibayar (kurang ¥${Math.abs(change).toLocaleString()})`:`✓ Dibayar tepat ¥${total.toLocaleString()}`;
 toast(msg);
 S.payCollect.selected=[];
@@ -2035,6 +2085,14 @@ if(!order)return;
 const person=order.persons[parseInt(pi)];
 if(!person||!person[sid])return;
 person[sid].paid=!person[sid].paid;
+// Padam txn metadata bila toggle ke unpaid (rekod transaksi tidak relevan lagi)
+if(!person[sid].paid){
+delete person[sid].paidAt;
+delete person[sid].paidTxnId;
+delete person[sid].paidReceived;
+delete person[sid].paidChange;
+delete person[sid].paidBundleTotal;
+}
 const tid=S.tripId||S.selTrip;
 try{await saveOrder(tid,order);toast(person[sid].paid?"✓ Ditandakan sudah bayar":"↻ Dialihkan ke belum bayar");render();}
 catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");person[sid].paid=!person[sid].paid;render();}
