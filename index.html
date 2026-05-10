@@ -507,9 +507,10 @@ if(sesi.payType)return sesi.payType;
 const gs=SESI.find(s=>s.id===sesi.id);
 return(gs&&gs.payType)||'pay';
 }
-function getPaymentSummary(trip,orders){
+function getPaymentSummary(trip,orders,sesiFilter){
 const sl=trip.sesi||SESI;
-const payableSesi=sl.filter(s=>getPayType(s)==='pay');
+const allPayable=sl.filter(s=>getPayType(s)==='pay');
+const payableSesi=(!sesiFilter||sesiFilter==='all')?allPayable:allPayable.filter(s=>s.id===sesiFilter);
 let totalBills=0,totalPaid=0;
 const unpaid=[];
 orders.forEach(o=>{
@@ -522,12 +523,12 @@ if(!item||item.skip)return;
 const amount=item.price||0;
 totalBills+=amount;
 if(item.paid)totalPaid+=amount;
-else{items.push({sName:s.nama,mName:item.name,amount});pTotal+=amount;}
+else{items.push({sId:s.id,sName:s.nama,mName:item.name,amount});pTotal+=amount;}
 });
 if(items.length>0)unpaid.push({orderId:o.id,personIdx:pi,personName,items,total:pTotal});
 });
 });
-return{totalBills,totalPaid,balance:totalBills-totalPaid,unpaid,payableSesi};
+return{totalBills,totalPaid,balance:totalBills-totalPaid,unpaid,payableSesi:allPayable,filter:sesiFilter||'all'};
 }
 function getAllOrderedPesertaNames(orders,peserta){
 const ordered=new Set();
@@ -769,7 +770,7 @@ checkName:"",checkDone:false,
 pdfFlow:{step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""},
 editing:{active:false,orderId:null,origView:null,returnSelTrip:null},
 priceEditor:{active:false,tripId:null,sesiCopy:null,originalSesi:null},
-payCollect:{selected:[]},
+payCollect:{selected:[],sesiFilter:"all"},
 };
 // ── Render helpers ──────────────────────────────────────────
 function rExpSec(){
@@ -909,24 +910,35 @@ return'';
 }
 function rPaymentDashboard(trip,orders){
 if(!trip)return'';
-const sum=getPaymentSummary(trip,orders);
-if(sum.totalBills===0)return'';
+const filter=(S.payCollect&&S.payCollect.sesiFilter)||'all';
+const sum=getPaymentSummary(trip,orders,filter);
+if(sum.payableSesi.length===0)return'';
+// Stats keseluruhan (untuk progress bar global, kira tanpa filter)
+const sumAll=getPaymentSummary(trip,orders);
+if(sumAll.totalBills===0)return'';
 const pct=sum.totalBills>0?Math.round(sum.totalPaid/sum.totalBills*100):0;
 const sel=(S.payCollect&&S.payCollect.selected)||[];
 const selKey=u=>`${u.orderId}|${u.personIdx}`;
 const selectedTotal=sum.unpaid.filter(u=>sel.includes(selKey(u))).reduce((acc,u)=>acc+u.total,0);
 const selectedCount=sum.unpaid.filter(u=>sel.includes(selKey(u))).length;
+const filterLabel=filter==='all'?'Fuji + Nara':filter==='fuji'?'Fuji sahaja':filter==='nara'?'Nara sahaja':filter;
+const filterChip=(id,label)=>`<button class="bsm" data-pfilter="${id}" style="${filter===id?'background:#1a6b3c;color:#fff;border-color:#1a6b3c':'background:#fff;color:#1a6b3c;border-color:#1a6b3c'};font-size:11px;padding:5px 12px">${label}</button>`;
 return`<div class="paybox">
-<h4>💴 Status Pembayaran (Fuji + Nara)</h4>
+<h4>💴 Status Pembayaran (${filterLabel})</h4>
+<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+<span style="font-size:11px;color:#666;font-weight:600">Sesi:</span>
+${filterChip('all','Semua')}
+${sumAll.payableSesi.map(s=>filterChip(s.id,s.id==='fuji'?'🍱 Fuji':s.id==='nara'?'🍛 Nara':s.nama)).join('')}
+</div>
 <div class="trkrow">
 <div class="trksc"><div class="v" style="color:#1a6b3c">¥${sum.totalPaid.toLocaleString()}</div><div class="l">Sudah dibayar</div></div>
 <div class="trksc"><div class="v" style="color:#e65100">¥${sum.balance.toLocaleString()}</div><div class="l">Baki belum bayar</div></div>
 <div class="trksc"><div class="v">${pct}%</div><div class="l">Progress</div></div>
 </div>
 <div class="trkbar"><div class="fill" style="width:${pct}%"></div></div>
-<div style="font-size:11px;color:#666;text-align:center;margin-bottom:10px">Jumlah bil keseluruhan: ¥${sum.totalBills.toLocaleString()}</div>
+<div style="font-size:11px;color:#666;text-align:center;margin-bottom:10px">Jumlah bil ${filter==='all'?'keseluruhan':filterLabel.toLowerCase()}: ¥${sum.totalBills.toLocaleString()}</div>
 ${sum.unpaid.length>0?`<button class="bcp" id="cp-unpaid" style="margin-top:0">📋 Copy Senarai Belum Bayar (${sum.unpaid.length} orang)</button>
-<div style="font-size:11px;color:#666;background:#fff;padding:8px 12px;border-radius:8px;margin-top:8px;border-left:3px solid #1a6b3c">💡 <b>Tap pada nama</b> untuk pilih beberapa orang sekaligus, contoh kalau Borhan mahu bayar untuk pasangan dia juga.</div>
+<div style="font-size:11px;color:#666;background:#fff;padding:8px 12px;border-radius:8px;margin-top:8px;border-left:3px solid #1a6b3c">💡 <b>Tap pada nama</b> untuk pilih beberapa orang sekaligus. Hanya item ${filterLabel} akan ditandakan dibayar.</div>
 <div style="background:#fff;border-radius:8px;margin-top:8px;max-height:320px;overflow-y:auto">
 ${sum.unpaid.map(u=>{
 const k=selKey(u);
@@ -942,19 +954,20 @@ ${u.items.map(it=>`<div style="font-size:11px;color:#666;padding-left:6px">• $
 </div>
 ${selectedCount>0?`<div style="position:sticky;bottom:0;margin-top:10px;background:#1a6b3c;color:#fff;padding:12px 14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 -4px 12px rgba(0,0,0,0.15);z-index:5">
 <div style="flex:1;min-width:0">
-<div style="font-size:11px;opacity:0.9">Pilih: ${selectedCount} orang</div>
+<div style="font-size:11px;opacity:0.9">Pilih: ${selectedCount} orang · ${filter==='all'?'Semua sesi':filterLabel}</div>
 <div style="font-size:18px;font-weight:700">¥${selectedTotal.toLocaleString()}</div>
 </div>
 <div style="display:flex;gap:6px;flex-shrink:0">
 <button id="clear-paycollect" style="background:transparent;border:1.5px solid #fff;color:#fff;padding:8px 10px;font-size:11px;border-radius:8px;cursor:pointer">Buang</button>
 <button id="commit-paycollect" style="background:#fff;color:#1a6b3c;border:none;padding:8px 14px;font-weight:700;border-radius:8px;cursor:pointer;font-size:12px">✓ Tandakan Dibayar</button>
 </div>
-</div>`:''}`:'<p style="font-size:12px;color:#1a6b3c;text-align:center;font-weight:600;padding:6px">🎉 Semua bayaran sudah selesai!</p>'}
+</div>`:''}`:'<p style="font-size:12px;color:#1a6b3c;text-align:center;font-weight:600;padding:6px">🎉 Semua bayaran selesai untuk '+filterLabel.toLowerCase()+'!</p>'}
 </div>`;
 }
-function bUnpaidList(trip,orders){
-const sum=getPaymentSummary(trip,orders);
-let txt=`💴 *SENARAI BELUM BAYAR*\n📌 ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
+function bUnpaidList(trip,orders,sesiFilter){
+const sum=getPaymentSummary(trip,orders,sesiFilter);
+const filterLabel=sum.filter==='all'?'(Fuji + Nara)':sum.filter==='fuji'?'(Fuji sahaja)':sum.filter==='nara'?'(Nara sahaja)':'';
+let txt=`💴 *SENARAI BELUM BAYAR* ${filterLabel}\n📌 ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
 if(sum.unpaid.length===0)return txt+'🎉 Semua bayaran sudah selesai!\n';
 sum.unpaid.forEach((u,i)=>{
 txt+=`*${i+1}. ${u.personName}*\n`;
@@ -1774,31 +1787,47 @@ render();
 // Tracking - copy senarai belum order
 on("cp-pending","click",()=>{const t=S.trips.find(x=>x.id===S.selTrip);if(t)cp(bPendingList(t,S.orders));});
 // Payment tracking
-on("cp-unpaid","click",()=>{const t=S.trips.find(x=>x.id===S.selTrip);if(t)cp(bUnpaidList(t,S.orders));});
+on("cp-unpaid","click",()=>{
+const t=S.trips.find(x=>x.id===S.selTrip);
+const filter=(S.payCollect&&S.payCollect.sesiFilter)||'all';
+if(t)cp(bUnpaidList(t,S.orders,filter));
+});
+// Filter chips untuk sesi pembayaran
+document.querySelectorAll("[data-pfilter]").forEach(b=>b.addEventListener("click",()=>{
+if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all'};
+S.payCollect.sesiFilter=b.dataset.pfilter;
+S.payCollect.selected=[]; // reset selection bila filter berubah
+render();
+}));
 // Multi-select payment collection
 document.querySelectorAll("[data-paycollect]").forEach(row=>row.addEventListener("click",e=>{
 if(e.target.tagName==='BUTTON'||e.target.classList.contains('paybadge'))return;
 const key=row.dataset.paycollect;
-if(!S.payCollect)S.payCollect={selected:[]};
+if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all'};
 const idx=S.payCollect.selected.indexOf(key);
 if(idx>=0)S.payCollect.selected.splice(idx,1);
 else S.payCollect.selected.push(key);
 render();
 }));
-on("clear-paycollect","click",()=>{S.payCollect={selected:[]};render();});
+on("clear-paycollect","click",()=>{
+if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all'};
+S.payCollect.selected=[];render();
+});
 on("commit-paycollect","click",async()=>{
 if(!S.payCollect||!S.payCollect.selected.length)return;
 const trip=S.trips.find(t=>t.id===(S.tripId||S.selTrip))||S.tripData;
 if(!trip)return;
 const sl=trip.sesi||SESI;
-const sum=getPaymentSummary(trip,S.orders);
+const filter=S.payCollect.sesiFilter||'all';
+const sum=getPaymentSummary(trip,S.orders,filter);
 const selKey=u=>`${u.orderId}|${u.personIdx}`;
 const selectedUnpaid=sum.unpaid.filter(u=>S.payCollect.selected.includes(selKey(u)));
 if(!selectedUnpaid.length){toast("Tiada orang dipilih.");return;}
 const total=selectedUnpaid.reduce((acc,u)=>acc+u.total,0);
 const names=selectedUnpaid.map(u=>u.personName).join('\n• ');
-if(!confirm(`Tandakan dibayar ¥${total.toLocaleString()} untuk ${selectedUnpaid.length} orang?\n\n• ${names}`))return;
-// Mark all selected items as paid + collect orders that need saving
+const filterLabel=filter==='all'?'Fuji + Nara':filter==='fuji'?'Fuji sahaja':filter==='nara'?'Nara sahaja':filter;
+if(!confirm(`Tandakan dibayar ¥${total.toLocaleString()} untuk ${selectedUnpaid.length} orang?\n\nSesi: ${filterLabel}\n\n• ${names}`))return;
+// Mark hanya items yang match filter
 const ordersToSave={};
 selectedUnpaid.forEach(u=>{
 const order=S.orders.find(o=>o.id===u.orderId);
@@ -1807,6 +1836,7 @@ const person=order.persons[u.personIdx];
 if(!person)return;
 sl.forEach(s=>{
 if(getPayType(s)!=='pay')return;
+if(filter!=='all'&&s.id!==filter)return; // hormat filter
 const it=person[s.id];
 if(it&&!it.skip&&!it.paid)it.paid=true;
 });
@@ -1817,8 +1847,8 @@ try{
 for(const order of Object.values(ordersToSave)){
 await saveOrder(S.tripId||S.selTrip,order);
 }
-toast(`✓ ¥${total.toLocaleString()} ditandakan dibayar untuk ${selectedUnpaid.length} orang`);
-S.payCollect={selected:[]};
+toast(`✓ ¥${total.toLocaleString()} ditandakan dibayar untuk ${selectedUnpaid.length} orang (${filterLabel})`);
+S.payCollect={selected:[],sesiFilter:filter}; // kekalkan filter
 render();
 }catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");render();}
 });
