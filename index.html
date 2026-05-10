@@ -1033,6 +1033,86 @@ style="width:100%;padding:14px 14px 14px 36px;font-size:20px;font-weight:700;bor
 })():''}
 </div>`;
 }
+function getTxnList(orders){
+const txns={};
+orders.forEach(o=>{
+(o.persons||[]).forEach((p,pi)=>{
+const personName=p.personName||(pi===0?o.name:`${o.name} (Orang ${pi+1})`);
+Object.keys(p).forEach(key=>{
+const it=p[key];
+if(it&&typeof it==='object'&&!Array.isArray(it)&&it.paid&&it.paidTxnId){
+if(!txns[it.paidTxnId]){
+txns[it.paidTxnId]={id:it.paidTxnId,paidAt:it.paidAt,received:it.paidReceived||0,change:it.paidChange||0,bundleTotal:it.paidBundleTotal||0,items:[]};
+}
+txns[it.paidTxnId].items.push({personName,sId:key,mName:it.name,amount:it.price||0});
+}
+});
+});
+});
+return Object.values(txns).sort((a,b)=>(b.paidAt||'').localeCompare(a.paidAt||''));
+}
+function rTxnHistory(trip,orders){
+const sl=trip?(trip.sesi||SESI):SESI;
+const txns=getTxnList(orders);
+if(txns.length===0)return'';
+const totalReceived=txns.reduce((acc,t)=>acc+t.received,0);
+const totalChange=txns.reduce((acc,t)=>acc+(t.change>0?t.change:0),0);
+const totalCollected=txns.reduce((acc,t)=>acc+t.bundleTotal,0);
+const sLabel=(sId)=>{const s=sl.find(x=>x.id===sId);return s?s.nama:sId;};
+return`<div class="paybox" style="background:#e8f5e9;border-left-color:#1a6b3c">
+<h4>📝 Riwayat Transaksi (${txns.length})</h4>
+<div class="trkrow">
+<div class="trksc"><div class="v" style="color:#1a6b3c;font-size:14px">¥${totalCollected.toLocaleString()}</div><div class="l">Dikutip</div></div>
+<div class="trksc"><div class="v" style="color:#1a6b3c;font-size:14px">¥${totalReceived.toLocaleString()}</div><div class="l">Diterima</div></div>
+<div class="trksc"><div class="v" style="color:#e65100;font-size:14px">¥${totalChange.toLocaleString()}</div><div class="l">Dipulangkan</div></div>
+</div>
+<button class="bcp" id="cp-txn" style="margin-top:6px;margin-bottom:8px">📋 Copy Riwayat ke WhatsApp</button>
+<div style="background:#fff;border-radius:8px;padding:8px;max-height:420px;overflow-y:auto">
+${txns.map((t,i)=>{
+let dateStr='—';
+try{const d=new Date(t.paidAt);dateStr=d.toLocaleString('ms-MY',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tokyo'});}catch(e){}
+return`<div style="background:#fff;border-radius:8px;padding:10px;margin-bottom:6px;font-size:11px;border-left:3px solid #1a6b3c">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+<span style="color:#666;font-size:10px">📅 ${dateStr}</span>
+<span style="font-size:9px;color:#aaa">#${i+1}</span>
+</div>
+<div style="margin-bottom:6px">
+${t.items.map(it=>`<div style="padding:2px 0;color:#333">• <b style="color:#1a6b3c">${it.personName}</b> — ${sLabel(it.sId)}: ${it.mName} <span style="color:#888">(¥${it.amount.toLocaleString()})</span></div>`).join('')}
+</div>
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;font-weight:600;border-top:1px dotted #ddd;padding-top:6px;margin-top:4px;font-size:11px">
+<span style="color:#666">Total ¥${t.bundleTotal.toLocaleString()}</span>
+<span style="color:#1a6b3c">💴 ¥${t.received.toLocaleString()}</span>
+${t.change>0?`<span style="color:#e65100">↩ ¥${t.change.toLocaleString()}</span>`:t.change<0?`<span style="color:#c62828">⚠ -¥${Math.abs(t.change).toLocaleString()}</span>`:`<span style="color:#1a6b3c">✓ Tepat</span>`}
+</div>
+</div>`;
+}).join('')}
+</div>
+</div>`;
+}
+function bTxnHistory(trip,orders){
+const sl=trip?(trip.sesi||SESI):SESI;
+const sLabel=(sId)=>{const s=sl.find(x=>x.id===sId);return s?s.nama:sId;};
+const txns=getTxnList(orders);
+let txt=`📝 *RIWAYAT TRANSAKSI*\n📌 ${trip?trip.nama:'—'}\n📅 ${trip?trip.tarikh:'—'}\n${'─'.repeat(28)}\n\n`;
+if(txns.length===0)return txt+'Tiada transaksi rekod.\n';
+let totalReceived=0,totalChange=0,totalCollected=0;
+txns.forEach((t,i)=>{
+let dateStr='—';
+try{const d=new Date(t.paidAt);dateStr=d.toLocaleString('ms-MY',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tokyo'});}catch(e){}
+txt+=`*${i+1}. ${dateStr}*\n`;
+t.items.forEach(it=>{txt+=`  • ${it.personName} — ${sLabel(it.sId)}: ${it.mName} (¥${it.amount.toLocaleString()})\n`;});
+txt+=`  💴 Total: ¥${t.bundleTotal.toLocaleString()} | Diterima: ¥${t.received.toLocaleString()}`;
+if(t.change>0)txt+=` | Pulangan: ¥${t.change.toLocaleString()}`;
+else if(t.change<0)txt+=` | Kurang: ¥${Math.abs(t.change).toLocaleString()}`;
+else txt+=` | Tepat`;
+txt+='\n\n';
+totalReceived+=t.received;
+totalChange+=t.change>0?t.change:0;
+totalCollected+=t.bundleTotal;
+});
+txt+=`${'─'.repeat(28)}\n📊 *RINGKASAN*\n💴 Dikutip: ¥${totalCollected.toLocaleString()}\n💵 Diterima: ¥${totalReceived.toLocaleString()}\n↩ Dipulangkan: ¥${totalChange.toLocaleString()}`;
+return txt;
+}
 function bUnpaidList(trip,orders,sesiFilter){
 const sum=getPaymentSummary(trip,orders,sesiFilter);
 const filterLabel=sum.filter==='all'?'(Fuji + Nara)':sum.filter==='fuji'?'(Fuji sahaja)':sum.filter==='nara'?'(Nara sahaja)':'';
@@ -1526,7 +1606,7 @@ ${rBookingSec()}
 }
 if(S.adminTab==="orders"){
 const sel=rTripSelect();
-return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders)} ${rPaymentDashboard(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div> <input class="inp" id="sp-nama" placeholder="cth: Vegan Ramen" value="${S.addSpecial}"/> <button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false)} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>`;
+return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div> <input class="inp" id="sp-nama" placeholder="cth: Vegan Ramen" value="${S.addSpecial}"/> <button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false)} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>`;
 }
 if(S.adminTab==="imgs"){
 const pending=S.pendingImgs||{};
@@ -1653,6 +1733,7 @@ return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tou
     </div>
     ${rTracking(trip,orders)}
     ${rPaymentDashboard(trip,orders)}
+    ${rTxnHistory(trip,orders)}
     ${rExpSec()}
     <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)}
     <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)}
@@ -1900,6 +1981,10 @@ on("cp-unpaid","click",()=>{
 const t=S.trips.find(x=>x.id===S.selTrip);
 const filter=(S.payCollect&&S.payCollect.sesiFilter)||'all';
 if(t)cp(bUnpaidList(t,S.orders,filter));
+});
+on("cp-txn","click",()=>{
+const t=S.trips.find(x=>x.id===S.selTrip);
+if(t)cp(bTxnHistory(t,S.orders));
 });
 // Filter chips untuk sesi pembayaran
 document.querySelectorAll("[data-pfilter]").forEach(b=>b.addEventListener("click",()=>{
