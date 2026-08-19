@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ms">
 <head>
 <meta charset="UTF-8"/>
@@ -38,9 +37,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .shdr h3{font-size:15px;font-weight:600;margin-bottom:2px}
 .shdr p{font-size:12px;opacity:0.85}
 .snote{background:#fff8e1;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#856404;border-left:3px solid #ffc107}
-.payinfo{border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:13px;border-left:3px solid;line-height:1.5;font-weight:600}
-.payinfo.pay{background:#fff3e0;color:#e65100;border-left-color:#ff9800}
-.payinfo.free{background:#e8f5e9;color:#1a6b3c;border-left-color:#1a6b3c}
 .ins{background:#e8f5e9;border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:13px;color:#1a6b3c;border-left:3px solid #1a6b3c;line-height:1.5}
 .mgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
 .mcard{border-radius:12px;border:2px solid #eee;overflow:hidden;cursor:pointer;background:#fff}
@@ -131,73 +127,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .trkname .stat{font-size:11px;min-width:18px}
 .trkname.ok{color:#1a6b3c}
 .trkname.pending{color:#888}
-.paybadge{display:inline-block;font-size:10px;font-weight:600;padding:3px 9px;border-radius:12px;cursor:pointer;margin-left:6px;border:1.5px solid;background:#fff;white-space:nowrap;user-select:none}
-.paybadge.paid{color:#1a6b3c;border-color:#1a6b3c;background:#f0f9f4}
-.paybadge.unpaid{color:#e65100;border-color:#ff9800;background:#fff3e0}
-.paybadge:active{opacity:0.7}
-.paybox{background:#fff8e1;border-radius:12px;padding:14px;margin-bottom:14px;border-left:3px solid #ff9800}
-.paybox h4{font-size:13px;font-weight:600;margin-bottom:8px;color:#e65100}
-.payper{padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:12px}
-.payper:last-child{border-bottom:none}
-.payper .pn{font-weight:600;color:#e65100;margin-bottom:3px;display:flex;justify-content:space-between}
-.priceedit-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f5f5f5}
-.priceedit-row:last-child{border-bottom:none}
-.priceedit-row .pname{flex:1;font-size:13px;color:#1a1a1a}
-.priceedit-row .pyen{font-size:14px;color:#888;font-weight:600}
-.priceedit-row .priceinp{width:100px;font-size:14px;text-align:right;padding:8px 10px;border:1.5px solid #ddd;border-radius:8px;outline:none;background:#fff}
-.priceedit-row .priceinp:focus{border-color:#1a6b3c;background:#f0f9f4}
-.priceedit-row .priceinp.changed{border-color:#ff9800;background:#fff8e1}
 </style>
 </head>
 <body>
-<!-- BUILD: v4.2 — 2026-05-02 — visible error catcher + eruda -->
-<div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
+<div class="page" id="app"><div class="loading">🍱<br><br>Memuatkan...</div></div>
 <div class="toast" id="toast"></div>
-<script>
-// Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v4.2 starting…");
-
-// Tangkap dan papar SEBARANG ralat secara visual
-function showError(label, details){
-var ed=document.getElementById(‘error-display’);
-if(!ed)return;
-ed.style.display=‘block’;
-ed.textContent=(ed.textContent?ed.textContent+’\n\n’:’’)+‘⚠️ ‘+label+’\n’+details;
-}
-window.addEventListener(‘error’,function(e){
-var msg=(e.message||‘Unknown’)+’\n’+(e.filename||’’)+’:’+(e.lineno||’’)+’:’+(e.colno||’’);
-if(e.error&&e.error.stack)msg+=’\n’+e.error.stack.split(’\n’).slice(0,3).join(’\n’);
-showError(‘JavaScript Error’,msg);
-});
-window.addEventListener(‘unhandledrejection’,function(e){
-var msg=e.reason?(e.reason.message||String(e.reason)):‘Unknown rejection’;
-if(e.reason&&e.reason.stack)msg+=’\n’+e.reason.stack.split(’\n’).slice(0,3).join(’\n’);
-showError(‘Promise Rejection’,msg);
-});
-
-// Auto-show fallback selepas 8 saat jika module belum load
-setTimeout(function(){
-var fb=document.getElementById(‘load-fallback’);
-var il=document.getElementById(‘initial-load’);
-if(fb&&il&&il.parentNode){fb.style.display=‘block’;}
-},8000);
-
-// Eruda (mobile DevTools) — aktif dengan ?debug=1
-if(location.search.indexOf(‘debug=1’)>=0){
-var s=document.createElement(‘script’);
-s.src=‘https://cdn.jsdelivr.net/npm/eruda’;
-s.onload=function(){eruda.init();console.log(”[Eruda] Mobile DevTools loaded”);};
-document.head.appendChild(s);
-}
-</script>
-
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{getFirestore,doc,getDoc,setDoc,deleteDoc,collection,onSnapshot,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import*as pdfjsLib from"https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/+esm";
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs";
 const db=getFirestore(initializeApp({apiKey:"AIzaSyBdfyI1IHccekotNNRYwlr3U9JTkVc2uWI",authDomain:"tour-order.firebaseapp.com",projectId:"tour-order",storageBucket:"tour-order.firebasestorage.app",messagingSenderId:"411616788552",appId:"1:411616788552:web:fd0a63dbe84c64334d987d"}));
 const APASS="admin123",LPASS="leader123";
 const SESI=[
-{id:"fuji",nama:"🍱 Bento di Fuji",note:"Harga sudah termasuk cukai 10%",payNote:"💴 Peserta perlu bayar kepada Tour Guide selepas ini",payType:"pay",showPrice:true,canSkip:true,menus:[
+{id:"fuji",nama:"🍱 Bento di Fuji",note:"Harga sudah termasuk cukai 10%",showPrice:true,menus:[
 {id:1,name:"Yellow Chicken",price:1320,desc:"Rice Menu"},
 {id:2,name:"Kawaguchiko Curry",price:1320,desc:"Rice Menu — Most Popular"},
 {id:3,name:"Rice Curry",price:1100,desc:"Deliciously seasoned fried rice"},
@@ -214,7 +157,7 @@ const SESI=[
 {id:14,name:"Wrap Wasabi (M)",price:880,desc:"Chicken & Vegetables"},
 {id:15,name:"Wrap Miso (M)",price:880,desc:"Chicken & Vegetables"},
 ]},
-{id:"nara",nama:"🍛 Makan Tengahari di Nara",note:"",payNote:"💴 Peserta nanti perlu bayar kepada Tour Guide",payType:"pay",showPrice:true,canSkip:true,menus:[
+{id:"nara",nama:"🍛 Makan Tengahari di Nara",note:"",showPrice:true,menus:[
 {id:1,name:"Beef Biryani",price:1700},{id:2,name:"Beef Khichuri",price:1700},
 {id:3,name:"Chicken Biryani",price:1500},{id:4,name:"Chicken Chili Rice",price:1500},
 {id:5,name:"Chicken Khichuri",price:1600},{id:6,name:"Chicken Korma Rice",price:1500},
@@ -224,7 +167,7 @@ const SESI=[
 {id:13,name:"Vegetables Biryani",price:1500,isVegan:true},
 {id:14,name:"Vegetables Curry Rice",price:1500,isVegan:true},
 ]},
-{id:"namba",nama:"🍜 Makan Malam di Namba/Dotonbori",note:"Semua order: Regular size + Karaage 3pc (¥400)",payNote:"🎁 Sesi ini akan disupport — peserta tidak perlu bayar",payType:"free",showPrice:false,canSkip:false,menus:[
+{id:"namba",nama:"🍜 Makan Malam di Namba/Dotonbori",note:"Semua order: Regular size + Karaage 3pc (¥400)",showPrice:false,menus:[
 {id:1,name:"Shoyu Ramen",price:1000,desc:"Regular + Karaage 3pc ¥400"},
 {id:2,name:"Miso Ramen",price:1000,desc:"Regular + Karaage 3pc ¥400"},
 ]},
@@ -295,22 +238,8 @@ if(sid==="nara"||sid==="namba")return addDays(trip.tarikhMula,1);
 if(sid==="fuji")return addDays(trip.tarikhMula,3);
 return'—';
 }
-// ── PDF Parser (pdf.js — lazy loaded) ──────────────────────────────────────────
-let _pdfjsLib=null;
-async function loadPdfLib(){
-if(_pdfjsLib)return _pdfjsLib;
-try{
-const lib=await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.mjs");
-lib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs";
-_pdfjsLib=lib;
-return lib;
-}catch(e){
-console.error("pdf.js load failed:",e);
-throw new Error("Tidak dapat muat library PDF. Sila semak sambungan internet, refresh halaman, dan cuba lagi.");
-}
-}
+// ── PDF Parser (pdf.js) ──────────────────────────────────────────
 async function pdfToLines(file){
-const pdfjsLib=await loadPdfLib();
 const data=await file.arrayBuffer();
 const pdf=await pdfjsLib.getDocument({data}).promise;
 const allLines=[];
@@ -333,6 +262,28 @@ allLines.push(...lines.filter(l=>l));
 return allLines;
 }
 const MONTH_MAP={jan:'01',feb:'02',mac:'03',mar:'03',apr:'04',may:'05',mei:'05',jun:'06',jul:'07',jul:'07',aug:'08',ogo:'08',sep:'09',oct:'10',okt:'10',nov:'11',dec:'12',dis:'12'};
+// Kesan mod pengangkutan bagi satu hari itinerari.
+// Sokong: Microbus / Micro Bus / Mini Bus / Big Bus / Coach / Charter Bus
+const RE_BUS=/micro\s*-?\s*bus|mini\s*-?\s*bus|midi\s*-?\s*bus|big\s*bus|charter(?:ed)?\s*bus|coach\s*bus|\bcoach\b|\bbus\b/i;
+const RE_TRAIN=/by\s*train|bullet\s*train|shinkansen|\btrain\b/i;
+function detectDayMode(section){
+// Neutralkan frasa negatif dulu supaya "No bus service" tak tersalah baca sebagai bas
+const s=section.replace(/\bno\s*bus\s*service\b/gi,' @NOBUS@ ').replace(/\bwithout\s*(?:a\s*)?bus\b/gi,' @NOBUS@ ').replace(/\bno\s*bus\b/gi,' @NOBUS@ ');
+const noBus=/@NOBUS@/.test(s);
+// 1) Marker eksplisit lajur kanan: "Request : Microbus", "Request: Big Bus"
+const req=s.match(/request\s*[:\-]?\s*([^\n]{0,40})/i);
+if(req){
+if(RE_BUS.test(req[1]))return 'bas';
+if(RE_TRAIN.test(req[1]))return 'tren';
+}
+// 2) "No bus service" -> tren
+if(noBus)return 'tren';
+// 3) Kata kunci kenderaan dalam badan hari
+if(RE_BUS.test(s))return 'bas';
+// 4) Kata kunci tren
+if(RE_TRAIN.test(s))return 'tren';
+return 'tren';
+}
 function parseItinerary(lines){
 const text=lines.join('\n');
 const out={tarikhMula:null,bookingRef:null,mod:'tren',pax:null,groupName:null,dayModes:{}};
@@ -364,15 +315,11 @@ const positions=dMatches.map(x=>x.index).concat([endPos]);
 for(let i=0;i<dMatches.length;i++){
 const day=parseInt(dMatches[i][1]);
 const section=text.substring(positions[i],positions[i+1]);
-let dm='tren';
-if(/no\s*bus\s*service/i.test(section))dm='tren';
-else if(/big\s*bus/i.test(section))dm='bas';
-else if(/by\s*train|bullet\s*train/i.test(section))dm='tren';
-out.dayModes[day]=dm;
+out.dayModes[day]=detectDayMode(section);
 }
 // Set mod sistem berdasarkan Day 2 (hari Nara/Namba) — kerana itu yang penting untuk booking
 if(out.dayModes[2])out.mod=out.dayModes[2];
-else if(/big\s*bus/i.test(text))out.mod='bas';
+else out.mod=detectDayMode(text.substring(0,endPos>0?endPos:text.length));
 return out;
 }
 function parseRoomingList(lines){
@@ -403,152 +350,27 @@ return out;
 }
 function fuzzyMatchPeserta(input,peserta){
 if(!input||!peserta||!peserta.length)return null;
-const norm=s=>(s||'').toString().toLowerCase()
-.replace(/[\u00A0\u200B-\u200D\uFEFF]/g,' ')
-.replace(/[.,'`"\-]/g,' ')
-.replace(/\s+/g,' ').trim();
-const expand=s=>s
-.replace(/\b(mohd|muhd|muh|md|mhd|mhmd)\b/g,'mohamad')
-.replace(/\b(muhammad|muhammed|muhamad|mohamed|mohammed)\b/g,'mohamad')
-.replace(/\b(abd|abdl)\b/g,'abdul')
-.replace(/\b(bt|bte)\b/g,'binti');
-const inp=expand(norm(input));
+const norm=s=>(s||'').toLowerCase().replace(/[.,]/g,' ').replace(/\s+/g,' ').trim();
+const inp=norm(input);
 if(!inp)return null;
-// 1. Exact match — kalau jumpa, return tanpa cuba fuzzy (priority tertinggi)
-for(const p of peserta){
-if(expand(norm(p.nama))===inp)return{match:p,confidence:'exact',ambiguous:false,candidates:[p]};
-}
-const STOPWORDS=['bin','binti','bte','bt','b','haji','hj','hjh','dato','datin'];
-const inpWords=inp.split(' ').filter(w=>w.length>2&&!STOPWORDS.includes(w));
+const exact=peserta.find(p=>norm(p.nama)===inp);
+if(exact)return{match:exact,confidence:'exact'};
+const inpWords=inp.split(' ').filter(w=>w.length>2&&!['bin','binti','bte','bt','b'].includes(w));
 if(!inpWords.length)return null;
-const lev1=(a,b)=>{
-if(a===b)return true;
-if(Math.abs(a.length-b.length)>1)return false;
-let i=0,j=0,edits=0;
-while(i<a.length&&j<b.length){
-if(a[i]===b[j]){i++;j++;continue;}
-if(++edits>1)return false;
-if(a.length===b.length){i++;j++;}
-else if(a.length>b.length)i++;
-else j++;
-}
-return edits+(a.length-i)+(b.length-j)<=1;
-};
-const wordMatches=(a,b)=>{
-if(a===b)return true;
-if(a.length>=4&&b.length>=4&&(a.includes(b)||b.includes(a)))return true;
-if(a.length>=5&&b.length>=5&&lev1(a,b))return true;
-return false;
-};
-// Kumpul SEMUA calon dengan score >= 70%
-const scored=[];
-for(const p of peserta){
-const pInp=expand(norm(p.nama));
-const pWords=pInp.split(' ').filter(w=>w.length>2&&!STOPWORDS.includes(w));
-let matched=0;
-for(const iw of inpWords){
-if(pWords.some(pw=>wordMatches(iw,pw)))matched++;
-}
-const score=matched/inpWords.length;
-if(score>=0.7&&matched>=Math.min(2,inpWords.length)){
-scored.push({p,score,matched});
-}
-}
-if(!scored.length)return null;
-// Susun: score tertinggi dahulu, tie-break dengan bilangan perkataan padan
-scored.sort((a,b)=>b.score-a.score||b.matched-a.matched);
-const top=scored[0];
-// Detect ambiguous: ≥2 calon dengan score & matched yang sama
-const topTied=scored.filter(s=>s.score===top.score&&s.matched===top.matched);
-return{
-match:top.p,
-confidence:top.score===1?'partial':'fuzzy',
-ambiguous:topTied.length>1,
-candidates:topTied.map(s=>s.p)
-};
+const partial=peserta.find(p=>{const np=norm(p.nama);return inpWords.every(w=>np.includes(w));});
+if(partial)return{match:partial,confidence:'partial'};
+return null;
 }
 function findOrderByName(input,orders){
 if(!input||!orders||!orders.length)return null;
 const norm=s=>(s||'').toLowerCase().replace(/[.,]/g,' ').replace(/\s+/g,' ').trim();
 const inp=norm(input);
 if(!inp)return null;
-// Cari dalam wakil name
 const exact=orders.find(o=>norm(o.name)===inp);
 if(exact)return exact;
-// Cari dalam personName setiap person dalam setiap order
-const exactPerson=orders.find(o=>(o.persons||[]).some(p=>p.personName&&norm(p.personName)===inp));
-if(exactPerson)return exactPerson;
-// Fuzzy match dalam wakil
 const inpWords=inp.split(' ').filter(w=>w.length>2&&!['bin','binti','bte','bt','b'].includes(w));
 if(!inpWords.length)return null;
-const fz=orders.find(o=>{const np=norm(o.name);return inpWords.every(w=>np.includes(w));});
-if(fz)return fz;
-// Fuzzy match dalam personName
-return orders.find(o=>(o.persons||[]).some(p=>{
-if(!p.personName)return false;
-const np=norm(p.personName);
-return inpWords.every(w=>np.includes(w));
-}));
-}
-function getCanSkip(sesi){
-if(sesi.canSkip!==undefined)return sesi.canSkip;
-const gs=SESI.find(s=>s.id===sesi.id);
-if(gs&&gs.canSkip!==undefined)return gs.canSkip;
-return true;
-}
-function isPersonComplete(person,sesi){
-const item=person[sesi.id];
-if(!item)return false;
-if(item.skip&&!getCanSkip(sesi))return false;
-return true;
-}
-function getPayType(sesi){
-if(sesi.payType)return sesi.payType;
-const gs=SESI.find(s=>s.id===sesi.id);
-return(gs&&gs.payType)||'pay';
-}
-function getPaymentSummary(trip,orders,sesiFilter){
-const sl=trip.sesi||SESI;
-const allPayable=sl.filter(s=>getPayType(s)==='pay');
-const payableSesi=(!sesiFilter||sesiFilter==='all')?allPayable:allPayable.filter(s=>s.id===sesiFilter);
-let totalBills=0,totalPaid=0;
-const unpaid=[];
-orders.forEach(o=>{
-(o.persons||[]).forEach((p,pi)=>{
-const personName=p.personName||(pi===0?o.name:`${o.name} (Orang ${pi+1})`);
-const items=[];let pTotal=0;
-payableSesi.forEach(s=>{
-const item=p[s.id];
-if(!item||item.skip)return;
-const amount=item.price||0;
-totalBills+=amount;
-if(item.paid)totalPaid+=amount;
-else{items.push({sId:s.id,sName:s.nama,mName:item.name,amount});pTotal+=amount;}
-});
-if(items.length>0)unpaid.push({orderId:o.id,personIdx:pi,personName,items,total:pTotal});
-});
-});
-return{totalBills,totalPaid,balance:totalBills-totalPaid,unpaid,payableSesi:allPayable,filter:sesiFilter||'all'};
-}
-function getAllOrderedPesertaNames(orders,peserta){
-const ordered=new Set();
-if(!peserta)return ordered;
-orders.forEach(o=>{
-const persons=o.persons||[];
-const namesToCheck=[];
-// Setiap person: gunakan personName kalau ada, fallback ke wakil name (untuk orang 1)
-persons.forEach((p,i)=>{
-if(p.personName)namesToCheck.push(p.personName);
-else if(i===0)namesToCheck.push(o.name);
-// kalau person 2+ tiada personName (legacy), kita guess wakil name juga supaya tracking dia tetap counted
-else if(persons.length===1)namesToCheck.push(o.name);
-});
-namesToCheck.forEach(n=>{
-const m=fuzzyMatchPeserta(n,peserta);
-if(m)ordered.add(m.match.nama);
-});
-});
-return ordered;
+return orders.find(o=>{const np=norm(o.name);return inpWords.every(w=>np.includes(w));});
 }
 function suggestTripNama(itin,room){
 const dt=room.tarikhTrip||'';
@@ -587,40 +409,6 @@ async function saveImgs(){
 for(const[key,url] of Object.entries(S.imgs)){
 await setDoc(doc(db,"config","menuImgs","items",key),{url});
 }
-}
-async function loadMenuDefaults(){
-try{
-const d=await getDoc(doc(db,"config","menuDefaults"));
-if(d.exists()){
-const prices=d.data().prices||{};
-S.defaultPrices=prices;
-// Apply ke SESI in-place untuk new trip auto-pakai harga lalai
-SESI.forEach(s=>{
-if(!s.menus)return;
-s.menus.forEach(m=>{
-const key=`${s.id}_${m.id}`;
-if(prices[key]!==undefined)m.price=prices[key];
-});
-});
-}
-}catch(e){console.error("loadMenuDefaults:",e);}
-}
-async function saveMenuDefaults(){
-const prices={...S.defaultPrices};
-// Apply drafts: drafts overwrite previous defaults & SESI
-Object.entries(S.priceDrafts).forEach(([key,val])=>{prices[key]=val;});
-await setDoc(doc(db,"config","menuDefaults"),{prices,updatedAt:new Date().toISOString()},{merge:false});
-S.defaultPrices=prices;
-// Apply drafts ke SESI in-place
-Object.entries(S.priceDrafts).forEach(([key,val])=>{
-const[sid,midStr]=key.split('_');
-const mid=parseInt(midStr);
-const sesi=SESI.find(s=>s.id===sid);
-if(!sesi)return;
-const menu=sesi.menus.find(m=>m.id===mid);
-if(menu)menu.price=val;
-});
-S.priceDrafts={};
 }
 function listenOrders(tid){
 onSnapshot(collection(db,"trips",tid,"orders"),s=>{S.orders=s.docs.map(d=>d.data());render();});
@@ -681,7 +469,7 @@ orders.forEach((o,i)=>{
 const multi=(o.persons||[]).length>1;
 txt+=`*${i+1}. ${o.name}*${multi?` (${o.persons.length} orang)`:''}\n`;
 (o.persons||[]).forEach((p,pi)=>{
-if(multi)txt+=`  👤 ${p.personName||`Orang ${pi+1}`}:\n`;
+if(multi)txt+=`  👤 Orang ${pi+1}:\n`;
 const ind=multi?'    ':'  ';
 sl.forEach(s=>{const item=p[s.id];const skip=item&&item.skip;txt+=`${ind}${s.nama}: ${item?(skip?'🚫 Tidak order':item.name):'—'}`;if(item&&!skip&&s.showPrice)txt+=` (¥${(item.price||0).toLocaleString()})`;if(s.id==="namba"&&item&&!skip)txt+=` + Karaage 3pc (¥400)`;txt+='\n';});
 });
@@ -760,18 +548,14 @@ return txt;
 const S={
 view:"home",tripId:null,tripData:null,trips:[],orders:[],
 adminOn:false,leaderOn:false,passErr:"",adminTab:"trips",selTrip:null,
-form:{name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null},step:1,sesiIdx:0,activePerson:0,
+form:{name:"",pax:1,persons:[]},step:1,sesiIdx:0,activePerson:0,
 submitted:false,formErr:"",loading:true,
 newTrip:{nama:"",tarikh:"",tarikhMula:"",mod:"tren",pax:""},
 addSpecial:"",imgs:{},
 pendingImgs:{},pickedFiles:[],imgPreviews:[],selectingFileIdx:null,
-priceDrafts:{},defaultPrices:{},
 checkName:"",checkDone:false,
 pdfFlow:{step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""},
 editing:{active:false,orderId:null,origView:null,returnSelTrip:null},
-priceEditor:{active:false,tripId:null,sesiCopy:null,originalSesi:null},
-payCollect:{selected:[],sesiFilter:"all",searchQuery:""},
-payDialog:{active:false,total:0,received:"",personLines:[],ordersToSave:null},
 };
 // ── Render helpers ──────────────────────────────────────────
 function rExpSec(){
@@ -783,7 +567,6 @@ return`<div class="expsec"><h4>📤 Eksport & Kongsi</h4>
 <div style="font-size:12px;color:#666;margin:10px 0 6px;font-weight:600">Lain-lain:</div>
 <button class="bcp" id="cp-leader">👥 Copy — Untuk Tour Leader</button>
 <button class="bcp" id="cp-ringkasan">📊 Copy — Ringkasan Keseluruhan</button>
-<button class="bcp" id="cp-namepermenu">📢 Copy — Panduan Panggil Nama</button>
 </div>`;
 }
 function rBookingSec(){
@@ -909,273 +692,13 @@ ${ed.peserta.map((px,i)=>`<div class="pitem ${px.isTL?'tl':''}">
 }
 return'';
 }
-function rPaymentDashboard(trip,orders){
-if(!trip)return'';
-const filter=(S.payCollect&&S.payCollect.sesiFilter)||'all';
-const sum=getPaymentSummary(trip,orders,filter);
-if(sum.payableSesi.length===0)return'';
-const sumAll=getPaymentSummary(trip,orders);
-if(sumAll.totalBills===0)return'';
-const pct=sum.totalBills>0?Math.round(sum.totalPaid/sum.totalBills*100):0;
-const sel=(S.payCollect&&S.payCollect.selected)||[];
-// Item-level keys: "orderId|personIdx|sesiId"
-const itemKey=(u,it)=>`${u.orderId}|${u.personIdx}|${it.sId}`;
-const personKeys=u=>u.items.map(it=>itemKey(u,it));
-let selectedTotal=0,selectedCount=0;
-sum.unpaid.forEach(u=>u.items.forEach(it=>{
-if(sel.includes(itemKey(u,it))){selectedTotal+=it.amount;selectedCount++;}
-}));
-const filterLabel=filter==='all'?'Fuji + Nara':filter==='fuji'?'Fuji sahaja':filter==='nara'?'Nara sahaja':filter;
-const filterChip=(id,label)=>`<button class="bsm" data-pfilter="${id}" style="${filter===id?'background:#1a6b3c;color:#fff;border-color:#1a6b3c':'background:#fff;color:#1a6b3c;border-color:#1a6b3c'};font-size:11px;padding:5px 12px">${label}</button>`;
-return`<div class="paybox">
-<h4>💴 Status Pembayaran (${filterLabel})</h4>
-<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
-<span style="font-size:11px;color:#666;font-weight:600">Sesi:</span>
-${filterChip('all','Semua')}
-${sumAll.payableSesi.map(s=>filterChip(s.id,s.id==='fuji'?'🍱 Fuji':s.id==='nara'?'🍛 Nara':s.nama)).join('')}
-</div>
-<div class="trkrow">
-<div class="trksc"><div class="v" style="color:#1a6b3c">¥${sum.totalPaid.toLocaleString()}</div><div class="l">Sudah dibayar</div></div>
-<div class="trksc"><div class="v" style="color:#e65100">¥${sum.balance.toLocaleString()}</div><div class="l">Baki belum bayar</div></div>
-<div class="trksc"><div class="v">${pct}%</div><div class="l">Progress</div></div>
-</div>
-<div class="trkbar"><div class="fill" style="width:${pct}%"></div></div>
-<div style="font-size:11px;color:#666;text-align:center;margin-bottom:10px">Jumlah bil ${filter==='all'?'keseluruhan':filterLabel.toLowerCase()}: ¥${sum.totalBills.toLocaleString()}</div>
-${sum.unpaid.length>0?`<button class="bcp" id="cp-unpaid" style="margin-top:0">📋 Copy Senarai Belum Bayar (${sum.unpaid.length} orang)</button>
-<div style="font-size:11px;color:#666;background:#fff;padding:8px 12px;border-radius:8px;margin-top:8px;border-left:3px solid #1a6b3c">💡 <b>Tap item</b> untuk pilih satu sesi sahaja, atau <b>tap nama</b> untuk pilih semua sesi peserta itu.</div>
-<div style="position:relative;margin-top:8px">
-<input class="inp" id="paysearch" placeholder="🔍 Cari nama peserta..." value="${(S.payCollect&&S.payCollect.searchQuery)||''}" style="margin-bottom:0;padding-right:36px;font-size:13px"/>
-${(S.payCollect&&S.payCollect.searchQuery)?`<button id="paysearch-clear" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:#eee;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;color:#666;display:flex;align-items:center;justify-content:center;font-weight:700">×</button>`:''}
-</div>
-<div id="paysearch-count" style="font-size:11px;color:#666;text-align:center;margin-top:6px;display:${(S.payCollect&&S.payCollect.searchQuery)?'block':'none'}"></div>
-<div style="background:#fff;border-radius:8px;margin-top:8px;max-height:380px;overflow-y:auto">
-${(()=>{
-const query=((S.payCollect&&S.payCollect.searchQuery)||'').toLowerCase().trim();
-const sorted=[...sum.unpaid].sort((a,b)=>a.personName.localeCompare(b.personName));
-return sorted.map(u=>{
-const personLower=u.personName.toLowerCase();
-const isHidden=query&&!personLower.includes(query);
-const keys=personKeys(u);
-const allSel=keys.every(k=>sel.includes(k));
-const someSel=keys.some(k=>sel.includes(k));
-const headerCheck=allSel?'✓':someSel?'−':'';
-const headerBg=allSel?'#1a6b3c':someSel?'#ff9800':'#fff';
-const headerBd=allSel||someSel?(allSel?'#1a6b3c':'#ff9800'):'#ccc';
-return`<div data-paycollect-person="${u.orderId}|${u.personIdx}" data-personname="${personLower.replace(/"/g,'&quot;')}" style="display:${isHidden?'none':'block'};border-bottom:1px solid #f0f0f0;padding:8px 12px;background:${someSel?'#f0f9f4':'#fff'}">
-<div style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;color:#e65100;font-size:13px;margin-bottom:4px">
-<div style="width:22px;height:22px;border:2px solid ${headerBd};border-radius:5px;background:${headerBg};color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">${headerCheck}</div>
-<span style="flex:1">${u.personName}</span>
-<span>¥${u.total.toLocaleString()}</span>
-</div>
-<div style="padding-left:32px">
-${u.items.map(it=>{
-const ik=itemKey(u,it);
-const itSel=sel.includes(ik);
-const sBg=it.sId==='fuji'?'#fff8e1':it.sId==='nara'?'#e3f2fd':'#f5f5f5';
-const sColor=it.sId==='fuji'?'#e65100':it.sId==='nara'?'#1565c0':'#666';
-return`<div data-paycollect-item="${ik}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:6px;background:${itSel?'#f0f9f4':'transparent'};margin-bottom:2px;transition:background 0.15s">
-<div style="width:18px;height:18px;border:2px solid ${itSel?'#1a6b3c':'#ccc'};border-radius:4px;background:${itSel?'#1a6b3c':'#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${itSel?'✓':''}</div>
-<span style="font-size:10px;font-weight:600;background:${sBg};color:${sColor};padding:2px 8px;border-radius:8px;flex-shrink:0">${it.sId==='fuji'?'🍱 Fuji':it.sId==='nara'?'🍛 Nara':it.sName}</span>
-<span style="font-size:11px;color:#666;flex:1">${it.mName}</span>
-<span style="font-size:11px;font-weight:600;color:#333">¥${it.amount.toLocaleString()}</span>
-</div>`;
-}).join('')}
-</div>
-</div>`;
-}).join('');
-})()}
-</div>
-${selectedCount>0?`<div style="position:sticky;bottom:0;margin-top:10px;background:#1a6b3c;color:#fff;padding:12px 14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 -4px 12px rgba(0,0,0,0.15);z-index:5">
-<div style="flex:1;min-width:0">
-<div style="font-size:11px;opacity:0.9">Pilih: ${selectedCount} item</div>
-<div style="font-size:18px;font-weight:700">¥${selectedTotal.toLocaleString()}</div>
-</div>
-<div style="display:flex;gap:6px;flex-shrink:0">
-<button id="clear-paycollect" style="background:transparent;border:1.5px solid #fff;color:#fff;padding:8px 10px;font-size:11px;border-radius:8px;cursor:pointer">Buang</button>
-<button id="commit-paycollect" style="background:#fff;color:#1a6b3c;border:none;padding:8px 14px;font-weight:700;border-radius:8px;cursor:pointer;font-size:12px">✓ Tandakan Dibayar</button>
-</div>
-</div>`:''}`:'<p style="font-size:12px;color:#1a6b3c;text-align:center;font-weight:600;padding:6px">🎉 Semua bayaran selesai untuk '+filterLabel.toLowerCase()+'!</p>'}
-${S.payDialog&&S.payDialog.active?(()=>{
-const received=parseInt(S.payDialog.received)||0;
-const change=received-S.payDialog.total;
-const exact=received===S.payDialog.total;
-const over=change>0;
-return`<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;display:flex;align-items:flex-end;justify-content:center;padding:0">
-<div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:20px 18px 24px;box-shadow:0 -8px 24px rgba(0,0,0,0.2)">
-<div style="text-align:center;margin-bottom:14px">
-<div style="font-size:28px">💴</div>
-<h3 style="margin:6px 0 0;font-size:16px;font-weight:700">Pengiraan Bayaran</h3>
-</div>
-<div style="background:#f5f5f5;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:11px;line-height:1.6;max-height:120px;overflow-y:auto">
-<div style="font-weight:600;color:#666;margin-bottom:4px">Item dibayar:</div>
-${S.payDialog.personLines.map(p=>`<div>• ${p.name} <span style="color:#888">(${p.sesi})</span> — ¥${p.amount.toLocaleString()}</div>`).join('')}
-</div>
-<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700;padding:10px 12px;background:#fff3e0;border-radius:8px;margin-bottom:14px">
-<span style="color:#e65100">💴 Jumlah perlu bayar</span>
-<span style="color:#e65100;font-size:16px">¥${S.payDialog.total.toLocaleString()}</span>
-</div>
-<label class="lbl" style="display:block;margin-bottom:6px;font-size:13px">Duit diterima dari peserta:</label>
-<div style="position:relative;margin-bottom:14px">
-<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-weight:700;color:#1a6b3c;font-size:18px;z-index:1">¥</span>
-<input type="number" id="paydialog-received" value="${S.payDialog.received}" inputmode="numeric" min="0" step="100"
-style="width:100%;padding:14px 14px 14px 36px;font-size:20px;font-weight:700;border:2px solid #1a6b3c;border-radius:10px;outline:none;background:#f0f9f4;text-align:right;box-sizing:border-box"/>
-</div>
-<div id="paydialog-change" style="display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700;padding:14px;border-radius:10px;border:2px solid ${exact?'#1a6b3c':over?'#ffb74d':'#e57373'};background:${exact?'#1a6b3c':over?'#fff8e1':'#fdecea'};color:${exact?'#fff':over?'#e65100':'#c62828'};margin-bottom:18px">
-<span class="change-label">${exact?'✓ Tepat — tiada baki':over?'↩ Baki untuk dipulangkan':'⚠ Kurang bayar'}</span>
-<span class="change-amount" style="font-size:20px;font-weight:800">¥${Math.abs(change).toLocaleString()}</span>
-</div>
-<div style="display:flex;gap:8px">
-<button class="b2" id="paydialog-cancel" style="margin:0;flex:1;padding:14px 0">Batal</button>
-<button class="b1" id="paydialog-confirm" style="margin:0;flex:2">✓ Sahkan Dibayar</button>
-</div>
-</div>
-</div>`;
-})():''}
-</div>`;
-}
-function getTxnList(orders){
-const txns={};
-orders.forEach(o=>{
-(o.persons||[]).forEach((p,pi)=>{
-const personName=p.personName||(pi===0?o.name:`${o.name} (Orang ${pi+1})`);
-Object.keys(p).forEach(key=>{
-const it=p[key];
-if(it&&typeof it==='object'&&!Array.isArray(it)&&it.paid&&it.paidTxnId){
-if(!txns[it.paidTxnId]){
-txns[it.paidTxnId]={id:it.paidTxnId,paidAt:it.paidAt,received:it.paidReceived||0,change:it.paidChange||0,bundleTotal:it.paidBundleTotal||0,items:[]};
-}
-txns[it.paidTxnId].items.push({personName,sId:key,mName:it.name,amount:it.price||0});
-}
-});
-});
-});
-return Object.values(txns).sort((a,b)=>(b.paidAt||'').localeCompare(a.paidAt||''));
-}
-function rTxnHistory(trip,orders){
-const sl=trip?(trip.sesi||SESI):SESI;
-const txns=getTxnList(orders);
-if(txns.length===0)return'';
-const totalReceived=txns.reduce((acc,t)=>acc+t.received,0);
-const totalChange=txns.reduce((acc,t)=>acc+(t.change>0?t.change:0),0);
-const totalCollected=txns.reduce((acc,t)=>acc+t.bundleTotal,0);
-const sLabel=(sId)=>{const s=sl.find(x=>x.id===sId);return s?s.nama:sId;};
-return`<div class="paybox" style="background:#e8f5e9;border-left-color:#1a6b3c">
-<h4>📝 Riwayat Transaksi (${txns.length})</h4>
-<div class="trkrow">
-<div class="trksc"><div class="v" style="color:#1a6b3c;font-size:14px">¥${totalCollected.toLocaleString()}</div><div class="l">Dikutip</div></div>
-<div class="trksc"><div class="v" style="color:#1a6b3c;font-size:14px">¥${totalReceived.toLocaleString()}</div><div class="l">Diterima</div></div>
-<div class="trksc"><div class="v" style="color:#e65100;font-size:14px">¥${totalChange.toLocaleString()}</div><div class="l">Dipulangkan</div></div>
-</div>
-<button class="bcp" id="cp-txn" style="margin-top:6px;margin-bottom:8px">📋 Copy Riwayat ke WhatsApp</button>
-<div style="background:#fff;border-radius:8px;padding:8px;max-height:420px;overflow-y:auto">
-${txns.map((t,i)=>{
-let dateStr='—';
-try{const d=new Date(t.paidAt);dateStr=d.toLocaleString('ms-MY',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tokyo'});}catch(e){}
-return`<div style="background:#fff;border-radius:8px;padding:10px;margin-bottom:6px;font-size:11px;border-left:3px solid #1a6b3c">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-<span style="color:#666;font-size:10px">📅 ${dateStr}</span>
-<span style="font-size:9px;color:#aaa">#${i+1}</span>
-</div>
-<div style="margin-bottom:6px">
-${t.items.map(it=>`<div style="padding:2px 0;color:#333">• <b style="color:#1a6b3c">${it.personName}</b> — ${sLabel(it.sId)}: ${it.mName} <span style="color:#888">(¥${it.amount.toLocaleString()})</span></div>`).join('')}
-</div>
-<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;font-weight:600;border-top:1px dotted #ddd;padding-top:6px;margin-top:4px;font-size:11px">
-<span style="color:#666">Total ¥${t.bundleTotal.toLocaleString()}</span>
-<span style="color:#1a6b3c">💴 ¥${t.received.toLocaleString()}</span>
-${t.change>0?`<span style="color:#e65100">↩ ¥${t.change.toLocaleString()}</span>`:t.change<0?`<span style="color:#c62828">⚠ -¥${Math.abs(t.change).toLocaleString()}</span>`:`<span style="color:#1a6b3c">✓ Tepat</span>`}
-</div>
-</div>`;
-}).join('')}
-</div>
-</div>`;
-}
-function bTxnHistory(trip,orders){
-const sl=trip?(trip.sesi||SESI):SESI;
-const sLabel=(sId)=>{const s=sl.find(x=>x.id===sId);return s?s.nama:sId;};
-const txns=getTxnList(orders);
-let txt=`📝 *RIWAYAT TRANSAKSI*\n📌 ${trip?trip.nama:'—'}\n📅 ${trip?trip.tarikh:'—'}\n${'─'.repeat(28)}\n\n`;
-if(txns.length===0)return txt+'Tiada transaksi rekod.\n';
-let totalReceived=0,totalChange=0,totalCollected=0;
-txns.forEach((t,i)=>{
-let dateStr='—';
-try{const d=new Date(t.paidAt);dateStr=d.toLocaleString('ms-MY',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tokyo'});}catch(e){}
-txt+=`*${i+1}. ${dateStr}*\n`;
-t.items.forEach(it=>{txt+=`  • ${it.personName} — ${sLabel(it.sId)}: ${it.mName} (¥${it.amount.toLocaleString()})\n`;});
-txt+=`  💴 Total: ¥${t.bundleTotal.toLocaleString()} | Diterima: ¥${t.received.toLocaleString()}`;
-if(t.change>0)txt+=` | Pulangan: ¥${t.change.toLocaleString()}`;
-else if(t.change<0)txt+=` | Kurang: ¥${Math.abs(t.change).toLocaleString()}`;
-else txt+=` | Tepat`;
-txt+='\n\n';
-totalReceived+=t.received;
-totalChange+=t.change>0?t.change:0;
-totalCollected+=t.bundleTotal;
-});
-txt+=`${'─'.repeat(28)}\n📊 *RINGKASAN*\n💴 Dikutip: ¥${totalCollected.toLocaleString()}\n💵 Diterima: ¥${totalReceived.toLocaleString()}\n↩ Dipulangkan: ¥${totalChange.toLocaleString()}`;
-return txt;
-}
-function bUnpaidList(trip,orders,sesiFilter){
-const sum=getPaymentSummary(trip,orders,sesiFilter);
-const filterLabel=sum.filter==='all'?'(Fuji + Nara)':sum.filter==='fuji'?'(Fuji sahaja)':sum.filter==='nara'?'(Nara sahaja)':'';
-let txt=`💴 *SENARAI BELUM BAYAR* ${filterLabel}\n📌 ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
-if(sum.unpaid.length===0)return txt+'🎉 Semua bayaran sudah selesai!\n';
-sum.unpaid.forEach((u,i)=>{
-txt+=`*${i+1}. ${u.personName}*\n`;
-u.items.forEach(it=>{txt+=`  • ${it.sName}: ${it.mName} = ¥${it.amount.toLocaleString()}\n`;});
-txt+=`  💴 *Subtotal: ¥${u.total.toLocaleString()}*\n\n`;
-});
-txt+=`${'─'.repeat(28)}\n👥 ${sum.unpaid.length} orang belum bayar\n💴 *JUMLAH BAKI: ¥${sum.balance.toLocaleString()}*\n\n_Sila kutip dari peserta — bayaran ini tidak termasuk dalam pakej tour._`;
-return txt;
-}
-function rPriceEditor(){
-const trip=S.trips.find(t=>t.id===S.priceEditor.tripId);
-if(!trip)return`<div class="loading">Trip tidak ditemui.</div>`;
-const sesiCopy=S.priceEditor.sesiCopy;
-const orig=S.priceEditor.originalSesi;
-return`<div class="stk"><button class="bk" id="cancel-price" title="Batal">←</button><h2>💴 Edit Harga Menu</h2></div>
-<div class="body" style="padding-bottom:120px">
-<div class="warnsec">⚠️ <b>Untuk trip:</b> ${trip.nama}<br>Pesanan yang sudah dibuat <b>tidak akan terjejas</b> — harga sudah disimpan dalam setiap pesanan. Perubahan ini hanya untuk pesanan baharu trip ini.</div>
-${sesiCopy.map(s=>{
-if(!s.showPrice)return`<div class="stitle">${s.nama}</div><p style="font-size:12px;color:#888;padding:14px;background:#f5f5f5;border-radius:10px;text-align:center">Tiada harga (sesi disupport / percuma)</p>`;
-const origSesi=orig.find(os=>os.id===s.id);
-return`<div class="stitle">${s.nama}</div>
-<div class="abox">
-${s.menus.map(m=>{
-const om=origSesi?origSesi.menus.find(x=>x.id===m.id):null;
-const changed=om&&om.price!==m.price;
-return`<div class="priceedit-row">
-<span class="pname">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''}${m.isSpecial?' <span style="font-size:9px;color:#e65100">★</span>':''}</span>
-<span class="pyen">¥</span>
-<input class="priceinp ${changed?'changed':''}" type="number" min="0" step="50" data-priceedit="${s.id}|${m.id}" value="${m.price}" inputmode="numeric"/>
-${changed?`<span style="font-size:10px;color:#e65100;font-weight:600;min-width:auto">${m.price>om.price?'+':''}${m.price-om.price}</span>`:''}
-</div>`;
-}).join('')}
-</div>`;
-}).join('')}
-</div>
-<div class="fb"><div style="display:flex;gap:8px">
-<button class="b2" id="cancel-price" style="margin:0;flex:1;padding:14px 0">Batal</button>
-<button class="b1" id="save-price" style="margin:0;flex:2">💾 Simpan Perubahan</button>
-</div></div>`;
-}
-function startPriceEdit(tripId){
-const trip=S.trips.find(t=>t.id===tripId);
-if(!trip){toast("Trip tidak ditemui.");return;}
-const baseSesi=trip.sesi||SESI;
-S.priceEditor={
-active:true,
-tripId,
-sesiCopy:JSON.parse(JSON.stringify(baseSesi)),
-originalSesi:JSON.parse(JSON.stringify(baseSesi))
-};
-S.view="price-edit";render();
-}
-function cancelPriceEdit(){
-S.priceEditor={active:false,tripId:null,sesiCopy:null,originalSesi:null};
-S.view="admin";S.adminTab="trips";render();
-}
 function rTracking(trip,orders){
 if(!trip||!trip.peserta||!trip.peserta.length)return'';
-const orderedNames=getAllOrderedPesertaNames(orders,trip.peserta);
+const orderedNames=new Set();
+orders.forEach(o=>{
+const m=fuzzyMatchPeserta(o.name,trip.peserta);
+if(m)orderedNames.add(m.match.nama);
+});
 const tot=trip.peserta.length;
 const ok=orderedNames.size;
 const pct=tot>0?Math.round(ok/tot*100):0;
@@ -1199,97 +722,12 @@ return`<div class="trkname ${done?'ok':'pending'}"><span class="stat">${done?'�
 }
 function bPendingList(trip,orders){
 if(!trip||!trip.peserta)return"";
-const orderedNames=getAllOrderedPesertaNames(orders,trip.peserta);
+const orderedNames=new Set();
+orders.forEach(o=>{const m=fuzzyMatchPeserta(o.name,trip.peserta);if(m)orderedNames.add(m.match.nama);});
 const pending=trip.peserta.filter(p=>!orderedNames.has(p.nama));
 let txt=`📋 *PESERTA BELUM ORDER*\n📌 ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
 pending.forEach((p,i)=>{txt+=`${i+1}. ${p.nama}${p.isTL?' ⭐ (TL)':''}\n`;});
 txt+=`\n${'─'.repeat(28)}\n👥 Tinggal ${pending.length} / ${trip.peserta.length} peserta`;
-return txt;
-}
-function rNamePerMenu(sl,orders){
-const grouped={};
-sl.forEach(s=>{
-grouped[s.id]={};
-orders.forEach(o=>(o.persons||[]).forEach((p,pi)=>{
-const item=p[s.id];
-if(!item||item.skip)return;
-const personName=p.personName||(pi===0?o.name:`${o.name} (Orang ${pi+1})`);
-if(!grouped[s.id][item.name])grouped[s.id][item.name]={names:[],unit:item.price||0,total:0};
-grouped[s.id][item.name].names.push(personName);
-grouped[s.id][item.name].total+=(item.price||0);
-}));
-});
-return sl.map(s=>{
-const menuMap=grouped[s.id]||{};
-const sortedMenus=Object.keys(menuMap).sort((a,b)=>menuMap[b].names.length-menuMap[a].names.length);
-if(!sortedMenus.length)return`<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:6px">${s.nama}</div><div style="padding:10px 14px;font-size:12px;color:#aaa;background:#f9f9f9;border-radius:10px">Tiada order</div></div>`;
-const sesSubMenus=sortedMenus.reduce((acc,m)=>acc+menuMap[m].total,0);
-const sesPax=sortedMenus.reduce((acc,m)=>acc+menuMap[m].names.length,0);
-const isNamba=s.id==="namba";
-const karaagePax=isNamba?sesPax:0;
-const karaageTotal=karaagePax*400;
-const sesSub=sesSubMenus+karaageTotal;
-const hasAnyPrice=sesSubMenus>0||karaageTotal>0;
-return`<div style="margin-bottom:14px">
-<div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:6px">${s.nama}${isNamba?' <span style="font-size:9px;color:#888;font-weight:400">(disupport — info untuk TL)</span>':''}</div>
-${sortedMenus.map(menu=>{
-const data=menuMap[menu];
-const showMenuPrice=data.unit>0;
-return`<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:10px 14px;margin-bottom:6px">
-<div style="font-size:13px;font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px">
-<span style="flex:1">${menu}${showMenuPrice?` <span style="font-size:11px;color:#888;font-weight:500">¥${data.unit.toLocaleString()}</span>`:''}</span>
-<span style="font-size:11px;background:#f0f9f4;color:#1a6b3c;border-radius:20px;padding:2px 10px;flex-shrink:0">${data.names.length} pax${showMenuPrice?` · ¥${data.total.toLocaleString()}`:''}</span>
-</div>
-<ol style="margin:0;padding-left:22px;font-size:12px;color:#333;line-height:1.7">
-${data.names.map(n=>`<li>${n}</li>`).join('')}
-</ol>
-</div>`;
-}).join('')}
-${isNamba&&karaagePax>0?`<div style="background:#fff;border:1px dashed #ffb74d;border-radius:10px;padding:10px 14px;margin-bottom:6px">
-<div style="font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px">
-<span style="flex:1;color:#e65100">+ Karaage 3pc <span style="font-size:11px;color:#888;font-weight:500">¥400</span></span>
-<span style="font-size:11px;background:#fff3e0;color:#e65100;border-radius:20px;padding:2px 10px;flex-shrink:0">${karaagePax} pax · ¥${karaageTotal.toLocaleString()}</span>
-</div>
-</div>`:''}
-${hasAnyPrice?`<div style="text-align:right;font-size:12px;color:#1a6b3c;font-weight:600;padding:6px 4px 0">💴 Subtotal: ${sesPax} pax — <span style="font-size:14px">¥${sesSub.toLocaleString()}</span></div>`:''}
-</div>`;
-}).join('');
-}
-function bNamePerMenu(trip,orders){
-const sl=trip.sesi||SESI;
-const grouped={};
-sl.forEach(s=>{
-grouped[s.id]={};
-orders.forEach(o=>(o.persons||[]).forEach((p,pi)=>{
-const item=p[s.id];
-if(!item||item.skip)return;
-const personName=p.personName||(pi===0?o.name:`${o.name} (Orang ${pi+1})`);
-if(!grouped[s.id][item.name])grouped[s.id][item.name]={names:[],unit:item.price||0,total:0};
-grouped[s.id][item.name].names.push(personName);
-grouped[s.id][item.name].total+=(item.price||0);
-}));
-});
-let txt=`📢 *PANDUAN PANGGIL NAMA*\n📌 ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n`;
-sl.forEach(s=>{
-txt+=`\n*${s.nama}*${s.id==="namba"?'\n_(disupport — info untuk TL)_':''}\n`;
-const menuMap=grouped[s.id]||{};
-const sortedMenus=Object.keys(menuMap).sort((a,b)=>menuMap[b].names.length-menuMap[a].names.length);
-if(!sortedMenus.length){txt+='  _(Tiada order)_\n';return;}
-sortedMenus.forEach(menu=>{
-const data=menuMap[menu];
-const showPrice=data.unit>0;
-txt+=`\n📋 *${menu}*${showPrice?` (¥${data.unit.toLocaleString()})`:''} — ${data.names.length} pax${showPrice?` = ¥${data.total.toLocaleString()}`:''}\n`;
-data.names.forEach((n,i)=>{txt+=`  ${i+1}. ${n}\n`;});
-});
-const sesSubMenus=sortedMenus.reduce((acc,m)=>acc+menuMap[m].total,0);
-const sesPax=sortedMenus.reduce((acc,m)=>acc+menuMap[m].names.length,0);
-const isNamba=s.id==="namba";
-const karaagePax=isNamba?sesPax:0;
-const karaageTotal=karaagePax*400;
-if(isNamba&&karaagePax>0){txt+=`\n📋 *+ Karaage 3pc* (¥400) — ${karaagePax} pax = ¥${karaageTotal.toLocaleString()}\n`;}
-const sub=sesSubMenus+karaageTotal;
-if(sub>0)txt+=`\n💴 *Subtotal: ${sesPax} pax — ¥${sub.toLocaleString()}*\n`;
-});
 return txt;
 }
 function rSummary(sl,orders){
@@ -1303,30 +741,14 @@ function rSummary(sl,orders){
 }
 function rOrderList(sl,orders,canDel,isLeader){
   if(!orders.length)return`<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Tiada pesanan lagi.</div>`;
-  return orders.map(o=>{
-    // Kira berapa item Fuji+Nara belum dibayar dalam order ini
-    let orderUnpaid=0;
-    (o.persons||[]).forEach(p=>sl.forEach(s=>{
-      if(getPayType(s)!=='pay')return;
-      const it=p[s.id];
-      if(it&&!it.skip&&!it.paid)orderUnpaid++;
-    }));
-    return`<div class="ocard">
+  return orders.map(o=>`<div class="ocard">
     <div class="oname"><span>${o.name}${(o.persons||[]).length>1?` <span style="font-size:11px;color:#888;font-weight:400">(${o.persons.length} orang)</span>`:''}</span>
-    ${canDel?`<div style="display:flex;gap:4px;align-items:center">${orderUnpaid>0?`<button class="bsm g" data-payorder="${o.id}" style="padding:4px 10px;font-size:10px" title="Tandakan semua Fuji+Nara dibayar">✓ Bayar Semua</button>`:''}<button style="font-size:14px;color:#1a6b3c;background:none;border:none;cursor:pointer;padding:0 4px" data-edit="${o.id}" data-eview="${isLeader?'leader':'admin'}" title="Edit pesanan">✏️</button><button style="font-size:13px;color:#e53935;background:none;border:none;cursor:pointer;padding:0 4px" data-del="${o.id}" data-leader="${isLeader?1:0}" title="Padam">✕</button></div>`:''}</div>
+    ${canDel?`<div style="display:flex;gap:4px"><button style="font-size:14px;color:#1a6b3c;background:none;border:none;cursor:pointer;padding:0 4px" data-edit="${o.id}" data-eview="${isLeader?'leader':'admin'}" title="Edit pesanan">✏️</button><button style="font-size:13px;color:#e53935;background:none;border:none;cursor:pointer;padding:0 4px" data-del="${o.id}" data-leader="${isLeader?1:0}" title="Padam">✕</button></div>`:''}</div>
     ${(o.persons||[]).map((p,pi)=>`
-      ${(o.persons||[]).length>1?`<div style="font-size:11px;font-weight:600;color:#1a6b3c;margin:6px 0 2px">👤 ${p.personName||`Orang ${pi+1}`}</div>`:''}
-      ${sl.map(s=>{
-        const it=p[s.id];
-        if(!it)return`<div class="osesi"><div class="ost">${s.nama}</div><div class="osv">—</div></div>`;
-        if(it.skip)return`<div class="osesi"><div class="ost">${s.nama}</div><div class="osv"><span class="skiptag">🚫 Tidak order</span></div></div>`;
-        const showPay=canDel&&getPayType(s)==='pay';
-        const namba=s.id==="namba"?' <span style="font-size:10px;color:#888">(Regular+Karaage)</span>':'';
-        const priceLabel=s.showPrice&&it.price?` <span style="font-size:11px;color:#888;font-weight:500">¥${it.price.toLocaleString()}</span>`:'';
-        return`<div class="osesi"><div class="ost">${s.nama}</div><div class="osv">${it.name}${priceLabel}${namba}${showPay?`<button class="paybadge ${it.paid?'paid':'unpaid'}" data-paytoggle="${o.id}|${pi}|${s.id}" title="Klik untuk tukar">${it.paid?'✓ Sudah Bayar':'⏳ Belum Bayar'}</button>`:''}</div></div>`;
-      }).join("")}`).join("")}
-  </div>`;
-  }).join("");
+      ${(o.persons||[]).length>1?`<div style="font-size:11px;font-weight:600;color:#888;margin:5px 0 2px">👤 Orang ${pi+1}</div>`:''}
+      ${sl.map(s=>`<div class="osesi"><div class="ost">${s.nama}</div>
+      <div class="osv">${p[s.id]?(p[s.id].skip?'<span class="skiptag">🚫 Tidak order</span>':p[s.id].name):'—'}${s.id==="namba"&&p[s.id]&&!p[s.id].skip?' <span style="font-size:10px;color:#888">(Regular+Karaage)</span>':''}</div></div>`).join("")}`).join("")}
+  </div>`).join("");
 }
 function rLock(title,icon,btnId){
   return`<div class="stk"><button class="bk" id="go-back">←</button><h2>${title}</h2></div>
@@ -1371,111 +793,39 @@ if(S.submitted){
 const o=S.form;
 const wasEdit=S.lastWasEdit;
 return`<div class="stk"><h2>${trip.nama}</h2></div> <div style="text-align:center;padding:50px 24px"> <div style="font-size:56px;margin-bottom:14px">${wasEdit?'💾':'✅'}</div> <h2 style="font-size:22px;font-weight:600;margin-bottom:8px">${wasEdit?'Perubahan Disimpan!':'Pesanan Diterima!'}</h2> <p style="font-size:15px;color:#666;margin-bottom:4px">${wasEdit?'Pesanan dikemas kini untuk':'Terima kasih,'} <b>${o.name}</b>.</p> <p style="font-size:13px;color:#aaa;margin-bottom:16px">${o.pax} orang.</p> <div style="background:#f9f9f9;border-radius:12px;padding:14px;text-align:left;margin:14px 0"> <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#1a6b3c">Ringkasan Pesanan</div> ${(o.persons||[]).map((p,i)=>`
-${o.pax>1?`<div style="font-size:11px;font-weight:600;color:#1a6b3c;margin:8px 0 4px">👤 ${(o.persons||[])[i]?.personName||(i===0?'Anda':'Orang '+(i+1))}</div>`:''}
+${o.pax>1?`<div style="font-size:11px;font-weight:600;color:#888;margin:8px 0 4px">👤 ${i===0?'Anda':'Orang '+(i+1)}</div>`:''}
 ${sl.map(s=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee;font-size:12px"> <span style="color:#666">${s.nama}</span><span style="font-weight:600;${p[s.id]&&p[s.id].skip?'color:#c62828':''}">${p[s.id]?(p[s.id].skip?'🚫 Tidak order':p[s.id].name):'—'}</span> </div>`).join("")}`).join("")} </div> <button class="b2" id="go-back" style="margin-top:8px">Kembali</button> </div>`;
 }
 if(S.step===1){
-// Cari peserta yang sudah order (untuk grey out)
-const orderedSet=trip.peserta?getAllOrderedPesertaNames(S.orders,trip.peserta):new Set();
-// Auto-match nama wakil dengan peserta list
-const wakilMatch=trip.peserta&&S.form.name?fuzzyMatchPeserta(S.form.name,trip.peserta):null;
-const wakilNama=wakilMatch?wakilMatch.match.nama:S.form.name;
-// Senarai peserta yang boleh dipilih (exclude wakil dan yang sudah order)
-const availablePeserta=(trip.peserta||[]).filter(p=>p.nama!==wakilNama&&!orderedSet.has(p.nama));
-const showMemberPicker=trip.peserta&&trip.peserta.length>0&&S.form.pax>1;
-const needSelect=S.form.pax-1;
-const selectedCount=(S.form.selectedMembers||[]).length;
-return`<div class="stk"><h2>${trip.nama}</h2><span style="font-size:11px;background:#f0f9f4;color:#1a6b3c;border-radius:20px;padding:3px 10px">${trip.tarikh||''}</span></div>
-<div class="body">
-<div class="pb">${Array.from({length:sl.length+1}).map((_,i)=>`<div class="ps ${i===0?'active':''}"></div>`).join("")}</div>
-<div class="ins">📋 <b>Panduan untuk peserta:</b><br>
-<b>Untuk buat pesanan baharu:</b><br>
-1. Isi <b>nama anda</b> dan <b>bilangan orang</b> yang anda wakili<br>
-${trip.peserta&&trip.peserta.length>0?'2. Pilih nama ahli rombongan yang anda order untuk (jika lebih dari 1)<br>3. ':'2. '}Tekan butang <b>"Seterusnya"</b> di bawah untuk lihat menu makanan<br>
-<br>
-<b>Sudah pernah order?</b> Tekan butang <b>"🔍 Semak Order Saya"</b> di bawah untuk lihat pesanan & <b>harga</b> anda, atau edit menu pilihan.</div>
-<p style="font-size:13px;color:#666;margin-bottom:16px">Slot tinggal: <b style="color:${rem<5?'#e53935':'#1a6b3c'}">${rem}</b> / ${pax}</p>
-<label class="lbl">Nama Anda (Wakil)</label>
-<input class="inp" id="order-name" placeholder="cth: Ahmad bin Ali" value="${S.form.name}"/>
-${S.form.disambiguating&&S.form.disambiguating.length>0?`<div class="warnsec" style="background:#fff3e0;border-left-color:#ff9800;color:#e65100">
-🤔 <b>Beberapa peserta menyamai nama ini</b><br>
-Sila pilih nama anda yang betul:
-<div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
-${S.form.disambiguating.map(c=>`<button class="bsm" data-pick-disamb="${c.nama.replace(/"/g,'&quot;')}" style="text-align:left;padding:10px 12px;font-size:13px;background:#fff;border:1.5px solid #ff9800;color:#1a1a1a">👤 ${c.nama}</button>`).join('')}
-<button class="bsm" data-pick-disamb="__none__" style="text-align:center;padding:8px;font-size:11px;background:transparent;border:1px dashed #888;color:#888">Tiada satu pun — saya peserta lain</button>
-</div>
-</div>`:''}
-<label class="lbl">Bilangan orang (termasuk diri sendiri)</label>
-<div class="cntrow">
-<button class="cntbtn" id="cnt-minus">−</button>
-<div class="cntval">${S.form.pax}</div>
-<button class="cntbtn" id="cnt-plus">+</button>
-</div>
-${showMemberPicker?`
-<div class="ins">📌 <b>Pilih ${needSelect} peserta lain</b> yang anda order untuk: <span style="font-weight:600;color:${selectedCount===needSelect?'#1a6b3c':'#e65100'}">${selectedCount}/${needSelect} dipilih</span>
-${wakilMatch?`<div style="margin-top:6px;font-size:11px;color:#1a6b3c">✓ Anda dikenal pasti sebagai: <b>${wakilNama}</b></div>`:S.form.name?`<div style="margin-top:6px;font-size:11px;color:#e65100">⚠️ Nama "${S.form.name}" tiada dalam senarai. Sila betulkan ejaan.</div>`:''}
-</div>
-<div class="plist" style="max-height:280px;margin-bottom:14px">
-${availablePeserta.length===0?`<div style="padding:14px;text-align:center;color:#aaa;font-size:12px">Tiada peserta lain yang masih boleh order.</div>`:availablePeserta.map((px,i)=>{
-const checked=(S.form.selectedMembers||[]).includes(px.nama);
-return`<label class="pitem ${px.isTL?'tl':''}" style="cursor:pointer;border-bottom:1px solid #f0f0f0">
-<input type="checkbox" class="member-chk" data-nama="${px.nama.replace(/"/g,'&quot;')}" ${checked?'checked':''} style="width:18px;height:18px;margin-right:6px"/>
-<span class="pname" style="flex:1">${px.nama}</span>
-</label>`;
-}).join('')}
-${trip.peserta.filter(p=>orderedSet.has(p.nama)).map(px=>`<div class="pitem" style="opacity:0.4;background:#f5f5f5">
-<span style="width:18px;height:18px;margin-right:6px;display:inline-flex;align-items:center;justify-content:center;color:#888">✓</span>
-<span class="pname" style="flex:1;text-decoration:line-through">${px.nama}</span>
-<span style="font-size:10px;color:#888">sudah order</span>
-</div>`).join('')}
-</div>`:''}
-${S.formErr?`<div class="err">${S.formErr}</div>`:''}
-<div style="border-top:1px solid #eee;margin-top:8px;padding-top:16px">
-<p style="font-size:13px;color:#666;margin-bottom:10px">Sudah buat pesanan? Semak order anda:</p>
-<button class="b2" id="go-check" style="margin-bottom:0">🔍 Semak Order Saya</button>
-</div>
-</div>
-<div class="fb"><button class="b1" id="next-step">Seterusnya →</button></div>`;
+return`<div class="stk"><h2>${trip.nama}</h2><span style="font-size:11px;background:#f0f9f4;color:#1a6b3c;border-radius:20px;padding:3px 10px">${trip.tarikh||''}</span></div> <div class="body"> <div class="pb">${Array.from({length:sl.length+1}).map((_,i)=>`<div class="ps ${i===0?'active':''}"></div>`).join("")}</div> <p style="font-size:13px;color:#666;margin-bottom:16px">Slot tinggal: <b style="color:${rem<5?'#e53935':'#1a6b3c'}">${rem}</b> / ${pax}</p> <label class="lbl">Nama Anda (Wakil)</label> <input class="inp" id="order-name" placeholder="cth: Ahmad bin Ali" value="${S.form.name}"/> <label class="lbl">Bilangan orang (termasuk diri sendiri)</label> <div class="cntrow"> <button class="cntbtn" id="cnt-minus">−</button> <div class="cntval">${S.form.pax}</div> <button class="cntbtn" id="cnt-plus">+</button> </div> ${S.formErr?`<div class="err">${S.formErr}</div>`:''} <div style="border-top:1px solid #eee;margin-top:8px;padding-top:16px"> <p style="font-size:13px;color:#666;margin-bottom:10px">Sudah buat pesanan? Semak order anda:</p> <button class="b2" id="go-check" style="margin-bottom:0">🔍 Semak Order Saya</button> </div> </div> <div class="fb"><button class="b1" id="next-step">Seterusnya →</button></div>`;
 }
 const sesi=sl[S.sesiIdx];
 const persons=S.form.persons||[];
 const ap=S.activePerson;
 const sel=persons[ap]?persons[ap][sesi.id]:null;
 const isLast=S.sesiIdx===sl.length-1;
-const personLabel=(p,i)=>{
-if(p&&p.personName){
-const parts=p.personName.split(/\s+/).filter(w=>!/^(bin|binti|bte|bt|b\.?)$/i.test(w));
-return parts.slice(0,2).join(' ')||p.personName;
-}
-return persons.length>1?(i===0?'Anda':`Orang ${i+1}`):'Anda';
-};
-const personFull=(p,i)=>p&&p.personName?p.personName:(persons.length>1?(i===0?'Anda (Orang 1)':`Orang ${i+1}`):'Pilihan Anda');
-const canSkip=getCanSkip(sesi);
-const tabs=persons.map((p,i)=>`<button class="ptab ${ap===i?'active':isPersonComplete(p,sesi)?'done':''}" data-ptab="${i}">${personLabel(p,i)}</button>`).join("");
-const dots=persons.map(p=>`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${isPersonComplete(p,sesi)?'#1a6b3c':'#ddd'};margin:0 2px"></span>`).join("");
-const completeCount=persons.filter(p=>isPersonComplete(p,sesi)).length;
+const tabs=persons.map((p,i)=>`<button class="ptab ${ap===i?'active':p[sesi.id]?'done':''}" data-ptab="${i}">${persons.length>1?`Orang ${i+1}`:'Anda'}</button>`).join("");
+const dots=persons.map(p=>`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p[sesi.id]?'#1a6b3c':'#ddd'};margin:0 2px"></span>`).join("");
 const cards=sesi.menus.map(m=>{
 const isSel=sel&&sel.id===m.id;
 const img=S.imgs[`${sesi.id}_${m.id}`];
 return`<div class="mcard ${isSel?'sel':''}" data-sesi="${sesi.id}" data-pid="${ap}" data-mid="${m.id}"> <div class="mwrap">${img?`<img src="${img}" alt="${m.name}"/>`:`<span style="font-size:26px">🍽️</span>`}${isSel?'<div class="mchk">✓</div>':''}</div> <div class="minfo"> <div class="mname">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''}</div> ${sesi.showPrice?`<div class="mprice">¥${m.price.toLocaleString()}</div>`:''} ${m.desc?`<div class="mdesc">${m.desc}</div>`:''} </div> </div>`;
 }).join("");
-const showSkipDisplay=sel&&sel.skip&&canSkip;
 return`<div class="stk"><h2>${S.editing.active?'✏️ Edit Pesanan':trip.nama}</h2>${S.editing.active?'<button class="bk" id="cancel-edit" title="Batal" style="font-size:18px">✕</button>':''}</div>
 <div class="body">
     ${S.editing.active?`<div class="warnsec">✏️ <b>Mod Edit:</b> Mengedit pesanan untuk <b>${S.form.name}</b>. Klik <b>"💾 Simpan Perubahan"</b> untuk menyimpan, atau <b>✕</b> untuk batal.</div>`:''}
     <div class="pb">${Array.from({length:sl.length+1}).map((_,i)=>`<div class="ps ${i<S.sesiIdx+1?'done':i===S.sesiIdx+1?'active':''}"></div>`).join("")}</div>
     <div class="shdr"><h3>${sesi.nama}</h3>${sesi.note?`<p>${sesi.note}</p>`:''}</div>
     ${sesi.id==="namba"?`<div class="snote">✅ Semua order termasuk Regular size + Karaage 3pc (¥400)</div>`:''}
-    ${(()=>{const gs=SESI.find(s=>s.id===sesi.id);const pn=sesi.payNote||(gs&&gs.payNote);const pt=sesi.payType||(gs&&gs.payType)||'pay';return pn?`<div class="payinfo ${pt}">${pn}</div>`:'';})()}
-    <div class="ins">📋 <b>Arahan:</b> ${canSkip?'Pilih menu untuk setiap orang, atau tekan butang "🚫 Tidak Mahu Order" jika orang tersebut tidak nak order untuk sesi ini.':'<b style="color:#c62828">Sesi ini wajib</b> — semua orang perlu pilih menu (tidak boleh skip).'}<br>
-      <div style="margin-top:6px">${dots} <span style="font-size:11px">${completeCount}/${persons.length} selesai</span></div>
+    <div class="ins">📋 <b>Arahan:</b> Pilih menu untuk setiap orang, atau tekan butang "🚫 Tidak Mahu Order" jika orang tersebut tidak nak order untuk sesi ini.<br>
+      <div style="margin-top:6px">${dots} <span style="font-size:11px">${persons.filter(p=>p[sesi.id]).length}/${persons.length} selesai</span></div>
     </div>
     <div class="ptabs">${tabs}</div>
     <div style="font-size:13px;font-weight:700;margin-bottom:10px">
-      👤 ${personFull(persons[ap],ap)}:
-      ${sel?(showSkipDisplay?'<span style="color:#c62828;font-size:12px;font-weight:600"> 🚫 Tidak order</span>':sel.skip&&!canSkip?'<span style="color:#aaa;font-size:12px;font-weight:400"> Belum dipilih (sila pilih menu)</span>':`<span style="color:#1a6b3c;font-size:12px;font-weight:600"> ✓ ${sel.name}</span>`):'<span style="color:#aaa;font-size:12px;font-weight:400"> Belum dipilih</span>'}
+      👤 ${persons.length>1?(ap===0?'Anda (Orang 1)':`Orang ${ap+1}`):'Pilihan Anda'}:
+      ${sel?(sel.skip?'<span style="color:#c62828;font-size:12px;font-weight:600"> 🚫 Tidak order</span>':`<span style="color:#1a6b3c;font-size:12px;font-weight:600"> ✓ ${sel.name}</span>`):'<span style="color:#aaa;font-size:12px;font-weight:400"> Belum dipilih</span>'}
     </div>
-    ${canSkip?`<button class="skipbtn ${sel&&sel.skip?'sel':''}" id="skip-sesi">${sel&&sel.skip?'✓ Tidak order untuk sesi ini':'🚫 Tidak Mahu Order untuk Sesi Ini'}</button>`:''}
+    <button class="skipbtn ${sel&&sel.skip?'sel':''}" id="skip-sesi">${sel&&sel.skip?'✓ Tidak order untuk sesi ini':'🚫 Tidak Mahu Order untuk Sesi Ini'}</button>
     <div class="mgrid">${cards}</div>
     ${S.formErr?`<div class="err">${S.formErr}</div>`:''}
   </div>
@@ -1494,97 +844,18 @@ return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Semak Or
     <label class="lbl">Masukkan nama anda</label>
     <input class="inp" id="check-inp" placeholder="cth: Ahmad bin Ali" value="${name}"/>
     <button class="b1" id="do-check">🔍 Cari Order</button>
-    ${S.checkDone?found?(()=>{
-const grandTot=(found.persons||[]).reduce((sum,p)=>{
-return sum+sl.reduce((sumS,s)=>{
-const it=p[s.id];
-if(!it||it.skip||!s.showPrice)return sumS;
-return sumS+(it.price||0);
-},0);
-},0);
-const paidTot=(found.persons||[]).reduce((sum,p)=>{
-return sum+sl.reduce((sumS,s)=>{
-const it=p[s.id];
-if(!it||it.skip||!s.showPrice||!it.paid)return sumS;
-return sumS+(it.price||0);
-},0);
-},0);
-const balanceTot=grandTot-paidTot;
-return`
+    ${S.checkDone?found?`
     <div style="background:#f0f9f4;border-radius:12px;padding:16px;margin-top:16px;border:1px solid #1a6b3c">
       <div style="font-size:15px;font-weight:600;margin-bottom:12px;color:#1a6b3c">✅ Order dijumpai — ${found.name}</div>
       ${(found.persons||[]).map((p,pi)=>`
-        ${(found.persons||[]).length>1?`<div style="font-size:12px;font-weight:600;color:#1a6b3c;margin:10px 0 4px">👤 ${p.personName||(pi===0?'Anda':'Orang '+(pi+1))}</div>`:''}
-        ${sl.map(s=>{
-const it=p[s.id];
-const skip=it&&it.skip;
-const showPrice=s.showPrice&&it&&!skip&&it.price;
-const isPaid=it&&it.paid;
-const priceTag=showPrice?`<span style="font-size:11px;color:#888;font-weight:500;margin-left:6px">¥${it.price.toLocaleString()}</span>`:'';
-const payBadge=showPrice?`<br><span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;${isPaid?'background:#1a6b3c;color:#fff':'background:#fff3e0;color:#e65100;border:1px solid #ffb74d'};white-space:nowrap;display:inline-block;margin-top:3px">${isPaid?'✓ Sudah Bayar':'⏳ Belum Bayar'}</span>`:'';
-return`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee;font-size:13px;gap:8px">
-          <span style="color:#666;flex-shrink:0">${s.nama}</span>
-          <span style="font-weight:600;text-align:right;${skip?'color:#c62828':''}">${it?(skip?'🚫 Tidak order':it.name):'—'}${priceTag}${payBadge}</span>
-        </div>`;
-}).join("")}`).join("")}
-      ${grandTot>0?`<div style="border-top:2px solid #1a6b3c;margin-top:10px;padding-top:10px">
-        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#1a6b3c;margin-bottom:4px">
-          <span>💴 Jumlah perlu dibayar</span>
-          <span>¥${grandTot.toLocaleString()}</span>
-        </div>
-        ${paidTot>0?`<div style="display:flex;justify-content:space-between;font-size:12px;color:#1a6b3c;font-weight:600;margin-bottom:2px">
-          <span>✓ Sudah dibayar</span>
-          <span>¥${paidTot.toLocaleString()}</span>
-        </div>`:''}
-        ${balanceTot>0?`<div style="display:flex;justify-content:space-between;font-size:13px;color:#e65100;font-weight:700;background:#fff3e0;border-radius:8px;padding:6px 10px;margin-top:4px">
-          <span>⏳ Baki belum bayar</span>
-          <span>¥${balanceTot.toLocaleString()}</span>
-        </div>`:`<div style="font-size:12px;color:#1a6b3c;text-align:center;font-weight:700;margin-top:6px;background:#1a6b3c;color:#fff;border-radius:8px;padding:6px">🎉 Semua sudah dibayar!</div>`}
-        <p style="font-size:10px;color:#888;margin-top:6px;text-align:right">_(Fuji + Nara sahaja — Namba disupport)_</p>
-      </div>`:''}
-      ${(()=>{
-// Kumpul transaksi (group by paidTxnId)
-const txns={};
-(found.persons||[]).forEach((p,pi)=>{
-const personLabel=(found.persons||[]).length>1?(p.personName||(pi===0?'Anda':'Orang '+(pi+1))):'';
-sl.forEach(s=>{
-const it=p[s.id];
-if(it&&it.paid&&it.paidTxnId){
-if(!txns[it.paidTxnId])txns[it.paidTxnId]={paidAt:it.paidAt,received:it.paidReceived||0,change:it.paidChange||0,bundleTotal:it.paidBundleTotal||0,items:[]};
-txns[it.paidTxnId].items.push({sName:s.nama,mName:it.name,amount:it.price||0,personLabel});
-}
-});
-});
-const txnList=Object.values(txns).sort((a,b)=>(b.paidAt||'').localeCompare(a.paidAt||''));
-if(txnList.length===0)return'';
-return`<div style="margin-top:14px;padding:12px;background:#f5f5f5;border-radius:10px">
-<div style="font-size:12px;font-weight:700;color:#1a6b3c;margin-bottom:8px">📝 Riwayat Transaksi (${txnList.length})</div>
-${txnList.map(t=>{
-let dateStr='—';
-try{
-const d=new Date(t.paidAt);
-dateStr=d.toLocaleString('ms-MY',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tokyo'});
-}catch(e){}
-const personItemsTotal=t.items.reduce((acc,it)=>acc+it.amount,0);
-const isFullTransaction=Math.abs(personItemsTotal-t.bundleTotal)<1; // Sama ada transaksi ini cuma untuk peserta ini sahaja
-return`<div style="background:#fff;border-radius:8px;padding:10px;margin-bottom:6px;font-size:11px;border-left:3px solid #1a6b3c">
-<div style="color:#666;font-size:10px;margin-bottom:6px">📅 ${dateStr}</div>
-<div style="margin-bottom:6px">
-${t.items.map(it=>`<div style="padding:2px 0;color:#333">• ${it.personLabel?`<b style="color:#1a6b3c">${it.personLabel}</b> — `:''}${it.sName}: ${it.mName} <span style="color:#888">(¥${it.amount.toLocaleString()})</span></div>`).join('')}
-</div>
-${!isFullTransaction?`<div style="font-size:10px;color:#888;font-style:italic;padding:4px 0;border-top:1px dotted #ddd">Transaksi penuh ¥${t.bundleTotal.toLocaleString()} (termasuk peserta lain)</div>`:''}
-<div style="display:flex;justify-content:space-between;font-weight:600;border-top:1px dotted #ddd;padding-top:6px;margin-top:4px;font-size:11px">
-<span style="color:#1a6b3c">💴 Diterima: ¥${t.received.toLocaleString()}</span>
-${t.change>0?`<span style="color:#e65100">↩ Pulangan ¥${t.change.toLocaleString()}</span>`:t.change<0?`<span style="color:#c62828">⚠ Kurang ¥${Math.abs(t.change).toLocaleString()}</span>`:`<span style="color:#1a6b3c">✓ Tepat</span>`}
-</div>
-</div>`;
-}).join('')}
-<p style="font-size:10px;color:#888;margin-top:8px;text-align:center;font-style:italic">Simpan rekod ini untuk rujukan</p>
-</div>`;
-})()}
+        ${(found.persons||[]).length>1?`<div style="font-size:12px;font-weight:600;color:#666;margin:10px 0 4px">👤 ${pi===0?'Anda':'Orang '+(pi+1)}</div>`:''}
+        ${sl.map(s=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee;font-size:13px">
+          <span style="color:#666">${s.nama}</span>
+          <span style="font-weight:600;${p[s.id]&&p[s.id].skip?'color:#c62828':''}">${p[s.id]?(p[s.id].skip?'🚫 Tidak order':p[s.id].name):'—'}</span>
+        </div>`).join("")}`).join("")}
       <button class="b1" id="check-edit" style="margin-top:14px;margin-bottom:0">✏️ Edit Pesanan Saya</button>
       <p style="font-size:11px;color:#888;margin-top:10px;text-align:center">Atau hubungi Tour Leader untuk perubahan rasmi.</p>
-    </div>`;})():`
+    </div>`:`
     <div style="background:#fdecea;border-radius:12px;padding:16px;margin-top:16px;text-align:center">
       <div style="font-size:32px;margin-bottom:8px">🔍</div>
       <p style="font-size:14px;color:#c62828;font-weight:600">Tiada order dijumpai</p>
@@ -1599,18 +870,17 @@ const sl=trip?(trip.sesi||SESI):SESI;
 const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
 if(S.adminTab==="trips"){
-const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax &nbsp;🚌 ${t.mod||'tren'}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm" data-priceedit-trip="${t.id}" style="border-color:#ff9800;color:#e65100">💴 Harga</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
+const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax &nbsp;🚌 ${t.mod||'tren'}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn active" data-tab="trips">🗺️ Trip</button> <button class="tabbtn" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> <div class="stitle">Senarai Trip</div>${cards}
 ${rBookingSec()}
 <div class="stitle">Tambah Trip Baru</div> <button class="pdfbtn" id="open-pdf-import">📄 Cipta Trip dari PDF (Auto)</button> <div class="abox"> <input class="inp" id="nt-nama" placeholder="Nama trip" value="${S.newTrip.nama}"/> <input class="inp" id="nt-tarikh" placeholder="Tarikh (cth: 1-7 Nov 2025)" value="${S.newTrip.tarikh}"/> <label class="lbl">Tarikh mula di Osaka</label> <input class="inp" id="nt-mula" type="date" value="${S.newTrip.tarikhMula||''}"/> <label class="lbl">Mod pengangkutan</label> <select class="inp" id="nt-mod"> <option value="tren" ${(S.newTrip.mod||'tren')==='tren'?'selected':''}>🚃 Tren (Nara:11am | Namba:5pm)</option> <option value="bas" ${S.newTrip.mod==='bas'?'selected':''}>🚌 Bas (Nara:11:30am | Namba:5:30pm)</option> </select> <input class="inp" id="nt-pax" placeholder="Jumlah peserta" value="${S.newTrip.pax}" type="number"/> <button class="b1" id="add-trip" style="margin-bottom:0">+ Cipta Trip Baru (manual)</button> </div></div>`;
 }
 if(S.adminTab==="orders"){
 const sel=rTripSelect();
-return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div> <input class="inp" id="sp-nama" placeholder="cth: Vegan Ramen" value="${S.addSpecial}"/> <button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false)} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>`;
+return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div> <input class="inp" id="sp-nama" placeholder="cth: Vegan Ramen" value="${S.addSpecial}"/> <button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false)} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>`;
 }
 if(S.adminTab==="imgs"){
 const pending=S.pendingImgs||{};
-const pdrafts=S.priceDrafts||{};
 const previews=S.imgPreviews||[];
 const allMenus=[];
 SESI.forEach(sesi=>sesi.menus.forEach(m=>allMenus.push({key:`${sesi.id}_${m.id}`,name:m.name,sesiNama:sesi.nama})));
@@ -1625,24 +895,15 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
           const key=`${sesi.id}_${m.id}`;
           const src=pending[key]?pending[key].preview:S.imgs[key];
           const isPending=!!pending[key];const hasEx=!!S.imgs[key];
-          const curPrice=pdrafts[key]!==undefined?pdrafts[key]:m.price;
-          const isPriceDraft=pdrafts[key]!==undefined;
-          const showPriceField=m.price!==undefined;
-          const isFreeSession=!sesi.showPrice;
-          return`<div style="border-radius:10px;overflow:hidden;border:2px solid ${isPending||isPriceDraft?'#e65100':hasEx?'#1a6b3c':'#eee'};background:#fff;position:relative">
+          return`<div style="border-radius:10px;overflow:hidden;border:2px solid ${isPending?'#e65100':hasEx?'#1a6b3c':'#eee'};background:#fff;position:relative">
             <div style="width:100%;height:70px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;overflow:hidden">
               ${src?`<img src="${src}" style="width:100%;height:100%;object-fit:cover"/>`:`<span style="font-size:24px">🍽️</span>`}
             </div>
             <div style="padding:5px 7px">
-              <div style="font-size:10px;font-weight:600;color:#1a1a1a;line-height:1.3;margin-bottom:3px">${m.name}</div>
-              ${showPriceField?`<div style="display:flex;align-items:center;gap:3px;margin-bottom:3px">
-                <span style="font-size:9px;color:#888;font-weight:600">¥</span>
-                <input type="number" min="0" step="50" value="${curPrice}" data-pricedraft="${key}" inputmode="numeric" style="flex:1;padding:3px 5px;font-size:10px;border:1px solid ${isPriceDraft?'#ff9800':'#ddd'};border-radius:5px;background:${isPriceDraft?'#fff8e1':'#fff'};text-align:right;outline:none;width:100%;min-width:0"/>
-                ${isFreeSession?'<span style="font-size:8px;color:#888">📌</span>':''}
-              </div>${isFreeSession?'<div style="font-size:8px;color:#888;font-style:italic;margin-bottom:3px">Disupport — peserta tidak nampak harga</div>':''}`:'<div style="font-size:9px;color:#bbb;margin-bottom:3px">_(percuma)_</div>'}
-              <div style="font-size:9px;color:${isPending?'#e65100':hasEx?'#1a6b3c':'#bbb'}">${isPending?'⏳ Belum simpan':hasEx?'✓ Ada gambar':'Tiada gambar'}</div>
+              <div style="font-size:10px;font-weight:600;color:#1a1a1a;line-height:1.3">${m.name}</div>
+              <div style="font-size:9px;margin-top:2px;color:${isPending?'#e65100':hasEx?'#1a6b3c':'#bbb'}">${isPending?'⏳ Belum simpan':hasEx?'✓ Ada gambar':'Tiada gambar'}</div>
             </div>
-            ${isPending||isPriceDraft?`<div style="position:absolute;top:4px;right:4px;background:#e65100;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">!</div>`:hasEx?`<div style="position:absolute;top:4px;right:4px;background:#1a6b3c;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">✓</div>`:''}
+            ${isPending?`<div style="position:absolute;top:4px;right:4px;background:#e65100;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">!</div>`:hasEx?`<div style="position:absolute;top:4px;right:4px;background:#1a6b3c;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">✓</div>`:''}
           </div>`;
         }).join("")}
       </div>`).join("");
@@ -1693,12 +954,11 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
         <button class="tabbtn" data-tab="orders">📋 Order</button>
         <button class="tabbtn active" data-tab="imgs">🖼️ Menu</button>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
         <div style="flex:1;background:#f0f9f4;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#1a6b3c">${hasImg}</div><div style="font-size:11px;color:#666">Ada gambar</div></div>
         <div style="flex:1;background:#f9f9f9;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#888">${total-hasImg}</div><div style="font-size:11px;color:#666">Tiada gambar</div></div>
-        <div style="flex:1;background:#fff8e1;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#e65100">${Object.keys(pending).length+Object.keys(pdrafts).length}</div><div style="font-size:11px;color:#666">Belum simpan</div></div>
+        <div style="flex:1;background:#fff8e1;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#e65100">${Object.keys(pending).length}</div><div style="font-size:11px;color:#666">Belum simpan</div></div>
       </div>
-      <div class="warnsec" style="font-size:11px;line-height:1.5">💡 <b>Edit harga di sini</b> akan jadi <b>harga lalai</b> untuk trip baharu. Untuk ubah harga trip sedia ada, gunakan butang <b>💴 Harga</b> pada kad trip itu.</div>
       <div class="stitle">Status Semua Menu</div>${statusGrid}
       <div class="abox" style="margin-top:16px">
         <div style="font-size:13px;font-weight:600;margin-bottom:6px">📂 Langkah 1 — Upload gambar</div>
@@ -1710,7 +970,7 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
       </div>
       ${grid}
     </div>
-    <div class="fb"><button class="b1" id="save-imgs" ${Object.keys(pending).length===0&&Object.keys(pdrafts).length===0?'disabled':''}>💾 Simpan${Object.keys(pending).length>0?` ${Object.keys(pending).length} gambar`:''}${Object.keys(pending).length>0&&Object.keys(pdrafts).length>0?' +':''}${Object.keys(pdrafts).length>0?` ${Object.keys(pdrafts).length} harga`:''}${Object.keys(pending).length===0&&Object.keys(pdrafts).length===0?' Perubahan':''}</button></div>
+    <div class="fb"><button class="b1" id="save-imgs" ${Object.keys(pending).length===0?'disabled':''}>💾 Simpan ${Object.keys(pending).length>0?Object.keys(pending).length+' gambar':'Gambar'}</button></div>
     ${modal}`;
 }
 return'';
@@ -1732,11 +992,8 @@ return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tou
       <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div>
     </div>
     ${rTracking(trip,orders)}
-    ${rPaymentDashboard(trip,orders)}
-    ${rTxnHistory(trip,orders)}
     ${rExpSec()}
     <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)}
-    <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)}
     <div class="stitle">Senarai Pesanan</div>
     <div class="warn">⚠️ <b>Amaran:</b> Padam pesanan hanya apabila peserta membuat permintaan rasmi. Tindakan ini tidak boleh dibatalkan.</div>
     ${rOrderList(sl,orders,true,true)}
@@ -1753,7 +1010,6 @@ else if(S.view==="check")el.innerHTML=rCheck();
 else if(S.view==="admin")el.innerHTML=rAdmin();
 else if(S.view==="leader")el.innerHTML=rLeader();
 else if(S.view==="pdf")el.innerHTML=rPdfImport();
-else if(S.view==="price-edit")el.innerHTML=rPriceEditor();
 attachEvents();
 }
 // ── Events ──────────────────────────────────────────
@@ -1770,7 +1026,7 @@ else if(S.view==="check"){S.view="order";S.step=1;}
 else if(S.view==="pdf"){S.view="admin";S.adminTab="trips";}
 else if(S.view==="order"&&S.submitted&&S.lastWasEdit){
 S.view="check";S.checkDone=true;S.submitted=false;S.lastWasEdit=false;
-S.step=1;S.form={name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null};
+S.step=1;S.form={name:"",pax:1,persons:[]};
 }
 else{S.view="home";}
 render();
@@ -1816,81 +1072,25 @@ document.querySelectorAll("[data-dtrip]").forEach(b=>b.addEventListener("click",
 if(!confirm("Padam trip ini dan semua ordernya?"))return;
 await delTrip(b.dataset.dtrip);S.trips=S.trips.filter(t=>t.id!==b.dataset.dtrip);render();
 }));
-document.querySelectorAll("[data-priceedit-trip]").forEach(b=>b.addEventListener("click",()=>{
-startPriceEdit(b.dataset.priceeditTrip);
-}));
-// Price editor input handlers
-document.querySelectorAll("[data-priceedit]").forEach(inp=>inp.addEventListener("input",e=>{
-const[sid,mid]=inp.dataset.priceedit.split('|');
-const sesi=S.priceEditor.sesiCopy.find(s=>s.id===sid);
-if(!sesi)return;
-const menu=sesi.menus.find(m=>m.id===parseInt(mid));
-if(menu){menu.price=parseInt(e.target.value)||0;}
-// Update visual indicator for changed
-const orig=S.priceEditor.originalSesi.find(os=>os.id===sid);
-const om=orig?orig.menus.find(x=>x.id===parseInt(mid)):null;
-if(om){
-if(om.price!==menu.price)e.target.classList.add('changed');
-else e.target.classList.remove('changed');
-}
-}));
-on("save-price","click",async()=>{
-const tripId=S.priceEditor.tripId;
-const trip=S.trips.find(t=>t.id===tripId);
-if(!trip){toast("Trip tidak ditemui.");return;}
-// Kira berapa harga berubah
-let changed=0;
-S.priceEditor.sesiCopy.forEach(s=>{
-const orig=S.priceEditor.originalSesi.find(os=>os.id===s.id);
-if(!orig)return;
-s.menus.forEach(m=>{
-const om=orig.menus.find(x=>x.id===m.id);
-if(om&&om.price!==m.price)changed++;
-});
-});
-if(changed===0){toast("Tiada perubahan harga.");return;}
-if(!confirm(`Simpan ${changed} perubahan harga untuk "${trip.nama}"?\n\nPesanan sedia ada tidak terjejas.`))return;
-trip.sesi=S.priceEditor.sesiCopy;
-try{await saveTrip(trip);
-toast(`✓ ${changed} harga dikemas kini!`);
-S.priceEditor={active:false,tripId:null,sesiCopy:null,originalSesi:null};
-S.view="admin";S.adminTab="trips";render();
-}catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");}
-});
-on("cancel-price","click",()=>{
-let hasChanges=false;
-S.priceEditor.sesiCopy.forEach(s=>{
-const orig=S.priceEditor.originalSesi.find(os=>os.id===s.id);
-if(!orig)return;
-s.menus.forEach(m=>{
-const om=orig.menus.find(x=>x.id===m.id);
-if(om&&om.price!==m.price)hasChanges=true;
-});
-});
-if(hasChanges&&!confirm("Batal? Perubahan harga tidak akan disimpan."))return;
-cancelPriceEdit();
-});
 // Edit order — start (peserta self / TL / admin)
 function startEdit(orderId,origView){
 const order=S.orders.find(o=>o.id===orderId);
 if(!order){toast("Order tidak ditemui.");return;}
+// Untuk TL/admin: pastikan tripData diset ikut selTrip
 if(origView==="leader"||origView==="admin"){
 const trip=S.trips.find(t=>t.id===S.selTrip);
 if(!trip){toast("Trip tidak ditemui.");return;}
 S.tripId=trip.id;S.tripData=trip;
 }
 S.editing={active:true,orderId:order.id,origView,returnSelTrip:S.selTrip};
-const personsCopy=JSON.parse(JSON.stringify(order.persons||[]));
-// Pre-populate selectedMembers dari personName persons[1+]
-const selMembers=personsCopy.slice(1).map(p=>p.personName).filter(Boolean);
-S.form={name:order.name,pax:personsCopy.length||1,persons:personsCopy,selectedMembers:selMembers};
+S.form={name:order.name,pax:(order.persons||[]).length||1,persons:JSON.parse(JSON.stringify(order.persons||[]))};
 S.step=2;S.sesiIdx=0;S.activePerson=0;S.submitted=false;S.formErr="";
 S.view="order";render();
 }
 function cancelEdit(){
 const back=S.editing.origView;
 S.editing={active:false,orderId:null,origView:null,returnSelTrip:null};
-S.form={name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null};S.step=1;S.submitted=false;S.formErr="";
+S.form={name:"",pax:1,persons:[]};S.step=1;S.submitted=false;S.formErr="";
 if(back==="check"){S.view="check";}
 else if(back==="leader"||back==="admin"){S.view=back;}
 else {S.view="home";}
@@ -1976,232 +1176,6 @@ render();
 });
 // Tracking - copy senarai belum order
 on("cp-pending","click",()=>{const t=S.trips.find(x=>x.id===S.selTrip);if(t)cp(bPendingList(t,S.orders));});
-// Payment tracking
-on("cp-unpaid","click",()=>{
-const t=S.trips.find(x=>x.id===S.selTrip);
-const filter=(S.payCollect&&S.payCollect.sesiFilter)||'all';
-if(t)cp(bUnpaidList(t,S.orders,filter));
-});
-on("cp-txn","click",()=>{
-const t=S.trips.find(x=>x.id===S.selTrip);
-if(t)cp(bTxnHistory(t,S.orders));
-});
-// Filter chips untuk sesi pembayaran
-document.querySelectorAll("[data-pfilter]").forEach(b=>b.addEventListener("click",()=>{
-if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all',searchQuery:''};
-S.payCollect.sesiFilter=b.dataset.pfilter;
-S.payCollect.selected=[]; // reset selection bila filter berubah
-S.payCollect.searchQuery=''; // reset search juga
-render();
-}));
-// Search bar — filter via DOM tanpa re-render (kekalkan focus)
-const paysearchInp=document.getElementById("paysearch");
-if(paysearchInp){
-paysearchInp.addEventListener("input",e=>{
-if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all',searchQuery:''};
-const query=e.target.value.toLowerCase().trim();
-S.payCollect.searchQuery=query;
-let visible=0,total=0;
-document.querySelectorAll("[data-paycollect]").forEach(row=>{
-const name=row.dataset.personname||"";
-const matches=!query||name.includes(query);
-row.style.display=matches?"flex":"none";
-total++;if(matches)visible++;
-});
-const countEl=document.getElementById("paysearch-count");
-if(countEl){
-countEl.style.display=query?"block":"none";
-countEl.textContent=query?(visible===0?`Tiada peserta menyamai "${query}"`:`${visible} daripada ${total} peserta`):"";
-}
-});
-}
-on("paysearch-clear","click",()=>{
-if(S.payCollect)S.payCollect.searchQuery="";
-render();
-});
-// Multi-select payment collection — per ITEM (sesi) atau per ORANG
-document.querySelectorAll("[data-paycollect-item]").forEach(row=>row.addEventListener("click",e=>{
-e.stopPropagation();
-const key=row.dataset.paycollectItem;
-if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all',searchQuery:''};
-const idx=S.payCollect.selected.indexOf(key);
-if(idx>=0)S.payCollect.selected.splice(idx,1);
-else S.payCollect.selected.push(key);
-render();
-}));
-document.querySelectorAll("[data-paycollect-person]").forEach(row=>row.addEventListener("click",e=>{
-// Hanya respond bila tap pada area HEADER (tak dalam item)
-if(e.target.closest("[data-paycollect-item]"))return;
-const personKey=row.dataset.paycollectPerson;
-if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all',searchQuery:''};
-// Cari semua item key untuk peserta ini
-const trip=S.trips.find(t=>t.id===(S.tripId||S.selTrip))||S.tripData;
-if(!trip)return;
-const filter=S.payCollect.sesiFilter||'all';
-const sum=getPaymentSummary(trip,S.orders,filter);
-const matched=sum.unpaid.find(u=>`${u.orderId}|${u.personIdx}`===personKey);
-if(!matched)return;
-const itemKeys=matched.items.map(it=>`${matched.orderId}|${matched.personIdx}|${it.sId}`);
-const allSelected=itemKeys.every(k=>S.payCollect.selected.includes(k));
-if(allSelected){
-// Deselect semua untuk peserta ini
-S.payCollect.selected=S.payCollect.selected.filter(k=>!itemKeys.includes(k));
-}else{
-// Select semua yang belum dipilih
-itemKeys.forEach(k=>{if(!S.payCollect.selected.includes(k))S.payCollect.selected.push(k);});
-}
-render();
-}));
-on("clear-paycollect","click",()=>{
-if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all',searchQuery:''};
-S.payCollect.selected=[];render();
-});
-on("commit-paycollect","click",()=>{
-if(!S.payCollect||!S.payCollect.selected.length)return;
-const trip=S.trips.find(t=>t.id===(S.tripId||S.selTrip))||S.tripData;
-if(!trip)return;
-// Group selected keys by orderId|personIdx untuk papar nama dalam dialog
-const byPerson={};
-S.payCollect.selected.forEach(key=>{
-const[orderId,pidxStr,sesiId]=key.split('|');
-const pkey=`${orderId}|${pidxStr}`;
-if(!byPerson[pkey])byPerson[pkey]={orderId,pidx:parseInt(pidxStr),sesis:[]};
-byPerson[pkey].sesis.push(sesiId);
-});
-// Bina senarai nama + total
-let total=0;
-const personLines=[];
-Object.values(byPerson).forEach(({orderId,pidx,sesis})=>{
-const order=S.orders.find(o=>o.id===orderId);
-if(!order)return;
-const person=order.persons[pidx];
-if(!person)return;
-const personName=person.personName||(pidx===0?order.name:`${order.name} (Orang ${pidx+1})`);
-let pTot=0;
-sesis.forEach(sid=>{
-const it=person[sid];
-if(it&&!it.skip&&!it.paid)pTot+=(it.price||0);
-});
-total+=pTot;
-const sesiLabels=sesis.map(s=>s==='fuji'?'Fuji':s==='nara'?'Nara':s).join('+');
-personLines.push({name:personName,sesi:sesiLabels,amount:pTot});
-});
-if(total===0){toast("Tiada item dipilih.");return;}
-// Buka dialog kalkulator
-S.payDialog={active:true,total,received:total.toString(),personLines};
-render();
-// Auto-focus input + select all selepas render
-setTimeout(()=>{
-const inp=document.getElementById("paydialog-received");
-if(inp){inp.focus();inp.select();}
-},50);
-});
-on("paydialog-cancel","click",()=>{
-S.payDialog={active:false,total:0,received:"",personLines:[]};
-render();
-});
-on("paydialog-confirm","click",async()=>{
-if(!S.payDialog||!S.payDialog.active)return;
-const received=parseInt(S.payDialog.received)||0;
-const total=S.payDialog.total;
-if(received<total){
-if(!confirm(`⚠️ Duit diterima (¥${received.toLocaleString()}) KURANG dari jumlah perlu bayar (¥${total.toLocaleString()}).\n\nKurang ¥${(total-received).toLocaleString()}.\n\nSahkan tetap tandakan dibayar?`))return;
-}
-// Cipta ID transaksi unik supaya items dalam transaksi yang sama boleh di-group
-const txnId='txn_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
-const paidAt=new Date().toISOString();
-const change=received-total;
-// Mark hanya items yang dipilih + simpan butiran transaksi
-const ordersToSave={};
-S.payCollect.selected.forEach(key=>{
-const[orderId,pidxStr,sesiId]=key.split('|');
-const order=S.orders.find(o=>o.id===orderId);
-if(!order)return;
-const person=order.persons[parseInt(pidxStr)];
-if(!person)return;
-const it=person[sesiId];
-if(it&&!it.skip&&!it.paid){
-it.paid=true;
-it.paidAt=paidAt;
-it.paidTxnId=txnId;
-it.paidReceived=received;
-it.paidChange=change;
-it.paidBundleTotal=total;
-}
-ordersToSave[orderId]=order;
-});
-toast("⏳ Menyimpan...");
-try{
-for(const order of Object.values(ordersToSave)){
-await saveOrder(S.tripId||S.selTrip,order);
-}
-const msg=change>0?`✓ Dibayar! Pulangkan baki ¥${change.toLocaleString()} kepada peserta`:change<0?`✓ Dibayar (kurang ¥${Math.abs(change).toLocaleString()})`:`✓ Dibayar tepat ¥${total.toLocaleString()}`;
-toast(msg);
-S.payCollect.selected=[];
-S.payDialog={active:false,total:0,received:"",personLines:[]};
-render();
-}catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");render();}
-});
-// Input handler untuk kalkulator — update DOM directly tanpa re-render
-const paydialogInp=document.getElementById("paydialog-received");
-if(paydialogInp){
-paydialogInp.addEventListener("input",e=>{
-S.payDialog.received=e.target.value;
-const received=parseInt(e.target.value)||0;
-const change=received-S.payDialog.total;
-const exact=received===S.payDialog.total;
-const over=change>0;
-const changeBox=document.getElementById("paydialog-change");
-if(changeBox){
-changeBox.style.background=exact?'#1a6b3c':over?'#fff8e1':'#fdecea';
-changeBox.style.color=exact?'#fff':over?'#e65100':'#c62828';
-changeBox.style.borderColor=exact?'#1a6b3c':over?'#ffb74d':'#e57373';
-const lblEl=changeBox.querySelector('.change-label');
-const amtEl=changeBox.querySelector('.change-amount');
-if(lblEl)lblEl.textContent=exact?'✓ Tepat — tiada baki':over?'↩ Baki untuk dipulangkan':'⚠ Kurang bayar';
-if(amtEl)amtEl.textContent=`¥${Math.abs(change).toLocaleString()}`;
-}
-});
-}
-document.querySelectorAll("[data-paytoggle]").forEach(b=>b.addEventListener("click",async()=>{
-const[oid,pi,sid]=b.dataset.paytoggle.split('|');
-const order=S.orders.find(o=>o.id===oid);
-if(!order)return;
-const person=order.persons[parseInt(pi)];
-if(!person||!person[sid])return;
-person[sid].paid=!person[sid].paid;
-// Padam txn metadata bila toggle ke unpaid (rekod transaksi tidak relevan lagi)
-if(!person[sid].paid){
-delete person[sid].paidAt;
-delete person[sid].paidTxnId;
-delete person[sid].paidReceived;
-delete person[sid].paidChange;
-delete person[sid].paidBundleTotal;
-}
-const tid=S.tripId||S.selTrip;
-try{await saveOrder(tid,order);toast(person[sid].paid?"✓ Ditandakan sudah bayar":"↻ Dialihkan ke belum bayar");render();}
-catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");person[sid].paid=!person[sid].paid;render();}
-}));
-document.querySelectorAll("[data-payorder]").forEach(b=>b.addEventListener("click",async()=>{
-const oid=b.dataset.payorder;
-const order=S.orders.find(o=>o.id===oid);
-if(!order)return;
-let count=0;
-(order.persons||[]).forEach(p=>{
-const trip=S.trips.find(t=>t.id===(S.tripId||S.selTrip))||S.tripData;
-const sl=trip?(trip.sesi||SESI):SESI;
-sl.forEach(s=>{
-if(getPayType(s)!=='pay')return;
-const it=p[s.id];
-if(it&&!it.skip&&!it.paid){it.paid=true;count++;}
-});
-});
-if(count===0){toast("Tiada item belum bayar.");return;}
-if(!confirm(`Tandakan ${count} item Fuji+Nara untuk "${order.name}" sebagai dibayar?`))return;
-const tid=S.tripId||S.selTrip;
-try{await saveOrder(tid,order);toast(`✓ ${count} item ditandakan dibayar.`);render();}
-catch(e){console.error(e);toast("❌ Gagal simpan.");render();}
-}));
 // Booking restoran (slot sahaja)
 on("cp-bk-fuji","click",()=>{if(S.trips.length===0){toast("⚠️ Tiada trip");return;}cp(bBookingFuji(S.trips));});
 on("cp-bk-nara","click",()=>{if(S.trips.length===0){toast("⚠️ Tiada trip");return;}cp(bBookingNara(S.trips));});
@@ -2233,7 +1207,6 @@ on("cp-nara","click",()=>{const t=S.trips.find(t=>t.id===S.selTrip);if(t)cp(bNar
 on("cp-namba","click",()=>{const t=S.trips.find(t=>t.id===S.selTrip);if(t)cp(bNamba(t,S.orders));});
 on("cp-leader","click",()=>{const t=S.trips.find(t=>t.id===S.selTrip);if(t)cp(bLeader(t,S.orders));});
 on("cp-ringkasan","click",()=>{const t=S.trips.find(t=>t.id===S.selTrip);if(t)cp(bRingkasan(t,S.orders));});
-on("cp-namepermenu","click",()=>{const t=S.trips.find(t=>t.id===S.selTrip);if(t)cp(bNamePerMenu(t,S.orders));});
 // Special menu
 on("sp-nama","input",e=>S.addSpecial=e.target.value);
 on("add-special","click",async()=>{
@@ -2267,110 +1240,31 @@ Object.keys(S.pendingImgs).forEach(k=>{if(S.pendingImgs[k].fileIdx===fi)delete S
 S.selectingFileIdx=null;render();
 });
 on("save-imgs","click",async()=>{
-const imgKeys=Object.keys(S.pendingImgs);
-const priceKeys=Object.keys(S.priceDrafts);
-if(!imgKeys.length&&!priceKeys.length)return;
-toast("⏳ Menyimpan...");
-let savedImgs=0;
-for(const key of imgKeys){
+const keys=Object.keys(S.pendingImgs);if(!keys.length)return;
+toast("⏳ Menyimpan gambar...");
+let saved=0;
+for(const key of keys){
 try{
 S.imgs[key]=S.pendingImgs[key].preview;
 await setDoc(doc(db,"config","menuImgs","items",key),{url:S.pendingImgs[key].preview});
-savedImgs++;
+saved++;
 }catch(e){
 console.error("Gagal simpan:",key,e);
 toast(`❌ Gambar "${key}" masih terlalu besar. Cuba gambar lebih kecil.`);
 }
 }
-let savedPrices=0;
-if(priceKeys.length>0){
-try{
-await saveMenuDefaults();
-savedPrices=priceKeys.length;
-}catch(e){
-console.error("Gagal simpan harga lalai:",e);
-toast("❌ Gagal simpan harga.");
-}
-}
 S.pendingImgs={};S.pickedFiles=[];S.imgPreviews=[];
-const parts=[];
-if(savedImgs>0)parts.push(`${savedImgs} gambar`);
-if(savedPrices>0)parts.push(`${savedPrices} harga`);
-if(parts.length)toast(`✓ ${parts.join(' + ')} disimpan!`);
+if(saved>0)toast(`✓ ${saved} gambar disimpan!`);
 render();
 });
-document.querySelectorAll("[data-pricedraft]").forEach(inp=>inp.addEventListener("input",e=>{
-const key=inp.dataset.pricedraft;
-const[sid,midStr]=key.split('_');
-const mid=parseInt(midStr);
-const sesi=SESI.find(s=>s.id===sid);
-if(!sesi)return;
-const menu=sesi.menus.find(m=>m.id===mid);
-if(!menu)return;
-const newVal=parseInt(e.target.value)||0;
-if(newVal===menu.price){delete S.priceDrafts[key];}
-else{S.priceDrafts[key]=newVal;}
-// Visual feedback tanpa re-render (jangan kehilangan focus input)
-if(S.priceDrafts[key]!==undefined){
-e.target.style.background='#fff8e1';
-e.target.style.borderColor='#ff9800';
-}else{
-e.target.style.background='#fff';
-e.target.style.borderColor='#ddd';
-}
-// Update butang simpan keadaan
-const btn=document.getElementById('save-imgs');
-if(btn){
-const total=Object.keys(S.pendingImgs).length+Object.keys(S.priceDrafts).length;
-btn.disabled=total===0;
-}
-}));
 // Order
 on("order-name","input",e=>S.form.name=e.target.value);
-on("cnt-minus","click",()=>{
-S.form.pax=Math.max(1,S.form.pax-1);
-// Trim selectedMembers jika lebih dari pax-1
-const need=S.form.pax-1;
-if((S.form.selectedMembers||[]).length>need)S.form.selectedMembers=S.form.selectedMembers.slice(0,need);
-render();
-});
+on("cnt-minus","click",()=>{S.form.pax=Math.max(1,S.form.pax-1);render();});
 on("cnt-plus","click",()=>{
 const trip=S.tripData;const pax=trip?trip.pax:22;
 const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-S.form.pax=Math.min(S.form.pax+1,pax-used);
-render();
+S.form.pax=Math.min(S.form.pax+1,pax-used);render();
 });
-document.querySelectorAll(".member-chk").forEach(c=>c.addEventListener("change",e=>{
-const nama=c.dataset.nama;
-const need=S.form.pax-1;
-S.form.selectedMembers=S.form.selectedMembers||[];
-if(c.checked){
-if(S.form.selectedMembers.length>=need){
-c.checked=false;
-S.formErr=`Anda hanya boleh pilih ${need} peserta lain. Buang yang lain dulu.`;
-render();return;
-}
-if(!S.form.selectedMembers.includes(nama))S.form.selectedMembers.push(nama);
-} else {
-S.form.selectedMembers=S.form.selectedMembers.filter(n=>n!==nama);
-}
-S.formErr="";render();
-}));
-// Disambiguating picker — pilih nama yang betul daripada calon
-document.querySelectorAll("[data-pick-disamb]").forEach(b=>b.addEventListener("click",()=>{
-const pick=b.dataset.pickDisamb;
-if(pick==="__none__"){
-S.form.disambiguating=null;
-const inputName=$("order-name")?.value?.trim()||S.form.name;
-S.form.name=inputName;
-S.formErr="Sila taip nama lengkap anda DENGAN TEPAT mengikut senarai peserta untuk mengelak salah faham.";
-render();return;
-}
-S.form.name=pick;
-S.form.disambiguating=null;
-S.formErr="";
-render();
-}));
 document.querySelectorAll("[data-ptab]").forEach(b=>b.addEventListener("click",()=>{S.activePerson=parseInt(b.dataset.ptab);render();}));
 on("next-step","click",async()=>{
 const trip=S.tripData;const sl=trip.sesi||SESI;
@@ -2383,50 +1277,24 @@ if(!name){S.formErr="Sila masukkan nama anda.";render();return;}
 if(findOrderByName(name,S.orders)){S.formErr="Nama ini sudah membuat pesanan. Klik 'Semak Order Saya' untuk edit.";render();return;}
 if(rem<=0){S.formErr="Slot pesanan sudah penuh.";render();return;}
 if(S.form.pax>rem){S.formErr=`Hanya ${rem} slot tinggal.`;render();return;}
-let wakilNama=name;
 // Validation: jika trip ada senarai peserta, semak nama
 if(trip.peserta&&trip.peserta.length>0){
 const m=fuzzyMatchPeserta(name,trip.peserta);
 if(!m){
 const ok=confirm(`⚠️ Nama "${name}" tidak ditemui dalam senarai peserta.\n\nSila semak ejaan, atau klik OK jika anda pasti nama anda betul untuk teruskan.`);
 if(!ok){S.formErr="Sila semak ejaan nama anda atau hubungi Tour Leader.";render();return;}
-} else if(m.ambiguous){
-// 2+ peserta menyamai — minta wakil pilih
-S.form.disambiguating=m.candidates;
-S.formErr=`Beberapa peserta menyamai "${name}". Sila pilih nama anda yang betul:`;
-render();return;
-} else {
-wakilNama=m.match.nama;
-S.form.name=wakilNama;
-}
-// Jika pax > 1, kena pastikan dah pilih peserta lain
-if(S.form.pax>1){
-const need=S.form.pax-1;
-const sel=S.form.selectedMembers||[];
-if(sel.length!==need){
-S.formErr=`Sila pilih tepat ${need} peserta lain (sekarang ${sel.length} dipilih).`;
-render();return;
-}
-// Pastikan tiada duplicate dengan order sedia ada
-const orderedSet=getAllOrderedPesertaNames(S.orders,trip.peserta);
-const conflict=sel.find(n=>orderedSet.has(n));
-if(conflict){S.formErr=`"${conflict}" sudah membuat pesanan dalam order lain.`;render();return;}
+} else if(m.confidence==="partial"){
+S.form.name=m.match.nama;
 }
 }
-// Bina persons dengan personName
-const memberNames=[wakilNama,...(S.form.selectedMembers||[])];
-S.form.persons=Array.from({length:S.form.pax},(_,i)=>({
-personName:memberNames[i]||null
-}));
+S.form.persons=Array.from({length:S.form.pax},()=>({}));
 S.sesiIdx=0;S.activePerson=0;S.formErr="";S.step=2;render();
 } else {
 const sesi=sl[S.sesiIdx];
-const allFilled=S.form.persons.every(p=>isPersonComplete(p,sesi));
+const allFilled=S.form.persons.every(p=>p[sesi.id]);
 if(!allFilled){
-const missing=S.form.persons.findIndex(p=>!isPersonComplete(p,sesi));
-S.activePerson=missing;
-const msg=getCanSkip(sesi)?`Sila pilih menu untuk semua ${S.form.pax} orang.`:`Sesi ini wajib — sila pilih menu untuk semua ${S.form.pax} orang (tidak boleh skip).`;
-S.formErr=msg;render();return;
+const missing=S.form.persons.findIndex(p=>!p[sesi.id]);
+S.activePerson=missing;S.formErr=`Sila pilih menu untuk semua ${S.form.pax} orang.`;render();return;
 }
 S.formErr="";
 if(S.sesiIdx===sl.length-1){
@@ -2440,7 +1308,7 @@ const trip=S.tripId;
 S.editing={active:false,orderId:null,origView:null,returnSelTrip:null};
 if(back==="check"){S.submitted=true;render();}
 else if(back==="leader"||back==="admin"){
-S.view=back;S.step=1;S.submitted=false;S.form={name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null};
+S.view=back;S.step=1;S.submitted=false;S.form={name:"",pax:1,persons:[]};
 await loadOrders(S.selTrip||trip);render();toast("✓ Perubahan disimpan!");
 } else {S.submitted=true;render();}
 } else {
@@ -2471,7 +1339,6 @@ render();
 on("skip-sesi","click",()=>{
 const trip=S.tripData;const sl=trip.sesi||SESI;
 const sesi=sl[S.sesiIdx];if(!sesi)return;
-if(!getCanSkip(sesi)){toast("Sesi ini wajib — tidak boleh skip.");return;}
 const ap=S.activePerson;
 if(!S.form.persons[ap])S.form.persons[ap]={};
 const cur=S.form.persons[ap][sesi.id];
@@ -2488,11 +1355,8 @@ on("do-check","click",()=>{S.checkName=$("check-inp")?.value?.trim()||"";S.check
 on("check-inp","keydown",e=>{if(e.key==="Enter")$("do-check")?.click();});
 }
 // ── Init ──────────────────────────────────────────
-console.log("[Tour-Order] Module loaded, registering DOMContentLoaded listener");
 window.addEventListener("DOMContentLoaded",async()=>{
-console.log("[Tour-Order] DOMContentLoaded fired, init starting");
 try{
-await loadMenuDefaults();
 const params=new URLSearchParams(location.search);
 const tid=params.get("trip");
 if(tid){
@@ -2507,16 +1371,9 @@ S.view="notfound";
 }
 await loadTrips();await loadImgs();
 if(S.trips.length>0)S.selTrip=S.trips[0].id;
-console.log("[Tour-Order] Init complete, rendering");
-}catch(e){console.error("[Tour-Order] Init error:",e);}
+}catch(e){console.error(e);}
 S.loading=false;render();
 });
-// Failsafe: jika DOMContentLoaded sudah fire sebelum module ini load
-if(document.readyState==="complete"||document.readyState==="interactive"){
-console.log("[Tour-Order] DOM already ready, dispatching DOMContentLoaded manually");
-setTimeout(()=>window.dispatchEvent(new Event("DOMContentLoaded")),0);
-}
 </script>
-
 </body>
 </html>
