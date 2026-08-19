@@ -146,6 +146,8 @@ app.innerHTML='<div style="padding:44px 24px;text-align:center;font-family:syste
 +'</div>';
 }
 window.__showFatal=show;
+window.__stage="html-parsed";
+window.__mark=function(x){window.__stage=x;};
 window.addEventListener("error",function(e){
 if(e.target&&e.target!==window&&e.target.tagName!=="SCRIPT")return;
 if(e.target&&e.target.tagName==="SCRIPT"&&!e.message){
@@ -157,8 +159,12 @@ window.addEventListener("unhandledrejection",function(e){
 show("Ralat sambungan",String((e.reason&&e.reason.message)||e.reason||"").slice(0,220));
 });
 setTimeout(function(){
-show("Terlalu lama memuatkan","Sambungan ke Firestore mungkin tersekat, atau fail tidak lengkap dimuat turun.");
-},15000);
+var st=window.__stage||"(module tidak jalan langsung)";
+show("Tersekat semasa memuatkan",
+ "Peringkat terakhir: <b>"+st+"</b><br>readyState: "+document.readyState
+ +"<br>module: "+(window.__moduleRan?"jalan":"<b>TIDAK jalan</b>")
+ +"<br><br>Tunjukkan maklumat ini kepada pembangun.");
+},12000);
 })();
 </script>
 <script type="module">
@@ -167,6 +173,7 @@ import{getFirestore,doc,getDoc,setDoc,deleteDoc,collection,onSnapshot,getDocs}fr
 import*as pdfjsLib from"https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/+esm";
 pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs";
 const db=getFirestore(initializeApp({apiKey:"AIzaSyBdfyI1IHccekotNNRYwlr3U9JTkVc2uWI",authDomain:"tour-order.firebaseapp.com",projectId:"tour-order",storageBucket:"tour-order.firebasestorage.app",messagingSenderId:"411616788552",appId:"1:411616788552:web:fd0a63dbe84c64334d987d"}));
+window.__moduleRan=true;window.__mark("firebase-init-ok");
 const APASS="admin123",LPASS="leader123";
 const SESI=[
 {id:"fuji",nama:"🍱 Bento di Fuji",note:"Harga sudah termasuk cukai 10%",showPrice:true,menus:[
@@ -1389,28 +1396,37 @@ on("do-check","click",()=>{S.checkName=$("check-inp")?.value?.trim()||"";S.check
 on("check-inp","keydown",e=>{if(e.key==="Enter")$("do-check")?.click();});
 }
 // ── Init ──────────────────────────────────────────
-window.addEventListener("DOMContentLoaded",async()=>{
+window.__mark("script-end");
+async function bootApp(){
+window.__mark("init-start");
 try{
 const params=new URLSearchParams(location.search);
 const tid=params.get("trip");
 if(tid){
-const d=await withTimeout(getDoc(doc(db,"trips",tid)),12000,"baca trip");
+const d=await withTimeout(getDoc(doc(db,"trips",tid)),8000,"baca trip");
 if(d.exists()){
 S.tripId=tid;S.tripData={id:tid,...d.data()};
-await withTimeout(loadOrders(tid),12000,"baca order");
-await withTimeout(loadImgs(),12000,"baca gambar");
+await withTimeout(loadOrders(tid),8000,"baca order");
+await withTimeout(loadImgs(),8000,"baca gambar");
 listenOrders(tid);S.view="order";
 } else {
 S.view="notfound";
 }
 }
-await withTimeout(loadTrips(),12000,"senarai trip");
-await withTimeout(loadImgs(),12000,"gambar menu");
+window.__mark("load-trips");
+await withTimeout(loadTrips(),8000,"senarai trip");
+window.__mark("load-imgs");
+await withTimeout(loadImgs(),8000,"gambar menu");
 if(S.trips.length>0)S.selTrip=S.trips[0].id;
 }catch(e){console.error(e);}
+window.__mark("render");
 window.__appReady=true;
 S.loading=false;render();
-});
+}
+// Module deferred kadangkala selesai selepas DOMContentLoaded sudah tercetus.
+// Semak readyState supaya init tetap berjalan dalam kedua-dua keadaan.
+if(document.readyState==="loading"){window.addEventListener("DOMContentLoaded",bootApp);}
+else{bootApp();}
 </script>
 </body>
 </html>
