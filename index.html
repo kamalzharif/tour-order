@@ -132,6 +132,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <body>
 <div class="page" id="app"><div class="loading">🍱<br><br>Memuatkan...</div></div>
 <div class="toast" id="toast"></div>
+<script>
+/* Jaring keselamatan: papar ralat sebenar, bukan spinner kekal */
+(function(){
+var app=document.getElementById("app");
+function show(t,d){
+if(window.__appReady)return;
+app.innerHTML='<div style="padding:44px 24px;text-align:center;font-family:system-ui,-apple-system,sans-serif">'
++'<div style="font-size:40px">&#9888;&#65039;</div>'
++'<h3 style="margin:14px 0 8px;font-size:16px;color:#333">'+t+'</h3>'
++'<p style="font-size:12px;color:#777;line-height:1.65;margin:0 0 18px;word-break:break-word">'+d+'</p>'
++'<button onclick="location.reload()" style="background:#1a6b3c;color:#fff;border:0;border-radius:10px;padding:12px 22px;font-size:14px;font-weight:600">Cuba Lagi</button>'
++'</div>';
+}
+window.__showFatal=show;
+window.addEventListener("error",function(e){
+if(e.target&&e.target!==window&&e.target.tagName!=="SCRIPT")return;
+if(e.target&&e.target.tagName==="SCRIPT"&&!e.message){
+show("Gagal muat turun pustaka","Fail dari CDN tidak dapat dimuatkan.<br><small>"+String(e.target.src||"").slice(0,120)+"</small><br>Semak sambungan internet.");return;
+}
+show("Ralat kod aplikasi",String(e.message||"Ralat tidak diketahui")+"<br><small>baris "+(e.lineno||"?")+"</small>");
+},true);
+window.addEventListener("unhandledrejection",function(e){
+show("Ralat sambungan",String((e.reason&&e.reason.message)||e.reason||"").slice(0,220));
+});
+setTimeout(function(){
+show("Terlalu lama memuatkan","Sambungan ke Firestore mungkin tersekat, atau fail tidak lengkap dimuat turun.");
+},15000);
+})();
+</script>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{getFirestore,doc,getDoc,setDoc,deleteDoc,collection,onSnapshot,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -392,6 +421,11 @@ if(itin.bookingRef)return itin.bookingRef;
 return'';
 }
 // ── Firebase ──────────────────────────────────────────
+// Firestore tidak reject bila rangkaian tersekat - ia mencuba semula tanpa henti.
+// Timeout ini pastikan UI tetap terpapar walaupun sambungan gagal.
+function withTimeout(p,ms,label){
+return Promise.race([p,new Promise((_,rj)=>setTimeout(()=>rj(new Error("Timeout: "+label)),ms))]);
+}
 async function loadTrips(){
 try{const s=await getDocs(collection(db,"trips"));S.trips=s.docs.map(d=>({id:d.id,...d.data()}));}catch(e){}
 }
@@ -1360,18 +1394,21 @@ try{
 const params=new URLSearchParams(location.search);
 const tid=params.get("trip");
 if(tid){
-const d=await getDoc(doc(db,"trips",tid));
+const d=await withTimeout(getDoc(doc(db,"trips",tid)),12000,"baca trip");
 if(d.exists()){
 S.tripId=tid;S.tripData={id:tid,...d.data()};
-await loadOrders(tid);await loadImgs();
+await withTimeout(loadOrders(tid),12000,"baca order");
+await withTimeout(loadImgs(),12000,"baca gambar");
 listenOrders(tid);S.view="order";
 } else {
 S.view="notfound";
 }
 }
-await loadTrips();await loadImgs();
+await withTimeout(loadTrips(),12000,"senarai trip");
+await withTimeout(loadImgs(),12000,"gambar menu");
 if(S.trips.length>0)S.selTrip=S.trips[0].id;
 }catch(e){console.error(e);}
+window.__appReady=true;
 S.loading=false;render();
 });
 </script>
