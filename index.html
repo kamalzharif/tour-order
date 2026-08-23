@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ms">
 <head>
 <meta charset="UTF-8"/>
@@ -150,43 +149,43 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v4.2 — 2026-05-02 — visible error catcher + eruda -->
+<!-- BUILD: v9 — propagate harga ke trip sedia ada + re-sync pesanan -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v4.2 starting…");
+console.log("[Tour-Order] Build v9 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
-var ed=document.getElementById(‘error-display’);
+var ed=document.getElementById('error-display');
 if(!ed)return;
-ed.style.display=‘block’;
-ed.textContent=(ed.textContent?ed.textContent+’\n\n’:’’)+‘⚠️ ‘+label+’\n’+details;
+ed.style.display='block';
+ed.textContent=(ed.textContent?ed.textContent+'\n\n':'')+'⚠️ '+label+'\n'+details;
 }
-window.addEventListener(‘error’,function(e){
-var msg=(e.message||‘Unknown’)+’\n’+(e.filename||’’)+’:’+(e.lineno||’’)+’:’+(e.colno||’’);
-if(e.error&&e.error.stack)msg+=’\n’+e.error.stack.split(’\n’).slice(0,3).join(’\n’);
-showError(‘JavaScript Error’,msg);
+window.addEventListener('error',function(e){
+var msg=(e.message||'Unknown')+'\n'+(e.filename||'')+':'+(e.lineno||'')+':'+(e.colno||'');
+if(e.error&&e.error.stack)msg+='\n'+e.error.stack.split('\n').slice(0,3).join('\n');
+showError('JavaScript Error',msg);
 });
-window.addEventListener(‘unhandledrejection’,function(e){
-var msg=e.reason?(e.reason.message||String(e.reason)):‘Unknown rejection’;
-if(e.reason&&e.reason.stack)msg+=’\n’+e.reason.stack.split(’\n’).slice(0,3).join(’\n’);
-showError(‘Promise Rejection’,msg);
+window.addEventListener('unhandledrejection',function(e){
+var msg=e.reason?(e.reason.message||String(e.reason)):'Unknown rejection';
+if(e.reason&&e.reason.stack)msg+='\n'+e.reason.stack.split('\n').slice(0,3).join('\n');
+showError('Promise Rejection',msg);
 });
 
 // Auto-show fallback selepas 8 saat jika module belum load
 setTimeout(function(){
-var fb=document.getElementById(‘load-fallback’);
-var il=document.getElementById(‘initial-load’);
-if(fb&&il&&il.parentNode){fb.style.display=‘block’;}
+var fb=document.getElementById('load-fallback');
+var il=document.getElementById('initial-load');
+if(fb&&il&&il.parentNode){fb.style.display='block';}
 },8000);
 
 // Eruda (mobile DevTools) — aktif dengan ?debug=1
-if(location.search.indexOf(‘debug=1’)>=0){
-var s=document.createElement(‘script’);
-s.src=‘https://cdn.jsdelivr.net/npm/eruda’;
-s.onload=function(){eruda.init();console.log(”[Eruda] Mobile DevTools loaded”);};
+if(location.search.indexOf('debug=1')>=0){
+var s=document.createElement('script');
+s.src='https://cdn.jsdelivr.net/npm/eruda';
+s.onload=function(){eruda.init();console.log("[Eruda] Mobile DevTools loaded");};
 document.head.appendChild(s);
 }
 </script>
@@ -622,6 +621,118 @@ if(menu)menu.price=val;
 });
 S.priceDrafts={};
 }
+// ── Sebarkan harga ke trip sedia ada + re-sync pesanan ──────────────
+// Bina peta {sesiId:{menuId:hargaBaru}} daripada draf harga tab Menu.
+function buildPriceMapFromDrafts(drafts){
+const map={};
+Object.entries(drafts).forEach(([key,val])=>{
+const idx=key.indexOf('_');
+if(idx<0)return;
+const sid=key.slice(0,idx);
+const mid=parseInt(key.slice(idx+1));
+if(isNaN(mid))return;
+if(!map[sid])map[sid]={};
+map[sid][mid]=val;
+});
+return map;
+}
+// Cari harga baru untuk satu item pesanan. Padan ikut id dahulu, fallback nama.
+function lookupNewPrice(priceMap,sid,item){
+const m=priceMap[sid];
+if(!m||!item)return undefined;
+if(item.id!==undefined&&m[item.id]!==undefined)return m[item.id];
+const gs=SESI.find(s=>s.id===sid);
+if(gs&&item.name){
+const gm=gs.menus.find(x=>x.name===item.name);
+if(gm&&m[gm.id]!==undefined)return m[gm.id];
+}
+return undefined;
+}
+// Kemaskini senarai menu dalam trip. Pulangkan bilangan menu berubah.
+function applyPriceMapToTripSesi(trip,priceMap){
+let changed=0;
+(trip.sesi||[]).forEach(s=>{
+const m=priceMap[s.id];
+if(!m||!s.menus)return;
+s.menus.forEach(menu=>{
+const np=m[menu.id];
+if(np===undefined||menu.price===np)return;
+menu.price=np;changed++;
+});
+});
+return changed;
+}
+// Kemaskini harga beku dalam satu pesanan. Pulangkan {changed,paidChanged}.
+function applyPriceMapToOrder(order,priceMap){
+let changed=0,paidChanged=0;
+(order.persons||[]).forEach(p=>{
+Object.keys(priceMap).forEach(sid=>{
+const item=p[sid];
+if(!item||item.skip)return;
+const np=lookupNewPrice(priceMap,sid,item);
+if(np===undefined||(item.price||0)===np)return;
+item.price=np;changed++;
+if(item.paid)paidChanged++;
+});
+});
+return{changed,paidChanged};
+}
+// Kira kesan pada setiap trip TANPA mengubah apa-apa.
+async function computePriceImpact(priceMap){
+const impacts=[];
+for(const trip of S.trips){
+let menuChanges=0;
+(trip.sesi||[]).forEach(s=>{
+const m=priceMap[s.id];
+if(!m||!s.menus)return;
+s.menus.forEach(menu=>{if(m[menu.id]!==undefined&&menu.price!==m[menu.id])menuChanges++;});
+});
+let orders=[];
+try{
+const snap=await getDocs(collection(db,"trips",trip.id,"orders"));
+orders=snap.docs.map(d=>d.data());
+}catch(e){console.error("computePriceImpact:",trip.id,e);}
+let orderItems=0,paidItems=0,hasPaid=false;
+orders.forEach(o=>(o.persons||[]).forEach(p=>{
+Object.keys(priceMap).forEach(sid=>{
+const item=p[sid];
+if(!item||item.skip)return;
+if(item.paid)hasPaid=true;
+const np=lookupNewPrice(priceMap,sid,item);
+if(np===undefined||(item.price||0)===np)return;
+orderItems++;
+if(item.paid)paidItems++;
+});
+}));
+impacts.push({tripId:trip.id,nama:trip.nama,menuChanges,orderItems,paidItems,hasPaid,orderCount:orders.length});
+}
+return impacts;
+}
+// Apply sebenar ke trip terpilih + semua pesanannya.
+async function applyPricePropagation(priceMap,tripIds){
+let trips=0,menus=0,items=0,failed=0;
+for(const tid of tripIds){
+const trip=S.trips.find(t=>t.id===tid);
+if(!trip)continue;
+const mc=applyPriceMapToTripSesi(trip,priceMap);
+try{await saveTrip(trip);}
+catch(e){console.error("saveTrip:",tid,e);failed++;continue;}
+menus+=mc;
+let orders=[];
+try{
+const snap=await getDocs(collection(db,"trips",tid,"orders"));
+orders=snap.docs.map(d=>d.data());
+}catch(e){console.error("loadOrders:",tid,e);}
+for(const o of orders){
+const r=applyPriceMapToOrder(o,priceMap);
+if(r.changed===0)continue;
+try{await saveOrder(tid,o);items+=r.changed;}
+catch(e){console.error("saveOrder:",tid,o.id,e);failed++;}
+}
+trips++;
+}
+return{trips,menus,items,failed};
+}
 function listenOrders(tid){
 onSnapshot(collection(db,"trips",tid,"orders"),s=>{S.orders=s.docs.map(d=>d.data());render();});
 }
@@ -770,6 +881,7 @@ checkName:"",checkDone:false,
 pdfFlow:{step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""},
 editing:{active:false,orderId:null,origView:null,returnSelTrip:null},
 priceEditor:{active:false,tripId:null,sesiCopy:null,originalSesi:null},
+priceApply:{active:false,loading:false,impacts:[],selected:[],priceMap:null},
 payCollect:{selected:[],sesiFilter:"all",searchQuery:""},
 payDialog:{active:false,total:0,received:"",personLines:[],ordersToSave:null},
 };
@@ -1156,6 +1268,44 @@ ${changed?`<span style="font-size:10px;color:#e65100;font-weight:600;min-width:a
 <button class="b2" id="cancel-price" style="margin:0;flex:1;padding:14px 0">Batal</button>
 <button class="b1" id="save-price" style="margin:0;flex:2">💾 Simpan Perubahan</button>
 </div></div>`;
+}
+function rPriceApplyModal(){
+const pa=S.priceApply;
+if(!pa||!pa.active)return'';
+const nDrafts=Object.keys(S.priceDrafts||{}).length;
+const anyPaid=pa.impacts.some(i=>i.hasPaid);
+const rows=pa.impacts.map(im=>{
+const on=pa.selected.includes(im.tripId);
+const none=im.menuChanges===0&&im.orderItems===0;
+return`<div data-pa-trip="${im.tripId}" style="display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border-radius:8px;cursor:${none?'default':'pointer'};background:${on?'#f0f9f4':'#fff'};margin-bottom:4px;border:1.5px solid ${on?'#1a6b3c':'#eee'};opacity:${none?'0.5':'1'}">
+<div style="width:20px;height:20px;border:2px solid ${on?'#1a6b3c':'#ccc'};border-radius:5px;background:${on?'#1a6b3c':'#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;margin-top:1px">${on?'✓':''}</div>
+<div style="flex:1;min-width:0">
+<div style="font-size:12px;font-weight:600;color:#1a1a1a">${im.nama}</div>
+<div style="font-size:11px;color:#666;margin-top:2px">${none?'Tiada item terjejas':`${im.menuChanges} menu · ${im.orderItems} item dalam pesanan`}</div>
+${im.hasPaid?`<div style="font-size:10px;color:#c62828;font-weight:600;margin-top:3px">⚠️ Ada rekod bayaran${im.paidItems>0?` — ${im.paidItems} item sudah dibayar akan berubah harga`:''}</div>`:''}
+</div>
+</div>`;
+}).join('');
+const body=pa.loading
+?`<p style="text-align:center;padding:26px 10px;font-size:13px;color:#666">⏳ Mengira kesan pada setiap trip...</p>`
+:`<div class="tlsec" style="font-size:11px">✅ <b>Harga lalai global</b> akan dikemas kini — semua trip baharu guna harga ini.</div>
+${pa.impacts.length===0?`<p style="font-size:12px;color:#888;text-align:center;padding:14px">Tiada trip sedia ada.</p>`:`<div style="font-size:12px;font-weight:600;margin:10px 0 6px">Trip sedia ada — pilih yang hendak dikemas kini:</div>
+<div style="background:#f9f9f9;border-radius:10px;padding:6px;margin-bottom:12px">${rows}</div>
+${anyPaid?`<div class="warnsec" style="font-size:11px">⚠️ Trip bertanda merah sudah ada duit dikutip. Menukar harga di situ buat jumlah bil tidak sepadan dengan wang yang sebenarnya diterima — jadi ia <b>tidak ditanda</b> secara lalai.</div>`:''}`}`;
+return`<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:110;display:flex;align-items:flex-end;justify-content:center" id="pa-overlay">
+<div style="background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:18px 16px 22px;max-height:88vh;overflow-y:auto">
+<div style="text-align:center;margin-bottom:12px">
+<div style="font-size:26px">💴</div>
+<h3 style="margin:6px 0 0;font-size:16px;font-weight:700">Sebarkan Harga Baru</h3>
+<p style="font-size:11px;color:#888;margin-top:4px">${nDrafts} harga menu diubah</p>
+</div>
+${body}
+<div style="display:flex;gap:8px;margin-top:6px">
+<button class="b2" id="pa-cancel" style="margin:0;flex:1;padding:14px 0">Batal</button>
+<button class="b1" id="pa-confirm" style="margin:0;flex:2" ${pa.loading?'disabled':''}>✓ Sahkan & Simpan</button>
+</div>
+</div>
+</div>`;
 }
 function startPriceEdit(tripId){
 const trip=S.trips.find(t=>t.id===tripId);
@@ -1698,7 +1848,7 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
         <div style="flex:1;background:#f9f9f9;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#888">${total-hasImg}</div><div style="font-size:11px;color:#666">Tiada gambar</div></div>
         <div style="flex:1;background:#fff8e1;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#e65100">${Object.keys(pending).length+Object.keys(pdrafts).length}</div><div style="font-size:11px;color:#666">Belum simpan</div></div>
       </div>
-      <div class="warnsec" style="font-size:11px;line-height:1.5">💡 <b>Edit harga di sini</b> akan jadi <b>harga lalai</b> untuk trip baharu. Untuk ubah harga trip sedia ada, gunakan butang <b>💴 Harga</b> pada kad trip itu.</div>
+      <div class="warnsec" style="font-size:11px;line-height:1.5">💡 <b>Edit harga di sini</b> jadi <b>harga lalai</b> untuk trip baharu, dan boleh disebarkan ke trip sedia ada sekali dengan pesanan di dalamnya. Anda akan nampak senarai trip terjejas sebelum apa-apa disimpan.</div>
       <div class="stitle">Status Semua Menu</div>${statusGrid}
       <div class="abox" style="margin-top:16px">
         <div style="font-size:13px;font-weight:600;margin-bottom:6px">📂 Langkah 1 — Upload gambar</div>
@@ -1711,7 +1861,7 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
       ${grid}
     </div>
     <div class="fb"><button class="b1" id="save-imgs" ${Object.keys(pending).length===0&&Object.keys(pdrafts).length===0?'disabled':''}>💾 Simpan${Object.keys(pending).length>0?` ${Object.keys(pending).length} gambar`:''}${Object.keys(pending).length>0&&Object.keys(pdrafts).length>0?' +':''}${Object.keys(pdrafts).length>0?` ${Object.keys(pdrafts).length} harga`:''}${Object.keys(pending).length===0&&Object.keys(pdrafts).length===0?' Perubahan':''}</button></div>
-    ${modal}`;
+    ${modal}${rPriceApplyModal()}`;
 }
 return'';
 }
@@ -2002,10 +2152,10 @@ if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all',searchQuery:''};
 const query=e.target.value.toLowerCase().trim();
 S.payCollect.searchQuery=query;
 let visible=0,total=0;
-document.querySelectorAll("[data-paycollect]").forEach(row=>{
+document.querySelectorAll("[data-paycollect-person]").forEach(row=>{
 const name=row.dataset.personname||"";
 const matches=!query||name.includes(query);
-row.style.display=matches?"flex":"none";
+row.style.display=matches?"block":"none";
 total++;if(matches)visible++;
 });
 const countEl=document.getElementById("paysearch-count");
@@ -2282,21 +2432,63 @@ console.error("Gagal simpan:",key,e);
 toast(`❌ Gambar "${key}" masih terlalu besar. Cuba gambar lebih kecil.`);
 }
 }
-let savedPrices=0;
-if(priceKeys.length>0){
-try{
-await saveMenuDefaults();
-savedPrices=priceKeys.length;
-}catch(e){
-console.error("Gagal simpan harga lalai:",e);
-toast("❌ Gagal simpan harga.");
-}
-}
 S.pendingImgs={};S.pickedFiles=[];S.imgPreviews=[];
-const parts=[];
-if(savedImgs>0)parts.push(`${savedImgs} gambar`);
-if(savedPrices>0)parts.push(`${savedPrices} harga`);
-if(parts.length)toast(`✓ ${parts.join(' + ')} disimpan!`);
+if(savedImgs>0)toast(`✓ ${savedImgs} gambar disimpan!`);
+if(priceKeys.length===0){render();return;}
+// Ada perubahan harga — kira kesan dahulu, jangan simpan lagi
+const priceMap=buildPriceMapFromDrafts(S.priceDrafts);
+S.priceApply={active:true,loading:true,impacts:[],selected:[],priceMap};
+render();
+try{
+const impacts=await computePriceImpact(priceMap);
+S.priceApply.impacts=impacts;
+// Lalai: tanda trip yang terjejas TETAPI belum ada rekod bayaran
+S.priceApply.selected=impacts.filter(i=>!i.hasPaid&&(i.menuChanges>0||i.orderItems>0)).map(i=>i.tripId);
+}catch(e){
+console.error("computePriceImpact:",e);
+toast("❌ Gagal kira kesan. Cuba lagi.");
+}
+S.priceApply.loading=false;render();
+});
+// Dialog sebar harga
+document.querySelectorAll("[data-pa-trip]").forEach(row=>row.addEventListener("click",()=>{
+const tid=row.dataset.paTrip;
+const im=S.priceApply.impacts.find(i=>i.tripId===tid);
+if(!im||(im.menuChanges===0&&im.orderItems===0))return;
+const idx=S.priceApply.selected.indexOf(tid);
+if(idx>=0)S.priceApply.selected.splice(idx,1);
+else S.priceApply.selected.push(tid);
+render();
+}));
+on("pa-cancel","click",()=>{
+S.priceApply={active:false,loading:false,impacts:[],selected:[],priceMap:null};
+toast("Perubahan harga tidak disimpan.");render();
+});
+on("pa-confirm","click",async()=>{
+const pa=S.priceApply;
+if(!pa||!pa.active||pa.loading)return;
+const priceMap=pa.priceMap;
+const tripIds=[...pa.selected];
+const paidTrips=pa.impacts.filter(i=>tripIds.includes(i.tripId)&&i.hasPaid);
+if(paidTrips.length>0){
+if(!confirm(`⚠️ ${paidTrips.length} trip yang dipilih sudah ada rekod bayaran:\n\n${paidTrips.map(t=>`• ${t.nama}`).join('\n')}\n\nJumlah bil akan berubah dan mungkin tidak lagi sepadan dengan wang yang sudah dikutip.\n\nTeruskan?`))return;
+}
+const nDrafts=Object.keys(S.priceDrafts).length;
+toast("⏳ Menyimpan harga lalai...");
+try{await saveMenuDefaults();}
+catch(e){console.error("saveMenuDefaults:",e);toast("❌ Gagal simpan harga lalai.");return;}
+let res={trips:0,menus:0,items:0,failed:0};
+if(tripIds.length>0){
+toast("⏳ Mengemas kini trip & pesanan...");
+try{res=await applyPricePropagation(priceMap,tripIds);}
+catch(e){console.error("applyPricePropagation:",e);toast("❌ Sebahagian trip gagal dikemas kini.");}
+}
+S.priceApply={active:false,loading:false,impacts:[],selected:[],priceMap:null};
+await loadTrips();
+if(S.selTrip)await loadOrders(S.selTrip);
+toast(res.failed>0
+?`⚠️ Siap dengan ${res.failed} ralat — ${res.trips} trip, ${res.items} item`
+:`✓ ${nDrafts} harga lalai · ${res.trips} trip · ${res.items} item pesanan dikemas kini`);
 render();
 });
 document.querySelectorAll("[data-pricedraft]").forEach(inp=>inp.addEventListener("input",e=>{
