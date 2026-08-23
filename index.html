@@ -149,12 +149,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v14 — order bagi pihak peserta dari panel admin -->
+<!-- BUILD: v15 — segerak harga trip + amaran trip tidak ditanda -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v14 starting…");
+console.log("[Tour-Order] Build v15 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -952,7 +952,7 @@ checkName:"",checkDone:false,
 pdfFlow:{step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""},
 editing:{active:false,orderId:null,origView:null,returnSelTrip:null},
 priceEditor:{active:false,tripId:null,sesiCopy:null,originalSesi:null},
-priceApply:{active:false,loading:false,impacts:[],selected:[],priceMap:null},
+priceApply:{active:false,loading:false,impacts:[],selected:[],priceMap:null,mode:'draft'},
 payCollect:{selected:[],sesiFilter:"all",searchQuery:""},
 payDialog:{active:false,total:0,received:"",personLines:[],ordersToSave:null},
 };
@@ -1412,8 +1412,12 @@ ${rowsPend}
 function rPriceApplyModal(){
 const pa=S.priceApply;
 if(!pa||!pa.active)return'';
+const isSync=pa.mode==='sync';
 const nDrafts=Object.keys(S.priceDrafts||{}).length;
-const anyPaid=pa.impacts.some(i=>i.hasPaid);
+const affected=pa.impacts.filter(i=>i.menuChanges>0||i.orderItems>0);
+const allSel=affected.length>0&&affected.every(i=>pa.selected.includes(i.tripId));
+const unsel=affected.filter(i=>!pa.selected.includes(i.tripId)).length;
+const anyPaidSel=pa.impacts.some(i=>i.hasPaid&&pa.selected.includes(i.tripId));
 const rows=pa.impacts.map(im=>{
 const on=pa.selected.includes(im.tripId);
 const none=im.menuChanges===0&&im.orderItems===0;
@@ -1421,32 +1425,55 @@ return`<div data-pa-trip="${im.tripId}" style="display:flex;align-items:flex-sta
 <div style="width:20px;height:20px;border:2px solid ${on?'#1a6b3c':'#ccc'};border-radius:5px;background:${on?'#1a6b3c':'#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;margin-top:1px">${on?'✓':''}</div>
 <div style="flex:1;min-width:0">
 <div style="font-size:12px;font-weight:600;color:#1a1a1a">${im.nama}</div>
-<div style="font-size:11px;color:#666;margin-top:2px">${none?'Tiada item terjejas':`${im.menuChanges} menu · ${im.orderItems} item dalam pesanan`}</div>
+<div style="font-size:11px;color:#666;margin-top:2px">${none?'Tiada item terjejas — harga sudah sepadan':`${im.menuChanges} menu · ${im.orderItems} item dalam pesanan`}</div>
 ${im.hasPaid?`<div style="font-size:10px;color:#c62828;font-weight:600;margin-top:3px">⚠️ Ada rekod bayaran${im.paidItems>0?` — ${im.paidItems} item sudah dibayar akan berubah harga`:''}</div>`:''}
 </div>
 </div>`;
 }).join('');
 const body=pa.loading
 ?`<p style="text-align:center;padding:26px 10px;font-size:13px;color:#666">⏳ Mengira kesan pada setiap trip...</p>`
-:`<div class="tlsec" style="font-size:11px">✅ <b>Harga lalai global</b> akan dikemas kini — semua trip baharu guna harga ini.</div>
-${pa.impacts.length===0?`<p style="font-size:12px;color:#888;text-align:center;padding:14px">Tiada trip sedia ada.</p>`:`<div style="font-size:12px;font-weight:600;margin:10px 0 6px">Trip sedia ada — pilih yang hendak dikemas kini:</div>
-<div style="background:#f9f9f9;border-radius:10px;padding:6px;margin-bottom:12px">${rows}</div>
-${anyPaid?`<div class="warnsec" style="font-size:11px">⚠️ Trip bertanda merah sudah ada duit dikutip. Menukar harga di situ buat jumlah bil tidak sepadan dengan wang yang sebenarnya diterima — jadi ia <b>tidak ditanda</b> secara lalai.</div>`:''}`}`;
+:`${isSync
+?`<div class="tlsec" style="font-size:11px">🔄 Padankan trip sedia ada dengan <b>harga lalai semasa</b>. Guna ini kalau harga pernah diubah tanpa disebarkan.</div>`
+:`<div class="tlsec" style="font-size:11px">✅ <b>Harga lalai global</b> akan dikemas kini — semua trip baharu guna harga ini.</div>`}
+${pa.impacts.length===0?`<p style="font-size:12px;color:#888;text-align:center;padding:14px">Tiada trip sedia ada.</p>`:`<div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px;gap:8px">
+<span style="font-size:12px;font-weight:600">Trip sedia ada (${affected.length} terjejas):</span>
+${affected.length?`<button class="bsm" id="pa-toggle-all" style="font-size:11px;padding:4px 10px;flex-shrink:0">${allSel?'Buang semua':'Pilih semua'}</button>`:''}
+</div>
+<div style="background:#f9f9f9;border-radius:10px;padding:6px;margin-bottom:10px">${rows}</div>
+${unsel>0?`<div class="warnsec" style="font-size:11px">⚠️ <b>${unsel} trip terjejas tidak ditanda.</b> Harga di trip itu akan kekal lama, dan senarai pesanan tidak akan berubah.</div>`:''}
+${anyPaidSel?`<div class="warnsec" style="font-size:11px">💴 Trip bertanda merah sudah ada duit dikutip. Jumlah bil akan berubah dan mungkin tidak sepadan dengan wang yang diterima.</div>`:''}`}`;
+const nTrip=pa.selected.length;
 return`<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:110;display:flex;align-items:flex-end;justify-content:center" id="pa-overlay">
 <div style="background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
 <div style="text-align:center;padding:18px 16px 6px;flex-shrink:0">
-<div style="font-size:26px">💴</div>
-<h3 style="margin:6px 0 0;font-size:16px;font-weight:700">Sebarkan Harga Baru</h3>
-<p style="font-size:11px;color:#888;margin-top:4px">${nDrafts} harga menu diubah</p>
+<div style="font-size:26px">${isSync?'🔄':'💴'}</div>
+<h3 style="margin:6px 0 0;font-size:16px;font-weight:700">${isSync?'Segerakkan Harga Trip':'Sebarkan Harga Baru'}</h3>
+<p style="font-size:11px;color:#888;margin-top:4px">${isSync?'Padankan dengan harga lalai semasa':`${nDrafts} harga menu diubah`}</p>
 </div>
 <div style="flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px 16px 10px">${body}</div>
 <div style="display:flex;gap:8px;padding:10px 16px 18px;border-top:1px solid #eee;flex-shrink:0;background:#fff">
 <button class="b2" id="pa-cancel" style="margin:0;flex:1;padding:14px 0">Batal</button>
-<button class="b1" id="pa-confirm" style="margin:0;flex:2" ${pa.loading?'disabled':''}>✓ Sahkan & Simpan</button>
+<button class="b1" id="pa-confirm" style="margin:0;flex:2" ${pa.loading||(isSync&&nTrip===0)?'disabled':''}>✓ Sahkan${nTrip>0?` (${nTrip} trip)`:isSync?'':' — lalai sahaja'}</button>
 </div>
 </div>
 </div>`;
 }
+// Bina peta harga dari SESI semasa — untuk pembaikan bila draf sudah kosong.
+function buildPriceMapFromSesi(){
+const map={menus:{},sides:{}};
+SESI.forEach(s=>{
+if(Array.isArray(s.menus)&&s.menus.length){
+map.menus[s.id]={};
+s.menus.forEach(m=>{if(typeof m.price==='number')map.menus[s.id][m.id]=m.price;});
+}
+if(Array.isArray(s.sides)&&s.sides.length){
+map.sides[s.id]={};
+s.sides.forEach(sd=>{if(typeof sd.price==='number')map.sides[s.id][sd.id]=sd.price;});
+}
+});
+return map;
+}
+
 // Buat pesanan bagi pihak peserta yang belum order, dari panel admin.
 function startOrderOnBehalf(pesertaNama,preMenuId){
 const trip=S.trips.find(t=>t.id===S.selTrip);
@@ -2049,6 +2076,7 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
         <div style="flex:1;background:#fff8e1;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#e65100">${Object.keys(pending).length+Object.keys(pdrafts).length}</div><div style="font-size:11px;color:#666">Belum simpan</div></div>
       </div>
       <div class="warnsec" style="font-size:11px;line-height:1.5">💡 <b>Edit harga di sini</b> jadi <b>harga lalai</b> untuk trip baharu, dan boleh disebarkan ke trip sedia ada sekali dengan pesanan di dalamnya. Anda akan nampak senarai trip terjejas sebelum apa-apa disimpan.</div>
+      <button class="bcp" id="sync-prices" style="margin-bottom:4px">🔄 Segerakkan Harga Trip dengan Harga Lalai</button>
       <div class="stitle">Status Semua Menu</div>${statusGrid}
       <div class="abox" style="margin-top:16px">
         <div style="font-size:13px;font-weight:600;margin-bottom:6px">📂 Langkah 1 — Upload gambar</div>
@@ -2753,13 +2781,13 @@ if(savedImgs>0)toast(`✓ ${savedImgs} gambar disimpan!`);
 if(priceKeys.length===0){render();return;}
 // Ada perubahan harga — kira kesan dahulu, jangan simpan lagi
 const priceMap=buildPriceMapFromDrafts(S.priceDrafts);
-S.priceApply={active:true,loading:true,impacts:[],selected:[],priceMap};
+S.priceApply={active:true,loading:true,impacts:[],selected:[],priceMap,mode:'draft'};
 render();
 try{
 const impacts=await computePriceImpact(priceMap);
 S.priceApply.impacts=impacts;
-// Lalai: tanda trip yang terjejas TETAPI belum ada rekod bayaran
-S.priceApply.selected=impacts.filter(i=>!i.hasPaid&&(i.menuChanges>0||i.orderItems>0)).map(i=>i.tripId);
+// Lalai: tanda SEMUA trip terjejas. Trip berbayar tetap ditanda merah + ada pengesahan kedua.
+S.priceApply.selected=impacts.filter(i=>i.menuChanges>0||i.orderItems>0).map(i=>i.tripId);
 }catch(e){
 console.error("computePriceImpact:",e);
 toast("❌ Gagal kira kesan. Cuba lagi.");
@@ -2776,9 +2804,29 @@ if(idx>=0)S.priceApply.selected.splice(idx,1);
 else S.priceApply.selected.push(tid);
 render();
 }));
+on("pa-toggle-all","click",()=>{
+const pa=S.priceApply;
+const aff=pa.impacts.filter(i=>i.menuChanges>0||i.orderItems>0).map(i=>i.tripId);
+const allSel=aff.length>0&&aff.every(id=>pa.selected.includes(id));
+pa.selected=allSel?[]:aff;
+render();
+});
+on("sync-prices","click",async()=>{
+if(!S.trips.length){toast("Tiada trip sedia ada.");return;}
+const priceMap=buildPriceMapFromSesi();
+S.priceApply={active:true,loading:true,impacts:[],selected:[],priceMap,mode:'sync'};
+render();
+try{
+const impacts=await computePriceImpact(priceMap);
+S.priceApply.impacts=impacts;
+S.priceApply.selected=impacts.filter(i=>i.menuChanges>0||i.orderItems>0).map(i=>i.tripId);
+}catch(e){console.error("computePriceImpact:",e);toast("❌ Gagal kira kesan.");}
+S.priceApply.loading=false;render();
+});
 on("pa-cancel","click",()=>{
-S.priceApply={active:false,loading:false,impacts:[],selected:[],priceMap:null};
-toast("Perubahan harga tidak disimpan.");render();
+const wasSync=S.priceApply.mode==='sync';
+S.priceApply={active:false,loading:false,impacts:[],selected:[],priceMap:null,mode:'draft'};
+toast(wasSync?"Dibatalkan.":"Perubahan harga tidak disimpan.");render();
 });
 on("pa-confirm","click",async()=>{
 const pa=S.priceApply;
@@ -2789,21 +2837,26 @@ const paidTrips=pa.impacts.filter(i=>tripIds.includes(i.tripId)&&i.hasPaid);
 if(paidTrips.length>0){
 if(!confirm(`⚠️ ${paidTrips.length} trip yang dipilih sudah ada rekod bayaran:\n\n${paidTrips.map(t=>`• ${t.nama}`).join('\n')}\n\nJumlah bil akan berubah dan mungkin tidak lagi sepadan dengan wang yang sudah dikutip.\n\nTeruskan?`))return;
 }
+const isSync=pa.mode==='sync';
 const nDrafts=Object.keys(S.priceDrafts).length;
+if(!isSync){
 toast("⏳ Menyimpan harga lalai...");
 try{await saveMenuDefaults();}
 catch(e){console.error("saveMenuDefaults:",e);toast("❌ Gagal simpan harga lalai.");return;}
+}
 let res={trips:0,menus:0,items:0,failed:0};
 if(tripIds.length>0){
 toast("⏳ Mengemas kini trip & pesanan...");
 try{res=await applyPricePropagation(priceMap,tripIds);}
 catch(e){console.error("applyPricePropagation:",e);toast("❌ Sebahagian trip gagal dikemas kini.");}
 }
-S.priceApply={active:false,loading:false,impacts:[],selected:[],priceMap:null};
+S.priceApply={active:false,loading:false,impacts:[],selected:[],priceMap:null,mode:'draft'};
 await loadTrips();
 if(S.selTrip)await loadOrders(S.selTrip);
 toast(res.failed>0
 ?`⚠️ Siap dengan ${res.failed} ralat — ${res.trips} trip, ${res.items} item`
+:isSync
+?`✓ Segerak: ${res.trips} trip · ${res.menus} menu · ${res.items} item pesanan`
 :`✓ ${nDrafts} harga lalai · ${res.trips} trip · ${res.items} item pesanan dikemas kini`);
 render();
 });
