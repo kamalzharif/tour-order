@@ -149,12 +149,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v18 — satu menu vegan untuk ramai peserta (modal kekal terbuka) -->
+<!-- BUILD: v20 — cukai 10% Fuji, bil dibundar ke atas ke ¥10 -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v18 starting…");
+console.log("[Tour-Order] Build v20 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -196,7 +196,7 @@ import{getFirestore,doc,getDoc,setDoc,deleteDoc,collection,onSnapshot,getDocs}fr
 const db=getFirestore(initializeApp({apiKey:"AIzaSyBdfyI1IHccekotNNRYwlr3U9JTkVc2uWI",authDomain:"tour-order.firebaseapp.com",projectId:"tour-order",storageBucket:"tour-order.firebasestorage.app",messagingSenderId:"411616788552",appId:"1:411616788552:web:fd0a63dbe84c64334d987d"}));
 const APASS="admin123",LPASS="leader123";
 const SESI=[
-{id:"fuji",nama:"🍱 Bento di Fuji",note:"Harga sudah termasuk cukai 10%",payNote:"💴 Peserta perlu bayar kepada Tour Guide selepas ini",payType:"pay",showPrice:true,canSkip:true,menus:[
+{id:"fuji",nama:"🍱 Bento di Fuji",note:"Harga menu BELUM termasuk cukai 10% — bil dibundar ke atas ke ¥10 terdekat",taxRate:0.10,payNote:"💴 Peserta perlu bayar kepada Tour Guide selepas ini (harga + cukai 10%)",payType:"pay",showPrice:true,canSkip:true,menus:[
 {id:1,name:"Yellow Chicken",price:1320,desc:"Rice Menu"},
 {id:2,name:"Kawaguchiko Curry",price:1320,desc:"Rice Menu — Most Popular"},
 {id:3,name:"Rice Curry",price:1100,desc:"Deliciously seasoned fried rice"},
@@ -516,6 +516,34 @@ if(sesi.payType)return sesi.payType;
 const gs=SESI.find(s=>s.id===sesi.id);
 return(gs&&gs.payType)||'pay';
 }
+// ── Cukai ────────────────────────────────────────────────────────────
+// Harga disimpan TANPA cukai. Cukai dikira semasa papar/kira supaya
+// re-sync harga dan rekod lama tidak tercemar.
+function getTaxRate(sesi){
+if(!sesi)return 0;
+if(typeof sesi.taxRate==='number')return sesi.taxRate;
+const gs=SESI.find(s=>s.id===sesi.id);
+return(gs&&typeof gs.taxRate==='number')?gs.taxRate:0;
+}
+// Bil peserta dibundar KE ATAS ke gandaan ¥10. Tukar di sini kalau perlu.
+const TAX_ROUND_TO=10;
+function withTax(sesi,price){
+const r=getTaxRate(sesi);
+const p=price||0;
+if(!r)return p;
+const pct=Math.round(r*100);
+// Kiraan integer penuh — elak ralat titik terapung (1320*1.1 = 1452.0000000000002)
+const cents=p*(100+pct);              // harga termasuk cukai, × 100
+const unit=TAX_ROUND_TO*100;          // gandaan sasaran, × 100
+return Math.floor((cents+unit-1)/unit)*TAX_ROUND_TO;
+}
+// Cukai sebenar untuk invois restoran — tanpa pembundaran ¥10.
+function exactTax(sesi,subtotal){
+const r=getTaxRate(sesi);
+if(!r)return 0;
+return Math.round(subtotal*Math.round(r*100)/100);
+}
+function taxPct(sesi){return Math.round(getTaxRate(sesi)*100);}
 // ── Lauk sampingan (Karaage / Spring Rolls) ──────────────────────────
 // Trip lama tiada `sides` — jatuh balik ke SESI induk.
 function getSides(sesi){
@@ -555,7 +583,7 @@ const items=[];let pTotal=0;
 payableSesi.forEach(s=>{
 const item=p[s.id];
 if(!item||item.skip)return;
-const amount=item.price||0;
+const amount=withTax(s,item.price);
 totalBills+=amount;
 if(item.paid)totalPaid+=amount;
 else{items.push({sId:s.id,sName:s.nama,mName:item.name,amount});pTotal+=amount;}
@@ -813,6 +841,8 @@ await deleteDoc(doc(db,"trips",tid));
 }
 // ── Export ──────────────────────────────────────────
 function bFuji(trip,orders){
+const sl=trip.sesi||SESI;
+const sesi=sl.find(s=>s.id==="fuji")||SESI.find(s=>s.id==="fuji");
 const cnt={},pm={};
 orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p.fuji;if(i&&!i.skip){cnt[i.name]=(cnt[i.name]||0)+1;pm[i.name]=i.price||0;}}));
 const CATS=[
@@ -829,7 +859,10 @@ txt+=`*${cat.label}*\n`;let sub=0;
 ci.forEach(n=>{const c=cnt[n],p=pm[n]||0,tot=p*c;sub+=tot;txt+=`  ・ ${n}: *${c}個* (¥${p.toLocaleString()}×${c}=¥${tot.toLocaleString()})\n`;});
 txt+=`  小計: ¥${sub.toLocaleString()}\n\n`;grand+=sub;
 });
-return txt+`${'─'.repeat(28)}\n💴 *合計金額: ¥${grand.toLocaleString()}*\n\nよろしくお願いいたします。🙏\n`;
+const rate=getTaxRate(sesi);
+if(!rate)return txt+`${'─'.repeat(28)}\n💴 *合計金額: ¥${grand.toLocaleString()}*\n\nよろしくお願いいたします。🙏\n`;
+const tax=exactTax(sesi,grand);
+return txt+`${'─'.repeat(28)}\n小計（税抜）: ¥${grand.toLocaleString()}\n消費税 ${taxPct(sesi)}%: ¥${tax.toLocaleString()}\n💴 *合計金額（税込）: ¥${(grand+tax).toLocaleString()}*\n\nよろしくお願いいたします。🙏\n`;
 }
 function bNara(trip,orders){
 const cnt={},pm={};
@@ -867,13 +900,15 @@ txt+=`*${i+1}. ${o.name}*${multi?` (${o.persons.length} orang)`:''}\n`;
 (o.persons||[]).forEach((p,pi)=>{
 if(multi)txt+=`  👤 ${p.personName||`Orang ${pi+1}`}:\n`;
 const ind=multi?'    ':'  ';
-sl.forEach(s=>{const item=p[s.id];const skip=item&&item.skip;txt+=`${ind}${s.nama}: ${item?(skip?'🚫 Tidak order':item.name):'—'}`;if(item&&!skip&&s.showPrice)txt+=` (¥${(item.price||0).toLocaleString()})`;const sd=pickSide(s,item);if(sd)txt+=` + ${sd.name} (¥${(sd.price||0).toLocaleString()})`;txt+='\n';});
+sl.forEach(s=>{const item=p[s.id];const skip=item&&item.skip;txt+=`${ind}${s.nama}: ${item?(skip?'🚫 Tidak order':item.name):'—'}`;if(item&&!skip&&s.showPrice)txt+=` (¥${withTax(s,item.price).toLocaleString()}${getTaxRate(s)?' inc.cukai':''})`;const sd=pickSide(s,item);if(sd)txt+=` + ${sd.name} (¥${(sd.price||0).toLocaleString()})`;txt+='\n';});
 });
-let sf=0,sn=0;(o.persons||[]).forEach(p=>{if(p.fuji&&!p.fuji.skip)sf+=p.fuji.price||0;if(p.nara&&!p.nara.skip)sn+=p.nara.price||0;});
+const sF=sl.find(x=>x.id==="fuji"),sN=sl.find(x=>x.id==="nara");
+let sf=0,sn=0;(o.persons||[]).forEach(p=>{if(p.fuji&&!p.fuji.skip)sf+=withTax(sF,p.fuji.price);if(p.nara&&!p.nara.skip)sn+=withTax(sN,p.nara.price);});
 txt+=`  💴 Fuji:¥${sf.toLocaleString()} | Nara:¥${sn.toLocaleString()} | *Total:¥${(sf+sn).toLocaleString()}*\n\n`;
 });
-let gf=0,gn=0;orders.forEach(o=>(o.persons||[]).forEach(p=>{if(p.fuji&&!p.fuji.skip)gf+=p.fuji.price||0;if(p.nara&&!p.nara.skip)gn+=p.nara.price||0;}));
-return txt+`${'─'.repeat(28)}\n💴 *JUMLAH KESELURUHAN*\n  🍱 Fuji:¥${gf.toLocaleString()}\n  🍛 Nara:¥${gn.toLocaleString()}\n  *TOTAL:¥${(gf+gn).toLocaleString()}*\n`;
+const gF=sl.find(x=>x.id==="fuji"),gN=sl.find(x=>x.id==="nara");
+let gf=0,gn=0;orders.forEach(o=>(o.persons||[]).forEach(p=>{if(p.fuji&&!p.fuji.skip)gf+=withTax(gF,p.fuji.price);if(p.nara&&!p.nara.skip)gn+=withTax(gN,p.nara.price);}));
+return txt+`${'─'.repeat(28)}\n💴 *JUMLAH KESELURUHAN*\n  🍱 Fuji:¥${gf.toLocaleString()}${getTaxRate(gF)?` _(inc. cukai ${taxPct(gF)}%)_`:''}\n  🍛 Nara:¥${gn.toLocaleString()}\n  *TOTAL:¥${(gf+gn).toLocaleString()}*\n`;
 }
 function bRingkasan(trip,orders){
 const sl=trip.sesi||SESI;
@@ -882,8 +917,8 @@ let txt=`📊 *RINGKASAN KESELURUHAN*\n📌 ${trip.nama}\n📅 ${trip.tarikh||'�
 sl.forEach(s=>{
 txt+=`*${s.nama}*\n`;const cnt={},pm={};
 orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p[s.id];if(i&&!i.skip){cnt[i.name]=(cnt[i.name]||0)+1;pm[i.name]=i.price||0;}}));
-let sub=0;Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{const p=pm[n]||0,tot=p*c;sub+=tot;txt+=`  • ${n}: ${c} pax${s.showPrice?` = ¥${tot.toLocaleString()}`:''}\n`;});
-if(s.showPrice&&sub>0)txt+=`  💴 Jumlah: ¥${sub.toLocaleString()}\n`;txt+='\n';
+let sub=0;Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{const p=withTax(s,pm[n]||0),tot=p*c;sub+=tot;txt+=`  • ${n}: ${c} pax${s.showPrice?` = ¥${tot.toLocaleString()}`:''}\n`;});
+if(s.showPrice&&sub>0)txt+=`  💴 Jumlah: ¥${sub.toLocaleString()}${getTaxRate(s)?` _(inc. cukai ${taxPct(s)}%)_`:''}\n`;txt+='\n';
 });
 return txt;
 }
@@ -1232,7 +1267,8 @@ if(it&&typeof it==='object'&&!Array.isArray(it)&&it.paid&&it.paidTxnId){
 if(!txns[it.paidTxnId]){
 txns[it.paidTxnId]={id:it.paidTxnId,paidAt:it.paidAt,received:it.paidReceived||0,change:it.paidChange||0,bundleTotal:it.paidBundleTotal||0,items:[]};
 }
-txns[it.paidTxnId].items.push({personName,sId:key,mName:it.name,amount:it.price||0});
+const sObj=SESI.find(x=>x.id===key)||{id:key};
+txns[it.paidTxnId].items.push({personName,sId:key,mName:it.name,amount:withTax(sObj,it.price)});
 }
 });
 });
@@ -1321,7 +1357,7 @@ const sesiCopy=S.priceEditor.sesiCopy;
 const orig=S.priceEditor.originalSesi;
 return`<div class="stk"><button class="bk" id="cancel-price" title="Batal">←</button><h2>💴 Edit Harga Menu</h2></div>
 <div class="body" style="padding-bottom:120px">
-<div class="warnsec">⚠️ <b>Untuk trip:</b> ${trip.nama}<br>Pesanan yang sudah dibuat <b>tidak akan terjejas</b> — harga sudah disimpan dalam setiap pesanan. Perubahan ini hanya untuk pesanan baharu trip ini.</div>
+<div class="warnsec">⚠️ <b>Untuk trip:</b> ${trip.nama}<br>Pesanan yang sudah dibuat <b>tidak akan terjejas</b> — harga sudah disimpan dalam setiap pesanan. Perubahan ini hanya untuk pesanan baharu trip ini.${sesiCopy.some(s=>getTaxRate(s))?`<br>Angka hijau di sebelah = harga termasuk cukai.`:''}</div>
 ${sesiCopy.map(s=>{
 if(!s.showPrice)return`<div class="stitle">${s.nama}</div><p style="font-size:12px;color:#888;padding:14px;background:#f5f5f5;border-radius:10px;text-align:center">Tiada harga (sesi disupport / percuma)</p>`;
 const origSesi=orig.find(os=>os.id===s.id);
@@ -1334,6 +1370,7 @@ return`<div class="priceedit-row">
 <span class="pname">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''}${m.isSpecial?' <span style="font-size:9px;color:#e65100">★</span>':''}</span>
 <span class="pyen">¥</span>
 <input class="priceinp ${changed?'changed':''}" type="number" min="0" step="50" data-priceedit="${s.id}|${m.id}" value="${m.price}" inputmode="numeric"/>
+${getTaxRate(s)?`<span style="font-size:9px;color:#e65100;font-weight:600;white-space:nowrap">= ¥${withTax(s,m.price).toLocaleString()}</span>`:''}
 ${changed?`<span style="font-size:10px;color:#e65100;font-weight:600;min-width:auto">${m.price>om.price?'+':''}${m.price-om.price}</span>`:''}
 </div>`;
 }).join('')}
@@ -1582,9 +1619,9 @@ orders.forEach(o=>(o.persons||[]).forEach((p,pi)=>{
 const item=p[s.id];
 if(!item||item.skip)return;
 const personName=p.personName||(pi===0?o.name:`${o.name} (Orang ${pi+1})`);
-if(!grouped[s.id][item.name])grouped[s.id][item.name]={names:[],unit:item.price||0,total:0};
+if(!grouped[s.id][item.name])grouped[s.id][item.name]={names:[],unit:withTax(s,item.price),total:0};
 grouped[s.id][item.name].names.push(personName);
-grouped[s.id][item.name].total+=(item.price||0);
+grouped[s.id][item.name].total+=withTax(s,item.price);
 }));
 });
 return sl.map(s=>{
@@ -1598,7 +1635,7 @@ const sideTotal=sideRows.reduce((acc,x)=>acc+((x.side.price||0)*x.pax),0);
 const sesSub=sesSubMenus+sideTotal;
 const hasAnyPrice=sesSubMenus>0||sideTotal>0;
 return`<div style="margin-bottom:14px">
-<div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:6px">${s.nama}${getPayType(s)!=='pay'?' <span style="font-size:9px;color:#888;font-weight:400">(disupport — info untuk TL)</span>':''}</div>
+<div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:6px">${s.nama}${getPayType(s)!=='pay'?' <span style="font-size:9px;color:#888;font-weight:400">(disupport — info untuk TL)</span>':getTaxRate(s)?` <span style="font-size:9px;color:#e65100;font-weight:600">(harga inc. cukai ${taxPct(s)}%)</span>`:''}</div>
 ${sortedMenus.map(menu=>{
 const data=menuMap[menu];
 const showMenuPrice=data.unit>0;
@@ -1631,14 +1668,14 @@ orders.forEach(o=>(o.persons||[]).forEach((p,pi)=>{
 const item=p[s.id];
 if(!item||item.skip)return;
 const personName=p.personName||(pi===0?o.name:`${o.name} (Orang ${pi+1})`);
-if(!grouped[s.id][item.name])grouped[s.id][item.name]={names:[],unit:item.price||0,total:0};
+if(!grouped[s.id][item.name])grouped[s.id][item.name]={names:[],unit:withTax(s,item.price),total:0};
 grouped[s.id][item.name].names.push(personName);
-grouped[s.id][item.name].total+=(item.price||0);
+grouped[s.id][item.name].total+=withTax(s,item.price);
 }));
 });
 let txt=`📢 *PANDUAN PANGGIL NAMA*\n📌 ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n`;
 sl.forEach(s=>{
-txt+=`\n*${s.nama}*${getPayType(s)!=='pay'?'\n_(disupport — info untuk TL)_':''}\n`;
+txt+=`\n*${s.nama}*${getPayType(s)!=='pay'?'\n_(disupport — info untuk TL)_':getTaxRate(s)?`\n_(harga inc. cukai ${taxPct(s)}%)_`:''}\n`;
 const menuMap=grouped[s.id]||{};
 const sortedMenus=Object.keys(menuMap).sort((a,b)=>menuMap[b].names.length-menuMap[a].names.length);
 if(!sortedMenus.length){txt+='  _(Tiada order)_\n';return;}
@@ -1692,7 +1729,7 @@ function rOrderList(sl,orders,canDel,isLeader){
         const showPay=canDel&&getPayType(s)==='pay';
         const sd=pickSide(s,it);
         const namba=sd?` <span style="font-size:10px;color:#888">(+ ${sd.name})</span>`:'';
-        const priceLabel=s.showPrice&&it.price?` <span style="font-size:11px;color:#888;font-weight:500">¥${it.price.toLocaleString()}</span>`:'';
+        const priceLabel=s.showPrice&&it.price?` <span style="font-size:11px;color:#888;font-weight:500" title="${getTaxRate(s)?`¥${it.price.toLocaleString()} + cukai ${taxPct(s)}%`:''}">¥${withTax(s,it.price).toLocaleString()}${getTaxRate(s)?`<span style="font-size:9px;color:#e65100"> +cukai</span>`:''}</span>`:'';
         return`<div class="osesi"><div class="ost">${s.nama}</div><div class="osv">${it.name}${priceLabel}${namba}${showPay?`<button class="paybadge ${it.paid?'paid':'unpaid'}" data-paytoggle="${o.id}|${pi}|${s.id}" title="Klik untuk tukar">${it.paid?'✓ Sudah Bayar':'⏳ Belum Bayar'}</button>`:''}</div></div>`;
       }).join("")}`).join("")}
   </div>`;
@@ -1827,7 +1864,7 @@ const completeCount=persons.filter(p=>isPersonComplete(p,sesi)).length;
 const cards=sesi.menus.map(m=>{
 const isSel=sel&&sel.id===m.id;
 const img=S.imgs[`${sesi.id}_${m.id}`];
-return`<div class="mcard ${isSel?'sel':''}" data-sesi="${sesi.id}" data-pid="${ap}" data-mid="${m.id}"> <div class="mwrap">${img?`<img src="${img}" alt="${m.name}"/>`:`<span style="font-size:26px">🍽️</span>`}${isSel?'<div class="mchk">✓</div>':''}</div> <div class="minfo"> <div class="mname">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''}</div> ${sesi.showPrice?`<div class="mprice">¥${m.price.toLocaleString()}</div>`:''} ${m.desc?`<div class="mdesc">${m.desc}</div>`:''} </div> </div>`;
+return`<div class="mcard ${isSel?'sel':''}" data-sesi="${sesi.id}" data-pid="${ap}" data-mid="${m.id}"> <div class="mwrap">${img?`<img src="${img}" alt="${m.name}"/>`:`<span style="font-size:26px">🍽️</span>`}${isSel?'<div class="mchk">✓</div>':''}</div> <div class="minfo"> <div class="mname">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''}</div> ${sesi.showPrice?`<div class="mprice">¥${m.price.toLocaleString()}${getTaxRate(sesi)?`<span style="font-size:9px;color:#e65100"> +cukai = ¥${withTax(sesi,m.price).toLocaleString()}</span>`:''}</div>`:''} ${m.desc?`<div class="mdesc">${m.desc}</div>`:''} </div> </div>`;
 }).join("");
 const showSkipDisplay=sel&&sel.skip&&canSkip;
 const onBhf=!!(S.onBehalf&&S.onBehalf.active);
@@ -1870,14 +1907,14 @@ const grandTot=(found.persons||[]).reduce((sum,p)=>{
 return sum+sl.reduce((sumS,s)=>{
 const it=p[s.id];
 if(!it||it.skip||!s.showPrice)return sumS;
-return sumS+(it.price||0);
+return sumS+withTax(s,it.price);
 },0);
 },0);
 const paidTot=(found.persons||[]).reduce((sum,p)=>{
 return sum+sl.reduce((sumS,s)=>{
 const it=p[s.id];
 if(!it||it.skip||!s.showPrice||!it.paid)return sumS;
-return sumS+(it.price||0);
+return sumS+withTax(s,it.price);
 },0);
 },0);
 const balanceTot=grandTot-paidTot;
@@ -1891,7 +1928,7 @@ const it=p[s.id];
 const skip=it&&it.skip;
 const showPrice=s.showPrice&&it&&!skip&&it.price;
 const isPaid=it&&it.paid;
-const priceTag=showPrice?`<span style="font-size:11px;color:#888;font-weight:500;margin-left:6px">¥${it.price.toLocaleString()}</span>`:'';
+const priceTag=showPrice?`<span style="font-size:11px;color:#888;font-weight:500;margin-left:6px">¥${withTax(s,it.price).toLocaleString()}${getTaxRate(s)?'*':''}</span>`:'';
 const payBadge=showPrice?`<br><span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;${isPaid?'background:#1a6b3c;color:#fff':'background:#fff3e0;color:#e65100;border:1px solid #ffb74d'};white-space:nowrap;display:inline-block;margin-top:3px">${isPaid?'✓ Sudah Bayar':'⏳ Belum Bayar'}</span>`:'';
 return`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee;font-size:13px;gap:8px">
           <span style="color:#666;flex-shrink:0">${s.nama}</span>
@@ -1911,7 +1948,7 @@ return`<div style="display:flex;justify-content:space-between;padding:7px 0;bord
           <span>⏳ Baki belum bayar</span>
           <span>¥${balanceTot.toLocaleString()}</span>
         </div>`:`<div style="font-size:12px;color:#1a6b3c;text-align:center;font-weight:700;margin-top:6px;background:#1a6b3c;color:#fff;border-radius:8px;padding:6px">🎉 Semua sudah dibayar!</div>`}
-        <p style="font-size:10px;color:#888;margin-top:6px;text-align:right">_(Fuji + Nara sahaja — Namba disupport)_</p>
+        <p style="font-size:10px;color:#888;margin-top:6px;text-align:right;line-height:1.5">_(Fuji + Nara sahaja — Namba disupport)_${sl.some(s=>getTaxRate(s))?`<br>* Sudah termasuk cukai ${sl.filter(s=>getTaxRate(s)).map(s=>`${taxPct(s)}% ${s.nama.replace(/^\S+\s/,'')}`).join(', ')}, dibundar ke atas ke ¥${TAX_ROUND_TO}`:''}</p>
       </div>`:''}
       ${(()=>{
 // Kumpul transaksi (group by paidTxnId)
@@ -1922,7 +1959,7 @@ sl.forEach(s=>{
 const it=p[s.id];
 if(it&&it.paid&&it.paidTxnId){
 if(!txns[it.paidTxnId])txns[it.paidTxnId]={paidAt:it.paidAt,received:it.paidReceived||0,change:it.paidChange||0,bundleTotal:it.paidBundleTotal||0,items:[]};
-txns[it.paidTxnId].items.push({sName:s.nama,mName:it.name,amount:it.price||0,personLabel});
+txns[it.paidTxnId].items.push({sName:s.nama,mName:it.name,amount:withTax(s,it.price),personLabel});
 }
 });
 });
@@ -2038,7 +2075,7 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
                 <span style="font-size:9px;color:#888;font-weight:600">¥</span>
                 <input type="number" min="0" step="50" value="${curPrice}" data-pricedraft="${key}" inputmode="numeric" style="flex:1;padding:3px 5px;font-size:10px;border:1px solid ${isPriceDraft?'#ff9800':'#ddd'};border-radius:5px;background:${isPriceDraft?'#fff8e1':'#fff'};text-align:right;outline:none;width:100%;min-width:0"/>
                 ${isFreeSession?'<span style="font-size:8px;color:#888">📌</span>':''}
-              </div>${isFreeSession?'<div style="font-size:8px;color:#888;font-style:italic;margin-bottom:3px">Disupport — peserta tidak nampak harga</div>':''}`:'<div style="font-size:9px;color:#bbb;margin-bottom:3px">_(percuma)_</div>'}
+              </div>${getTaxRate(sesi)?`<div style="font-size:8px;color:#e65100;margin-bottom:3px">+cukai ${taxPct(sesi)}% = <b>¥${withTax(sesi,curPrice).toLocaleString()}</b></div>`:''}${isFreeSession?'<div style="font-size:8px;color:#888;font-style:italic;margin-bottom:3px">Disupport — peserta tidak nampak harga</div>':''}`:'<div style="font-size:9px;color:#bbb;margin-bottom:3px">_(percuma)_</div>'}
               <div style="font-size:9px;color:${isPending?'#e65100':hasEx?'#1a6b3c':'#bbb'}">${isPending?'⏳ Belum simpan':hasEx?'✓ Ada gambar':'Tiada gambar'}</div>
             </div>
             ${isPending||isPriceDraft?`<div style="position:absolute;top:4px;right:4px;background:#e65100;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">!</div>`:hasEx?`<div style="position:absolute;top:4px;right:4px;background:#1a6b3c;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">✓</div>`:''}
@@ -2113,7 +2150,7 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
         <div style="flex:1;background:#f9f9f9;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#888">${total-hasImg}</div><div style="font-size:11px;color:#666">Tiada gambar</div></div>
         <div style="flex:1;background:#fff8e1;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:600;color:#e65100">${Object.keys(pending).length+Object.keys(pdrafts).length}</div><div style="font-size:11px;color:#666">Belum simpan</div></div>
       </div>
-      <div class="warnsec" style="font-size:11px;line-height:1.5">💡 <b>Edit harga di sini</b> jadi <b>harga lalai</b> untuk trip baharu, dan boleh disebarkan ke trip sedia ada sekali dengan pesanan di dalamnya. Anda akan nampak senarai trip terjejas sebelum apa-apa disimpan.</div>
+      <div class="warnsec" style="font-size:11px;line-height:1.5">💡 <b>Edit harga di sini</b> jadi <b>harga lalai</b> untuk trip baharu, dan boleh disebarkan ke trip sedia ada sekali dengan pesanan di dalamnya. Anda akan nampak senarai trip terjejas sebelum apa-apa disimpan.<br>🧾 Masukkan <b>harga tanpa cukai</b>. Sesi bercukai tunjuk bil sebenar di bawah kotak (dibundar ke atas ke ¥${TAX_ROUND_TO}).</div>
       <button class="bcp" id="sync-prices" style="margin-bottom:4px">🔄 Segerakkan Harga Trip dengan Harga Lalai</button>
       <div class="stitle">Status Semua Menu</div>${statusGrid}
       <div class="abox" style="margin-top:16px">
