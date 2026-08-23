@@ -149,12 +149,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v13 — modal papar peserta belum order + skrol dibetulkan -->
+<!-- BUILD: v14 — order bagi pihak peserta dari panel admin -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v13 starting…");
+console.log("[Tour-Order] Build v14 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -944,6 +944,7 @@ submitted:false,formErr:"",loading:true,
 newTrip:{nama:"",tarikh:"",tarikhMula:"",mod:"tren",pax:""},
 addSpecial:"",addSpecialPrice:"",addSpecialVegan:false,
 assignSpecial:{active:false,menuId:null,query:""},
+onBehalf:{active:false,returnTab:null},
 imgs:{},
 pendingImgs:{},pickedFiles:[],imgPreviews:[],selectingFileIdx:null,
 priceDrafts:{},defaultPrices:{},
@@ -1374,9 +1375,9 @@ ${isCur?'<span style="font-size:11px;color:#1a6b3c;font-weight:700;flex-shrink:0
 }).join('');
 const rowsPend=pending.map(n=>{
 const hidden=q&&!n.toLowerCase().includes(q);
-return`<div data-as-pending="1" data-as-name="${esc(n.toLowerCase())}" style="display:${hidden?'none':'flex'};align-items:center;gap:10px;padding:10px;border-radius:8px;background:#fafafa;border:1.5px dashed #e0e0e0;margin-bottom:5px;opacity:0.75">
-<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:#888">${n}</div></div>
-<span style="font-size:10px;color:#e65100;font-weight:600;flex-shrink:0">⏳ Belum order</span>
+return`<div data-as-pending="${esc(n)}" data-as-name="${esc(n.toLowerCase())}" style="display:${hidden?'none':'flex'};align-items:center;gap:10px;padding:11px 10px;border-radius:8px;background:#fff;border:1.5px dashed #ffb74d;margin-bottom:5px;cursor:pointer">
+<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600">${n}</div><div style="font-size:11px;color:#e65100;margin-top:2px">⏳ Belum order</div></div>
+<span style="font-size:11px;color:#e65100;font-weight:600;flex-shrink:0">Order bagi pihak →</span>
 </div>`;
 }).join('');
 return`<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:110;display:flex;align-items:flex-end;justify-content:center" id="as-overlay">
@@ -1396,7 +1397,7 @@ return`<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:110
 <div id="as-hdr-ok" style="display:${shownOk===0?'none':'block'};font-size:11px;font-weight:700;color:#1a6b3c;margin:0 0 6px">✅ SUDAH ORDER — BOLEH DITETAPKAN (${people.length})</div>
 ${rowsOk}
 <div id="as-hdr-pend" style="display:${shownPend===0?'none':'block'};font-size:11px;font-weight:700;color:#e65100;margin:${people.length?'14px':'0'} 0 4px">⏳ BELUM ORDER (${pending.length})</div>
-<div id="as-note-pend" style="display:${shownPend===0?'none':'block'};font-size:11px;color:#888;line-height:1.6;margin-bottom:8px">Menu hanya boleh ditetapkan selepas mereka hantar pesanan. Sekarang menu vegan sudah wujud, jadi mereka boleh terus pilih sendiri melalui link trip.</div>
+<div id="as-note-pend" style="display:${shownPend===0?'none':'block'};font-size:11px;color:#888;line-height:1.6;margin-bottom:8px">Tekan nama untuk buat pesanan bagi pihak mereka — menu ini akan dipra-pilih, tinggal lengkapkan Fuji &amp; Nara.</div>
 ${rowsPend}
 <div id="as-empty" style="display:${shownOk+shownPend===0?'block':'none'};padding:22px 10px;text-align:center;font-size:12px;color:#888;line-height:1.6">Tiada nama sepadan.<br><span style="font-size:11px">Cuba sebahagian nama sahaja, cth: "amiza".</span></div>
 </div>
@@ -1445,6 +1446,28 @@ return`<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:110
 </div>
 </div>
 </div>`;
+}
+// Buat pesanan bagi pihak peserta yang belum order, dari panel admin.
+function startOrderOnBehalf(pesertaNama,preMenuId){
+const trip=S.trips.find(t=>t.id===S.selTrip);
+if(!trip){toast("Trip tidak ditemui.");return;}
+if(findOrderByName(pesertaNama,S.orders)){toast("Peserta ini sudah ada pesanan.");return;}
+const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
+if((trip.pax||22)-used<=0){toast("Slot pesanan sudah penuh.");return;}
+S.tripId=trip.id;S.tripData=trip;
+const person={personName:pesertaNama};
+// Pra-pilih menu yang sedang ditetapkan supaya tinggal Fuji & Nara sahaja
+if(preMenuId){
+const namba=(trip.sesi||SESI).find(s=>s.id==="namba");
+const menu=namba&&Array.isArray(namba.menus)?namba.menus.find(m=>m.id===preMenuId):null;
+if(menu)person.namba=JSON.parse(JSON.stringify(menu));
+}
+S.form={name:pesertaNama,pax:1,persons:[person],selectedMembers:[],disambiguating:null};
+S.editing={active:false,orderId:null,origView:null,returnSelTrip:null};
+S.onBehalf={active:true,returnTab:"orders"};
+S.assignSpecial={active:false,menuId:null,query:""};
+S.step=2;S.sesiIdx=0;S.activePerson=0;S.submitted=false;S.formErr="";
+S.view="order";render();
 }
 function startPriceEdit(tripId){
 const trip=S.trips.find(t=>t.id===tripId);
@@ -1751,9 +1774,10 @@ const img=S.imgs[`${sesi.id}_${m.id}`];
 return`<div class="mcard ${isSel?'sel':''}" data-sesi="${sesi.id}" data-pid="${ap}" data-mid="${m.id}"> <div class="mwrap">${img?`<img src="${img}" alt="${m.name}"/>`:`<span style="font-size:26px">🍽️</span>`}${isSel?'<div class="mchk">✓</div>':''}</div> <div class="minfo"> <div class="mname">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''}</div> ${sesi.showPrice?`<div class="mprice">¥${m.price.toLocaleString()}</div>`:''} ${m.desc?`<div class="mdesc">${m.desc}</div>`:''} </div> </div>`;
 }).join("");
 const showSkipDisplay=sel&&sel.skip&&canSkip;
-return`<div class="stk"><h2>${S.editing.active?'✏️ Edit Pesanan':trip.nama}</h2>${S.editing.active?'<button class="bk" id="cancel-edit" title="Batal" style="font-size:18px">✕</button>':''}</div>
+const onBhf=!!(S.onBehalf&&S.onBehalf.active);
+return`<div class="stk"><h2>${S.editing.active?'✏️ Edit Pesanan':onBhf?'👤 Order Bagi Pihak':trip.nama}</h2>${(S.editing.active||onBhf)?'<button class="bk" id="cancel-edit" title="Batal" style="font-size:18px">✕</button>':''}</div>
 <div class="body">
-    ${S.editing.active?`<div class="warnsec">✏️ <b>Mod Edit:</b> Mengedit pesanan untuk <b>${S.form.name}</b>. Klik <b>"💾 Simpan Perubahan"</b> untuk menyimpan, atau <b>✕</b> untuk batal.</div>`:''}
+    ${S.editing.active?`<div class="warnsec">✏️ <b>Mod Edit:</b> Mengedit pesanan untuk <b>${S.form.name}</b>. Klik <b>"💾 Simpan Perubahan"</b> untuk menyimpan, atau <b>✕</b> untuk batal.</div>`:onBhf?`<div class="warnsec">👤 <b>Order bagi pihak:</b> <b>${S.form.name}</b>. Lengkapkan semua sesi, kemudian tekan <b>"✅ Hantar Pesanan"</b>. Tekan <b>✕</b> untuk batal.</div>`:''}
     <div class="pb">${Array.from({length:sl.length+1}).map((_,i)=>`<div class="ps ${i<S.sesiIdx+1?'done':i===S.sesiIdx+1?'active':''}"></div>`).join("")}</div>
     <div class="shdr"><h3>${sesi.nama}</h3>${sesi.note?`<p>${sesi.note}</p>`:''}</div>
     ${(()=>{const sds=getSides(sesi);if(!sds.length)return'';const reg=sds.find(x=>!x.forVegan),veg=sds.find(x=>x.forVegan);return`<div class="snote">✅ Semua order termasuk Regular size${reg?` + ${reg.name}`:''}${veg?`<br>🌱 Pilihan vegan dapat ${veg.name} sebagai ganti`:''}</div>`;})()}
@@ -2222,7 +2246,18 @@ else if(back==="leader"||back==="admin"){S.view=back;}
 else {S.view="home";}
 render();
 }
+function cancelOnBehalf(){
+const tb=(S.onBehalf&&S.onBehalf.returnTab)||"orders";
+S.onBehalf={active:false,returnTab:null};
+S.form={name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null};
+S.step=1;S.submitted=false;S.formErr="";
+S.view="admin";S.adminTab=tb;render();
+}
 on("cancel-edit","click",()=>{
+if(S.onBehalf&&S.onBehalf.active){
+if(confirm("Batal order bagi pihak? Pesanan tidak akan disimpan."))cancelOnBehalf();
+return;
+}
 if(confirm("Batal edit? Perubahan tidak akan disimpan."))cancelEdit();
 });
 on("check-edit","click",()=>{
@@ -2631,6 +2666,15 @@ const cl=document.getElementById("as-clear");
 if(cl)cl.style.display=q?"flex":"none";
 });
 }
+document.querySelectorAll("[data-as-pending]").forEach(row=>row.addEventListener("click",()=>{
+const nama=row.dataset.asPending;
+if(!nama)return;
+const menuId=S.assignSpecial.menuId;
+const namba=(S.trips.find(t=>t.id===S.selTrip)?.sesi||SESI).find(s=>s.id==="namba");
+const menu=namba&&Array.isArray(namba.menus)?namba.menus.find(m=>m.id===menuId):null;
+if(!confirm(`${nama} belum buat pesanan.\n\nBuat pesanan bagi pihak dia sekarang?\n${menu?`Menu Namba dipra-pilih: ${menu.name}`:''}\nAnda perlu lengkapkan Fuji dan Nara.`))return;
+startOrderOnBehalf(nama,menuId);
+}));
 document.querySelectorAll("[data-as-pick]").forEach(row=>row.addEventListener("click",async()=>{
 const[oid,piStr]=row.dataset.asPick.split('|');
 const pi=parseInt(piStr);
@@ -2916,6 +2960,15 @@ else if(back==="leader"||back==="admin"){
 S.view=back;S.step=1;S.submitted=false;S.form={name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null};
 await loadOrders(S.selTrip||trip);render();toast("✓ Perubahan disimpan!");
 } else {S.submitted=true;render();}
+} else if(S.onBehalf&&S.onBehalf.active){
+const tb=S.onBehalf.returnTab||"orders";
+const nm=order.name;
+S.onBehalf={active:false,returnTab:null};
+S.form={name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null};
+S.step=1;S.submitted=false;S.lastWasEdit=false;
+S.view="admin";S.adminTab=tb;
+await loadOrders(S.selTrip);render();
+toast(`✓ Pesanan untuk ${nm} disimpan!`);
 } else {
 S.lastWasEdit=false;S.submitted=true;render();
 }
@@ -2923,6 +2976,10 @@ S.lastWasEdit=false;S.submitted=true;render();
 }
 });
 on("prev-step","click",()=>{
+if(S.onBehalf&&S.onBehalf.active&&S.sesiIdx===0){
+if(confirm("Batal order bagi pihak? Pesanan tidak akan disimpan."))cancelOnBehalf();
+return;
+}
 if(S.editing.active&&S.sesiIdx===0){
 if(confirm("Batal edit? Perubahan tidak akan disimpan."))cancelEdit();
 return;
