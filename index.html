@@ -149,12 +149,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v10 — lauk sampingan boleh edit + laluan vegan Namba -->
+<!-- BUILD: v11 — lauk sampingan boleh edit + menu vegan + tetapkan kepada peserta -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v10 starting…");
+console.log("[Tour-Order] Build v11 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -942,7 +942,9 @@ adminOn:false,leaderOn:false,passErr:"",adminTab:"trips",selTrip:null,
 form:{name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null},step:1,sesiIdx:0,activePerson:0,
 submitted:false,formErr:"",loading:true,
 newTrip:{nama:"",tarikh:"",tarikhMula:"",mod:"tren",pax:""},
-addSpecial:"",addSpecialPrice:"",addSpecialVegan:false,imgs:{},
+addSpecial:"",addSpecialPrice:"",addSpecialVegan:false,
+assignSpecial:{active:false,menuId:null,query:""},
+imgs:{},
 pendingImgs:{},pickedFiles:[],imgPreviews:[],selectingFileIdx:null,
 priceDrafts:{},defaultPrices:{},
 checkName:"",checkDone:false,
@@ -1336,6 +1338,47 @@ ${changed?`<span style="font-size:10px;color:#e65100;font-weight:600;min-width:a
 <button class="b2" id="cancel-price" style="margin:0;flex:1;padding:14px 0">Batal</button>
 <button class="b1" id="save-price" style="margin:0;flex:2">💾 Simpan Perubahan</button>
 </div></div>`;
+}
+// Tetapkan satu menu Namba terus kepada peserta tertentu.
+function rAssignSpecialModal(){
+const as=S.assignSpecial;
+if(!as||!as.active)return'';
+const trip=S.trips.find(t=>t.id===S.selTrip);
+if(!trip)return'';
+const namba=(trip.sesi||SESI).find(s=>s.id==="namba");
+const menu=namba&&Array.isArray(namba.menus)?namba.menus.find(m=>m.id===as.menuId):null;
+if(!menu)return'';
+const q=(as.query||'').toLowerCase().trim();
+const people=[];
+S.orders.forEach(o=>(o.persons||[]).forEach((p,pi)=>{
+people.push({orderId:o.id,pi,name:p.personName||(pi===0?o.name:`${o.name} (Orang ${pi+1})`),cur:p.namba});
+}));
+people.sort((a,b)=>a.name.localeCompare(b.name));
+return`<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:110;display:flex;align-items:flex-end;justify-content:center" id="as-overlay">
+<div style="background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:18px 16px 22px;max-height:88vh;overflow-y:auto">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+<h3 style="font-size:15px;font-weight:700;margin:0">Tetapkan kepada peserta</h3>
+<button id="as-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">✕</button>
+</div>
+<p style="font-size:12px;color:#666;margin-bottom:12px">🍜 <b>${menu.name}</b>${menu.isVegan?'<span class="vtag">Vegan</span>':''} — ¥${(menu.price||0).toLocaleString()}</p>
+${people.length===0?`<p style="font-size:12px;color:#888;text-align:center;padding:20px">Tiada pesanan lagi untuk trip ini.</p>`:`
+<input class="inp" id="as-search" placeholder="🔍 Cari nama peserta..." value="${(as.query||'').replace(/"/g,'&quot;')}" style="font-size:13px"/>
+<div id="as-list" style="background:#f9f9f9;border-radius:10px;padding:6px;max-height:46vh;overflow-y:auto">
+${people.map(x=>{
+const isCur=x.cur&&!x.cur.skip&&x.cur.id===menu.id;
+const hidden=q&&!x.name.toLowerCase().includes(q);
+return`<div data-as-pick="${x.orderId}|${x.pi}" data-as-name="${x.name.toLowerCase().replace(/"/g,'&quot;')}" style="display:${hidden?'none':'flex'};align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:${isCur?'#f0f9f4':'#fff'};border:1.5px solid ${isCur?'#1a6b3c':'#eee'};margin-bottom:4px;cursor:${isCur?'default':'pointer'}">
+<div style="flex:1;min-width:0">
+<div style="font-size:12px;font-weight:600">${x.name}</div>
+<div style="font-size:11px;color:#888;margin-top:2px">Sekarang: ${x.cur?(x.cur.skip?'🚫 Tidak order':x.cur.name):'—'}</div>
+</div>
+${isCur?'<span style="font-size:11px;color:#1a6b3c;font-weight:700;flex-shrink:0">✓ Sudah</span>':'<span style="font-size:11px;color:#1a6b3c;font-weight:600;flex-shrink:0">Tetapkan →</span>'}
+</div>`;
+}).join('')}
+</div>
+<p id="as-count" style="font-size:11px;color:#888;text-align:center;margin-top:8px"></p>`}
+</div>
+</div>`;
 }
 function rPriceApplyModal(){
 const pa=S.priceApply;
@@ -1829,6 +1872,7 @@ const sel=rTripSelect();
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div>
 ${(()=>{const nb=sl.find(x=>x.id==="namba");const sp=nb?(nb.menus||[]).filter(m=>m.isSpecial):[];return sp.length?`<div style="background:#fff;border-radius:10px;padding:6px;margin-bottom:10px">${sp.map(m=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-bottom:1px solid #f5f5f5;font-size:12px">
 <span style="flex:1">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''} <span style="font-size:11px;color:#888">¥${(m.price||0).toLocaleString()}</span></span>
+<button class="bsm g" data-asopen="${m.id}" style="padding:4px 9px;font-size:10px;flex-shrink:0">👤 Tetapkan</button>
 <button style="font-size:12px;color:#e53935;background:none;border:none;cursor:pointer;padding:2px 6px" data-rmspecial="${m.id}" title="Buang">✕</button>
 </div>`).join('')}</div>`:'';})()}
 <div style="display:flex;gap:6px;margin-bottom:10px">
@@ -1844,7 +1888,7 @@ ${(()=>{const nb=sl.find(x=>x.id==="namba");const sp=nb?(nb.menus||[]).filter(m=
 </label>
 </div>
 <p style="font-size:11px;color:#888;margin-bottom:10px">Menu bertanda Vegan akan dapat <b>lauk sampingan vegan</b> secara automatik, bukan Karaage.</p>
-<button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false)} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>`;
+<button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false)} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>${rAssignSpecialModal()}`;
 }
 if(S.adminTab==="imgs"){
 const pending=S.pendingImgs||{};
@@ -2513,13 +2557,62 @@ const namba=trip.sesi.find(s=>s.id==="namba");if(!namba)return;
 if(!Array.isArray(namba.menus))namba.menus=[];
 if(namba.menus.some(m=>m.name.toLowerCase()===nama.toLowerCase())){toast("Menu dengan nama itu sudah ada.");return;}
 const isVegan=!!S.addSpecialVegan;
-namba.menus.push({id:Date.now(),name:nama,price:harga,desc:isVegan?"Pilihan vegan":"Menu khas",isSpecial:true,isVegan});
+const newId=Date.now();
+namba.menus.push({id:newId,name:nama,price:harga,desc:isVegan?"Pilihan vegan":"Menu khas",isSpecial:true,isVegan});
 try{
 await saveTrip(trip);
 S.addSpecial="";S.addSpecialPrice="";S.addSpecialVegan=false;
-toast(`✓ "${nama}" ditambah${isVegan?' (vegan)':''}!`);render();
+toast(`✓ "${nama}" ditambah${isVegan?' (vegan)':''}!`);
+// Terus buka pemilih peserta — menu baharu tiada guna sehingga ditetapkan
+if(S.orders.length>0)S.assignSpecial={active:true,menuId:newId,query:""};
+render();
 }catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");}
 });
+// Modal tetapkan menu khas kepada peserta
+document.querySelectorAll("[data-asopen]").forEach(b=>b.addEventListener("click",()=>{
+S.assignSpecial={active:true,menuId:parseInt(b.dataset.asopen),query:""};render();
+}));
+on("as-close","click",()=>{S.assignSpecial={active:false,menuId:null,query:""};render();});
+on("as-overlay","click",e=>{if(e.target.id==="as-overlay"){S.assignSpecial={active:false,menuId:null,query:""};render();}});
+const asInp=document.getElementById("as-search");
+if(asInp){
+// Tapis melalui DOM supaya papan kekunci tidak tertutup
+asInp.addEventListener("input",e=>{
+const q=e.target.value.toLowerCase().trim();
+S.assignSpecial.query=q;
+let visible=0,total=0;
+document.querySelectorAll("[data-as-pick]").forEach(row=>{
+const nm=row.dataset.asName||"";
+const ok=!q||nm.includes(q);
+row.style.display=ok?"flex":"none";
+total++;if(ok)visible++;
+});
+const c=document.getElementById("as-count");
+if(c)c.textContent=q?(visible===0?`Tiada nama sepadan "${q}"`:`${visible} daripada ${total} peserta`):"";
+});
+}
+document.querySelectorAll("[data-as-pick]").forEach(row=>row.addEventListener("click",async()=>{
+const[oid,piStr]=row.dataset.asPick.split('|');
+const pi=parseInt(piStr);
+const trip=S.trips.find(t=>t.id===S.selTrip);if(!trip)return;
+const namba=(trip.sesi||SESI).find(s=>s.id==="namba");
+const menu=namba&&Array.isArray(namba.menus)?namba.menus.find(m=>m.id===S.assignSpecial.menuId):null;
+if(!menu)return;
+const order=S.orders.find(o=>o.id===oid);
+if(!order||!Array.isArray(order.persons)||!order.persons[pi])return;
+const person=order.persons[pi];
+if(person.namba&&!person.namba.skip&&person.namba.id===menu.id)return;
+const nama=person.personName||(pi===0?order.name:`${order.name} (Orang ${pi+1})`);
+const before=person.namba?(person.namba.skip?'🚫 Tidak order':person.namba.name):'—';
+if(!confirm(`Tukar menu Namba untuk "${nama}"?\n\n${before}\n→ ${menu.name}`))return;
+person.namba=JSON.parse(JSON.stringify(menu));
+try{
+await saveOrder(S.selTrip,order);
+S.assignSpecial={active:false,menuId:null,query:""};
+await loadOrders(S.selTrip);
+toast(`✓ ${nama} → ${menu.name}`);render();
+}catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");render();}
+}));
 document.querySelectorAll("[data-rmspecial]").forEach(b=>b.addEventListener("click",async()=>{
 const mid=parseInt(b.dataset.rmspecial);
 const tid=S.selTrip;const trip=S.trips.find(t=>t.id===tid);if(!trip||!Array.isArray(trip.sesi))return;
