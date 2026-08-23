@@ -149,12 +149,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v17 — preset kesan menu sedia ada + tawar tukar harga -->
+<!-- BUILD: v18 — satu menu vegan untuk ramai peserta (modal kekal terbuka) -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v17 starting…");
+console.log("[Tour-Order] Build v18 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -1361,6 +1361,7 @@ S.orders.forEach(o=>(o.persons||[]).forEach((p,pi)=>{
 people.push({orderId:o.id,pi,name:p.personName||(pi===0?o.name:`${o.name} (Orang ${pi+1})`),cur:p.namba});
 }));
 people.sort((a,b)=>a.name.localeCompare(b.name));
+const usedBy=people.filter(x=>x.cur&&!x.cur.skip&&x.cur.id===menu.id).length;
 // Kumpulan 2 — peserta trip yang belum order (dipapar supaya nama tidak "hilang")
 const orderedNames=getAllOrderedPesertaNames(S.orders,trip.peserta);
 const pending=(trip.peserta||[]).filter(p=>!orderedNames.has(p.nama)).map(p=>p.nama).sort((a,b)=>a.localeCompare(b));
@@ -1392,7 +1393,8 @@ return`<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:110
 <h3 style="font-size:15px;font-weight:700;margin:0">Tetapkan kepada peserta</h3>
 <button id="as-close" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;padding:0 4px;line-height:1">✕</button>
 </div>
-<p style="font-size:12px;color:#666;margin-bottom:8px">🍜 <b>${menu.name}</b>${menu.isVegan?'<span class="vtag">Vegan</span>':''} — ¥${(menu.price||0).toLocaleString()}</p>
+<p style="font-size:12px;color:#666;margin-bottom:4px">🍜 <b>${menu.name}</b>${menu.isVegan?'<span class="vtag">Vegan</span>':''} — ¥${(menu.price||0).toLocaleString()}${usedBy>0?` <span style="color:#1a6b3c;font-weight:600">· ${usedBy} peserta</span>`:''}</p>
+<p style="font-size:11px;color:#888;margin-bottom:8px;line-height:1.5">Boleh ditetapkan kepada seberapa ramai peserta — senarai ini kekal terbuka selepas setiap satu.</p>
 <div style="position:relative">
 <input class="inp" id="as-search" placeholder="🔍 Cari nama peserta..." value="${esc(as.query||'')}" style="margin-bottom:0;padding-right:36px;font-size:13px"/>
 <button id="as-clear" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:#eee;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;color:#666;display:${q?'flex':'none'};align-items:center;justify-content:center;font-weight:700">×</button>
@@ -1989,9 +1991,9 @@ ${VEGAN_PRESETS.map(v=>{
 const nb2=sl.find(x=>x.id==="namba");
 const ex=nb2?(nb2.menus||[]).find(m=>m.name.toLowerCase()===v.name.toLowerCase()):null;
 const same=ex&&ex.price===v.price;
-const col=ex?(same?'#bbb':'#ff9800'):'#1a6b3c';
-const txt=ex?(same?`✓ ${v.short} — ada`:`⚠ ${v.short} ¥${ex.price.toLocaleString()} → ¥${v.price.toLocaleString()}`):`🌱 ${v.short} ¥${v.price.toLocaleString()}`;
-return`<button class="bsm" data-sppreset="${v.name}" data-spval="${v.price}"${ex?` data-spexists="${ex.id}"`:''} style="flex:1;border-color:${col};color:${same?'#888':ex?'#e65100':'#1a6b3c'};font-size:10px;padding:7px 6px;line-height:1.3">${txt}</button>`;
+const col=ex?(same?'#1a6b3c':'#ff9800'):'#1a6b3c';
+const txt=ex?(same?`👤 ${v.short} — tetapkan`:`⚠ ${v.short} ¥${ex.price.toLocaleString()} → ¥${v.price.toLocaleString()}`):`🌱 ${v.short} ¥${v.price.toLocaleString()}`;
+return`<button class="bsm" data-sppreset="${v.name}" data-spval="${v.price}"${ex?` data-spexists="${ex.id}"`:''} style="flex:1;border-color:${col};color:${ex&&!same?'#e65100':'#1a6b3c'};font-size:10px;padding:7px 6px;line-height:1.3">${txt}</button>`;
 }).join('')}
 </div>
 <input class="inp" id="sp-nama" placeholder="Nama menu (cth: Vegetable Shoyu Ramen)" value="${S.addSpecial}"/>
@@ -2002,7 +2004,7 @@ return`<button class="bsm" data-sppreset="${v.name}" data-spval="${v.price}"${ex
 <input type="checkbox" id="sp-vegan" ${S.addSpecialVegan?'checked':''} style="width:18px;height:18px"/> Vegan
 </label>
 </div>
-<p style="font-size:11px;color:#888;margin-bottom:10px">Menu bertanda Vegan akan dapat <b>lauk sampingan vegan</b> secara automatik, bukan Karaage.</p>
+<p style="font-size:11px;color:#888;margin-bottom:10px;line-height:1.5">Menu bertanda Vegan akan dapat <b>lauk sampingan vegan</b> secara automatik, bukan Karaage.<br>Satu menu cukup untuk semua peserta vegan — guna <b>👤 Tetapkan</b> untuk pilih siapa.</p>
 <button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false)} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>${rAssignSpecialModal()}`;
 }
 if(S.adminTab==="imgs"){
@@ -2672,7 +2674,10 @@ const trip=S.trips.find(t=>t.id===S.selTrip);
 const namba=trip&&Array.isArray(trip.sesi)?trip.sesi.find(s=>s.id==="namba"):null;
 const menu=namba?(namba.menus||[]).find(m=>m.id===exId):null;
 if(!menu)return;
-if(menu.price===val){toast(`"${nama}" sudah ada pada ¥${val.toLocaleString()}.`);return;}
+if(menu.price===val){
+// Sudah ada pada harga sama — yang dimahukan pasti "untuk peserta lain"
+S.assignSpecial={active:true,menuId:exId,query:""};render();return;
+}
 if(!confirm(`"${nama}" sudah ada dalam senarai pada ¥${menu.price.toLocaleString()}.\n\nTukar harganya ke ¥${val.toLocaleString()}?\nPesanan sedia ada yang pilih menu ini akan disegerak sekali.`))return;
 await applySpecialPrice(exId,val);
 return;
@@ -2697,7 +2702,11 @@ const namba=trip.sesi.find(s=>s.id==="namba");if(!namba)return;
 if(!Array.isArray(namba.menus))namba.menus=[];
 const dup=namba.menus.find(m=>m.name.toLowerCase()===nama.toLowerCase());
 if(dup){
-if(dup.price===harga){toast(`"${dup.name}" sudah ada pada ¥${harga.toLocaleString()}.`);return;}
+if(dup.price===harga){
+S.addSpecial="";S.addSpecialPrice="";S.addSpecialVegan=false;
+toast(`"${dup.name}" sudah ada — pilih peserta.`);
+S.assignSpecial={active:true,menuId:dup.id,query:""};render();return;
+}
 if(!confirm(`"${dup.name}" sudah ada dalam senarai pada ¥${dup.price.toLocaleString()}.\n\nTukar harganya ke ¥${harga.toLocaleString()}?\nPesanan sedia ada akan disegerak sekali.`))return;
 S.addSpecial="";S.addSpecialPrice="";S.addSpecialVegan=false;
 await applySpecialPrice(dup.id,harga);
@@ -2776,8 +2785,8 @@ if(!confirm(`Tukar menu Namba untuk "${nama}"?\n\n${before}\n→ ${menu.name}`))
 person.namba=JSON.parse(JSON.stringify(menu));
 try{
 await saveOrder(S.selTrip,order);
-S.assignSpecial={active:false,menuId:null,query:""};
 await loadOrders(S.selTrip);
+// Modal sengaja dibiarkan terbuka — satu menu boleh ditetapkan kepada ramai peserta
 toast(`✓ ${nama} → ${menu.name}`);render();
 }catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");render();}
 }));
