@@ -149,12 +149,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v9 — propagate harga ke trip sedia ada + re-sync pesanan -->
+<!-- BUILD: v10 — lauk sampingan boleh edit + laluan vegan Namba -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v9 starting…");
+console.log("[Tour-Order] Build v10 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -223,9 +223,14 @@ const SESI=[
 {id:13,name:"Vegetables Biryani",price:1500,isVegan:true},
 {id:14,name:"Vegetables Curry Rice",price:1500,isVegan:true},
 ]},
-{id:"namba",nama:"🍜 Makan Malam di Namba/Dotonbori",note:"Semua order: Regular size + Karaage 3pc (¥400)",payNote:"🎁 Sesi ini akan disupport — peserta tidak perlu bayar",payType:"free",showPrice:false,canSkip:false,menus:[
-{id:1,name:"Shoyu Ramen",price:1000,desc:"Regular + Karaage 3pc ¥400"},
-{id:2,name:"Miso Ramen",price:1000,desc:"Regular + Karaage 3pc ¥400"},
+{id:"namba",nama:"🍜 Makan Malam di Namba/Dotonbori",note:"Semua order: Regular size + lauk sampingan",payNote:"🎁 Sesi ini akan disupport — peserta tidak perlu bayar",payType:"free",showPrice:false,canSkip:false,
+sides:[
+{id:1,name:"Karaage 3pc",price:400,forVegan:false},
+{id:2,name:"Vegetable Spring Rolls",price:500,forVegan:true},
+],
+menus:[
+{id:1,name:"Shoyu Ramen",price:1000,desc:"Regular size"},
+{id:2,name:"Miso Ramen",price:1000,desc:"Regular size"},
 ]},
 ];
 // ── Helpers ──────────────────────────────────────────
@@ -506,6 +511,32 @@ if(sesi.payType)return sesi.payType;
 const gs=SESI.find(s=>s.id===sesi.id);
 return(gs&&gs.payType)||'pay';
 }
+// ── Lauk sampingan (Karaage / Spring Rolls) ──────────────────────────
+// Trip lama tiada `sides` — jatuh balik ke SESI induk.
+function getSides(sesi){
+if(!sesi)return[];
+if(Array.isArray(sesi.sides))return sesi.sides;
+const gs=SESI.find(s=>s.id===sesi.id);
+return(gs&&Array.isArray(gs.sides))?gs.sides:[];
+}
+// Peserta yang pilih menu vegan dapat lauk vegan; selain itu lauk biasa.
+function pickSide(sesi,item){
+const sides=getSides(sesi);
+if(!sides.length||!item||item.skip)return null;
+const wantVegan=!!item.isVegan;
+return sides.find(x=>!!x.forVegan===wantVegan)||sides.find(x=>!x.forVegan)||null;
+}
+// Kira bilangan pax bagi setiap lauk sampingan dalam satu sesi.
+function countSides(sesi,orders){
+const out=new Map();
+(orders||[]).forEach(o=>(o.persons||[]).forEach(p=>{
+const sd=pickSide(sesi,p[sesi.id]);
+if(!sd)return;
+const cur=out.get(sd.id)||{side:sd,pax:0};
+cur.pax++;out.set(sd.id,cur);
+}));
+return[...out.values()];
+}
 function getPaymentSummary(trip,orders,sesiFilter){
 const sl=trip.sesi||SESI;
 const allPayable=sl.filter(s=>getPayType(s)==='pay');
@@ -595,10 +626,13 @@ const prices=d.data().prices||{};
 S.defaultPrices=prices;
 // Apply ke SESI in-place untuk new trip auto-pakai harga lalai
 SESI.forEach(s=>{
-if(!s.menus)return;
-s.menus.forEach(m=>{
+if(s.menus)s.menus.forEach(m=>{
 const key=`${s.id}_${m.id}`;
 if(prices[key]!==undefined)m.price=prices[key];
+});
+if(Array.isArray(s.sides))s.sides.forEach(sd=>{
+const key=`${s.id}_side_${sd.id}`;
+if(prices[key]!==undefined)sd.price=prices[key];
 });
 });
 }
@@ -612,11 +646,19 @@ await setDoc(doc(db,"config","menuDefaults"),{prices,updatedAt:new Date().toISOS
 S.defaultPrices=prices;
 // Apply drafts ke SESI in-place
 Object.entries(S.priceDrafts).forEach(([key,val])=>{
-const[sid,midStr]=key.split('_');
-const mid=parseInt(midStr);
-const sesi=SESI.find(s=>s.id===sid);
-if(!sesi)return;
-const menu=sesi.menus.find(m=>m.id===mid);
+const ms=key.match(/^(.+)_side_(\d+)$/);
+if(ms){
+const sesi=SESI.find(s=>s.id===ms[1]);
+if(!sesi||!Array.isArray(sesi.sides))return;
+const sd=sesi.sides.find(x=>x.id===parseInt(ms[2]));
+if(sd)sd.price=val;
+return;
+}
+const idx=key.indexOf('_');
+if(idx<0)return;
+const sesi=SESI.find(s=>s.id===key.slice(0,idx));
+if(!sesi||!sesi.menus)return;
+const menu=sesi.menus.find(m=>m.id===parseInt(key.slice(idx+1)));
 if(menu)menu.price=val;
 });
 S.priceDrafts={};
@@ -624,21 +666,28 @@ S.priceDrafts={};
 // ── Sebarkan harga ke trip sedia ada + re-sync pesanan ──────────────
 // Bina peta {sesiId:{menuId:hargaBaru}} daripada draf harga tab Menu.
 function buildPriceMapFromDrafts(drafts){
-const map={};
+const map={menus:{},sides:{}};
 Object.entries(drafts).forEach(([key,val])=>{
+const ms=key.match(/^(.+)_side_(\d+)$/);
+if(ms){
+const sid=ms[1],sdid=parseInt(ms[2]);
+if(!map.sides[sid])map.sides[sid]={};
+map.sides[sid][sdid]=val;
+return;
+}
 const idx=key.indexOf('_');
 if(idx<0)return;
 const sid=key.slice(0,idx);
 const mid=parseInt(key.slice(idx+1));
 if(isNaN(mid))return;
-if(!map[sid])map[sid]={};
-map[sid][mid]=val;
+if(!map.menus[sid])map.menus[sid]={};
+map.menus[sid][mid]=val;
 });
 return map;
 }
 // Cari harga baru untuk satu item pesanan. Padan ikut id dahulu, fallback nama.
 function lookupNewPrice(priceMap,sid,item){
-const m=priceMap[sid];
+const m=priceMap.menus[sid];
 if(!m||!item)return undefined;
 if(item.id!==undefined&&m[item.id]!==undefined)return m[item.id];
 const gs=SESI.find(s=>s.id===sid);
@@ -652,13 +701,25 @@ return undefined;
 function applyPriceMapToTripSesi(trip,priceMap){
 let changed=0;
 (trip.sesi||[]).forEach(s=>{
-const m=priceMap[s.id];
-if(!m||!s.menus)return;
-s.menus.forEach(menu=>{
-const np=m[menu.id];
+const mm=priceMap.menus[s.id];
+if(mm&&s.menus)s.menus.forEach(menu=>{
+const np=mm[menu.id];
 if(np===undefined||menu.price===np)return;
 menu.price=np;changed++;
 });
+const sm=priceMap.sides[s.id];
+if(sm){
+// Trip lama tiada `sides` — salin struktur dari SESI induk dahulu
+if(!Array.isArray(s.sides)){
+const gs=SESI.find(x=>x.id===s.id);
+if(gs&&Array.isArray(gs.sides))s.sides=JSON.parse(JSON.stringify(gs.sides));
+}
+(s.sides||[]).forEach(sd=>{
+const np=sm[sd.id];
+if(np===undefined||sd.price===np)return;
+sd.price=np;changed++;
+});
+}
 });
 return changed;
 }
@@ -666,7 +727,7 @@ return changed;
 function applyPriceMapToOrder(order,priceMap){
 let changed=0,paidChanged=0;
 (order.persons||[]).forEach(p=>{
-Object.keys(priceMap).forEach(sid=>{
+Object.keys(priceMap.menus).forEach(sid=>{
 const item=p[sid];
 if(!item||item.skip)return;
 const np=lookupNewPrice(priceMap,sid,item);
@@ -683,9 +744,10 @@ const impacts=[];
 for(const trip of S.trips){
 let menuChanges=0;
 (trip.sesi||[]).forEach(s=>{
-const m=priceMap[s.id];
-if(!m||!s.menus)return;
-s.menus.forEach(menu=>{if(m[menu.id]!==undefined&&menu.price!==m[menu.id])menuChanges++;});
+const mm=priceMap.menus[s.id];
+if(mm&&s.menus)s.menus.forEach(menu=>{if(mm[menu.id]!==undefined&&menu.price!==mm[menu.id])menuChanges++;});
+const sm=priceMap.sides[s.id];
+if(sm)getSides(s).forEach(sd=>{if(sm[sd.id]!==undefined&&sd.price!==sm[sd.id])menuChanges++;});
 });
 let orders=[];
 try{
@@ -694,7 +756,7 @@ orders=snap.docs.map(d=>d.data());
 }catch(e){console.error("computePriceImpact:",trip.id,e);}
 let orderItems=0,paidItems=0,hasPaid=false;
 orders.forEach(o=>(o.persons||[]).forEach(p=>{
-Object.keys(priceMap).forEach(sid=>{
+Object.keys(priceMap.menus).forEach(sid=>{
 const item=p[sid];
 if(!item||item.skip)return;
 if(item.paid)hasPaid=true;
@@ -775,15 +837,21 @@ Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{const p=pm[n]||0,to
 return txt+`\n💴 *Total: ¥${sub.toLocaleString()}*\n`;
 }
 function bNamba(trip,orders){
-const cnt={};
-orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p.namba;if(i&&!i.skip)cnt[i.name]=(cnt[i.name]||0)+1;}));
+const sl=trip.sesi||SESI;
+const sesi=sl.find(s=>s.id==="namba")||SESI.find(s=>s.id==="namba");
+const cnt={},pm={};
+orders.forEach(o=>(o.persons||[]).forEach(p=>{const i=p.namba;if(i&&!i.skip){cnt[i.name]=(cnt[i.name]||0)+1;pm[i.name]=i.price||0;}}));
 const mod=trip.mod||"tren";
 let txt=`🍜 *DINNER ORDER — NAMBA/DOTONBORI*\n📌 Trip: ${trip.nama}\n📅 Date: ${getTarikh(trip,"namba")}\n⏰ ${getWaktu(trip,"namba")} (${mod==="tren"?"by train":"by bus"})\n${'─'.repeat(28)}\n\n`;
 if(!Object.keys(cnt).length)return txt+"  No orders yet.\n";
-const R=1000,K=400,tp=Object.values(cnt).reduce((a,b)=>a+b,0);let rt=0;
-Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{const tot=R*c;rt+=tot;txt+=`  • ${n} (Regular size)\n    ¥${R.toLocaleString()}×${c} pax=¥${tot.toLocaleString()}\n\n`;});
-const kt=K*tp;
-return txt+`  • Karaage 3pc\n    ¥${K.toLocaleString()}×${tp} pax=¥${kt.toLocaleString()}\n\n${'─'.repeat(28)}\n🍜 Ramen: ¥${rt.toLocaleString()}\n🍗 Karaage: ¥${kt.toLocaleString()}\n💴 *GRAND TOTAL: ¥${(rt+kt).toLocaleString()}*\n`;
+let rt=0;
+Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{const up=pm[n]||0,tot=up*c;rt+=tot;txt+=`  • ${n} (Regular size)\n    ¥${up.toLocaleString()}×${c} pax=¥${tot.toLocaleString()}\n\n`;});
+let st=0;
+countSides(sesi,orders).forEach(({side,pax})=>{
+const up=side.price||0,tot=up*pax;st+=tot;
+txt+=`  • ${side.name}\n    ¥${up.toLocaleString()}×${pax} pax=¥${tot.toLocaleString()}\n\n`;
+});
+return txt+`${'─'.repeat(28)}\n🍜 Ramen: ¥${rt.toLocaleString()}\n🍗 Sampingan: ¥${st.toLocaleString()}\n💴 *GRAND TOTAL: ¥${(rt+st).toLocaleString()}*\n`;
 }
 function bLeader(trip,orders){
 const sl=trip.sesi||SESI;
@@ -794,7 +862,7 @@ txt+=`*${i+1}. ${o.name}*${multi?` (${o.persons.length} orang)`:''}\n`;
 (o.persons||[]).forEach((p,pi)=>{
 if(multi)txt+=`  👤 ${p.personName||`Orang ${pi+1}`}:\n`;
 const ind=multi?'    ':'  ';
-sl.forEach(s=>{const item=p[s.id];const skip=item&&item.skip;txt+=`${ind}${s.nama}: ${item?(skip?'🚫 Tidak order':item.name):'—'}`;if(item&&!skip&&s.showPrice)txt+=` (¥${(item.price||0).toLocaleString()})`;if(s.id==="namba"&&item&&!skip)txt+=` + Karaage 3pc (¥400)`;txt+='\n';});
+sl.forEach(s=>{const item=p[s.id];const skip=item&&item.skip;txt+=`${ind}${s.nama}: ${item?(skip?'🚫 Tidak order':item.name):'—'}`;if(item&&!skip&&s.showPrice)txt+=` (¥${(item.price||0).toLocaleString()})`;const sd=pickSide(s,item);if(sd)txt+=` + ${sd.name} (¥${(sd.price||0).toLocaleString()})`;txt+='\n';});
 });
 let sf=0,sn=0;(o.persons||[]).forEach(p=>{if(p.fuji&&!p.fuji.skip)sf+=p.fuji.price||0;if(p.nara&&!p.nara.skip)sn+=p.nara.price||0;});
 txt+=`  💴 Fuji:¥${sf.toLocaleString()} | Nara:¥${sn.toLocaleString()} | *Total:¥${(sf+sn).toLocaleString()}*\n\n`;
@@ -874,7 +942,7 @@ adminOn:false,leaderOn:false,passErr:"",adminTab:"trips",selTrip:null,
 form:{name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null},step:1,sesiIdx:0,activePerson:0,
 submitted:false,formErr:"",loading:true,
 newTrip:{nama:"",tarikh:"",tarikhMula:"",mod:"tren",pax:""},
-addSpecial:"",imgs:{},
+addSpecial:"",addSpecialPrice:"",addSpecialVegan:false,imgs:{},
 pendingImgs:{},pickedFiles:[],imgPreviews:[],selectingFileIdx:null,
 priceDrafts:{},defaultPrices:{},
 checkName:"",checkDone:false,
@@ -1375,13 +1443,12 @@ const sortedMenus=Object.keys(menuMap).sort((a,b)=>menuMap[b].names.length-menuM
 if(!sortedMenus.length)return`<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:6px">${s.nama}</div><div style="padding:10px 14px;font-size:12px;color:#aaa;background:#f9f9f9;border-radius:10px">Tiada order</div></div>`;
 const sesSubMenus=sortedMenus.reduce((acc,m)=>acc+menuMap[m].total,0);
 const sesPax=sortedMenus.reduce((acc,m)=>acc+menuMap[m].names.length,0);
-const isNamba=s.id==="namba";
-const karaagePax=isNamba?sesPax:0;
-const karaageTotal=karaagePax*400;
-const sesSub=sesSubMenus+karaageTotal;
-const hasAnyPrice=sesSubMenus>0||karaageTotal>0;
+const sideRows=countSides(s,orders);
+const sideTotal=sideRows.reduce((acc,x)=>acc+((x.side.price||0)*x.pax),0);
+const sesSub=sesSubMenus+sideTotal;
+const hasAnyPrice=sesSubMenus>0||sideTotal>0;
 return`<div style="margin-bottom:14px">
-<div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:6px">${s.nama}${isNamba?' <span style="font-size:9px;color:#888;font-weight:400">(disupport — info untuk TL)</span>':''}</div>
+<div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:6px">${s.nama}${getPayType(s)!=='pay'?' <span style="font-size:9px;color:#888;font-weight:400">(disupport — info untuk TL)</span>':''}</div>
 ${sortedMenus.map(menu=>{
 const data=menuMap[menu];
 const showMenuPrice=data.unit>0;
@@ -1395,12 +1462,12 @@ ${data.names.map(n=>`<li>${n}</li>`).join('')}
 </ol>
 </div>`;
 }).join('')}
-${isNamba&&karaagePax>0?`<div style="background:#fff;border:1px dashed #ffb74d;border-radius:10px;padding:10px 14px;margin-bottom:6px">
+${sideRows.map(({side,pax})=>`<div style="background:#fff;border:1px dashed ${side.forVegan?'#66bb6a':'#ffb74d'};border-radius:10px;padding:10px 14px;margin-bottom:6px">
 <div style="font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px">
-<span style="flex:1;color:#e65100">+ Karaage 3pc <span style="font-size:11px;color:#888;font-weight:500">¥400</span></span>
-<span style="font-size:11px;background:#fff3e0;color:#e65100;border-radius:20px;padding:2px 10px;flex-shrink:0">${karaagePax} pax · ¥${karaageTotal.toLocaleString()}</span>
+<span style="flex:1;color:${side.forVegan?'#1a6b3c':'#e65100'}">+ ${side.name}${side.forVegan?'<span class="vtag">Vegan</span>':''} <span style="font-size:11px;color:#888;font-weight:500">¥${(side.price||0).toLocaleString()}</span></span>
+<span style="font-size:11px;background:${side.forVegan?'#e8f5e9':'#fff3e0'};color:${side.forVegan?'#1a6b3c':'#e65100'};border-radius:20px;padding:2px 10px;flex-shrink:0">${pax} pax · ¥${((side.price||0)*pax).toLocaleString()}</span>
 </div>
-</div>`:''}
+</div>`).join('')}
 ${hasAnyPrice?`<div style="text-align:right;font-size:12px;color:#1a6b3c;font-weight:600;padding:6px 4px 0">💴 Subtotal: ${sesPax} pax — <span style="font-size:14px">¥${sesSub.toLocaleString()}</span></div>`:''}
 </div>`;
 }).join('');
@@ -1421,7 +1488,7 @@ grouped[s.id][item.name].total+=(item.price||0);
 });
 let txt=`📢 *PANDUAN PANGGIL NAMA*\n📌 ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n`;
 sl.forEach(s=>{
-txt+=`\n*${s.nama}*${s.id==="namba"?'\n_(disupport — info untuk TL)_':''}\n`;
+txt+=`\n*${s.nama}*${getPayType(s)!=='pay'?'\n_(disupport — info untuk TL)_':''}\n`;
 const menuMap=grouped[s.id]||{};
 const sortedMenus=Object.keys(menuMap).sort((a,b)=>menuMap[b].names.length-menuMap[a].names.length);
 if(!sortedMenus.length){txt+='  _(Tiada order)_\n';return;}
@@ -1433,11 +1500,13 @@ data.names.forEach((n,i)=>{txt+=`  ${i+1}. ${n}\n`;});
 });
 const sesSubMenus=sortedMenus.reduce((acc,m)=>acc+menuMap[m].total,0);
 const sesPax=sortedMenus.reduce((acc,m)=>acc+menuMap[m].names.length,0);
-const isNamba=s.id==="namba";
-const karaagePax=isNamba?sesPax:0;
-const karaageTotal=karaagePax*400;
-if(isNamba&&karaagePax>0){txt+=`\n📋 *+ Karaage 3pc* (¥400) — ${karaagePax} pax = ¥${karaageTotal.toLocaleString()}\n`;}
-const sub=sesSubMenus+karaageTotal;
+const sideRows=countSides(s,orders);
+let sideTotal=0;
+sideRows.forEach(({side,pax})=>{
+const tot=(side.price||0)*pax;sideTotal+=tot;
+txt+=`\n📋 *+ ${side.name}*${side.forVegan?' _(vegan)_':''} (¥${(side.price||0).toLocaleString()}) — ${pax} pax = ¥${tot.toLocaleString()}\n`;
+});
+const sub=sesSubMenus+sideTotal;
 if(sub>0)txt+=`\n💴 *Subtotal: ${sesPax} pax — ¥${sub.toLocaleString()}*\n`;
 });
 return txt;
@@ -1471,7 +1540,8 @@ function rOrderList(sl,orders,canDel,isLeader){
         if(!it)return`<div class="osesi"><div class="ost">${s.nama}</div><div class="osv">—</div></div>`;
         if(it.skip)return`<div class="osesi"><div class="ost">${s.nama}</div><div class="osv"><span class="skiptag">🚫 Tidak order</span></div></div>`;
         const showPay=canDel&&getPayType(s)==='pay';
-        const namba=s.id==="namba"?' <span style="font-size:10px;color:#888">(Regular+Karaage)</span>':'';
+        const sd=pickSide(s,it);
+        const namba=sd?` <span style="font-size:10px;color:#888">(+ ${sd.name})</span>`:'';
         const priceLabel=s.showPrice&&it.price?` <span style="font-size:11px;color:#888;font-weight:500">¥${it.price.toLocaleString()}</span>`:'';
         return`<div class="osesi"><div class="ost">${s.nama}</div><div class="osv">${it.name}${priceLabel}${namba}${showPay?`<button class="paybadge ${it.paid?'paid':'unpaid'}" data-paytoggle="${o.id}|${pi}|${s.id}" title="Klik untuk tukar">${it.paid?'✓ Sudah Bayar':'⏳ Belum Bayar'}</button>`:''}</div></div>`;
       }).join("")}`).join("")}
@@ -1615,7 +1685,7 @@ return`<div class="stk"><h2>${S.editing.active?'✏️ Edit Pesanan':trip.nama}<
     ${S.editing.active?`<div class="warnsec">✏️ <b>Mod Edit:</b> Mengedit pesanan untuk <b>${S.form.name}</b>. Klik <b>"💾 Simpan Perubahan"</b> untuk menyimpan, atau <b>✕</b> untuk batal.</div>`:''}
     <div class="pb">${Array.from({length:sl.length+1}).map((_,i)=>`<div class="ps ${i<S.sesiIdx+1?'done':i===S.sesiIdx+1?'active':''}"></div>`).join("")}</div>
     <div class="shdr"><h3>${sesi.nama}</h3>${sesi.note?`<p>${sesi.note}</p>`:''}</div>
-    ${sesi.id==="namba"?`<div class="snote">✅ Semua order termasuk Regular size + Karaage 3pc (¥400)</div>`:''}
+    ${(()=>{const sds=getSides(sesi);if(!sds.length)return'';const reg=sds.find(x=>!x.forVegan),veg=sds.find(x=>x.forVegan);return`<div class="snote">✅ Semua order termasuk Regular size${reg?` + ${reg.name}`:''}${veg?`<br>🌱 Pilihan vegan dapat ${veg.name} sebagai ganti`:''}</div>`;})()}
     ${(()=>{const gs=SESI.find(s=>s.id===sesi.id);const pn=sesi.payNote||(gs&&gs.payNote);const pt=sesi.payType||(gs&&gs.payType)||'pay';return pn?`<div class="payinfo ${pt}">${pn}</div>`:'';})()}
     <div class="ins">📋 <b>Arahan:</b> ${canSkip?'Pilih menu untuk setiap orang, atau tekan butang "🚫 Tidak Mahu Order" jika orang tersebut tidak nak order untuk sesi ini.':'<b style="color:#c62828">Sesi ini wajib</b> — semua orang perlu pilih menu (tidak boleh skip).'}<br>
       <div style="margin-top:6px">${dots} <span style="font-size:11px">${completeCount}/${persons.length} selesai</span></div>
@@ -1756,7 +1826,25 @@ ${rBookingSec()}
 }
 if(S.adminTab==="orders"){
 const sel=rTripSelect();
-return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div> <input class="inp" id="sp-nama" placeholder="cth: Vegan Ramen" value="${S.addSpecial}"/> <button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false)} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>`;
+return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div>
+${(()=>{const nb=sl.find(x=>x.id==="namba");const sp=nb?(nb.menus||[]).filter(m=>m.isSpecial):[];return sp.length?`<div style="background:#fff;border-radius:10px;padding:6px;margin-bottom:10px">${sp.map(m=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-bottom:1px solid #f5f5f5;font-size:12px">
+<span style="flex:1">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''} <span style="font-size:11px;color:#888">¥${(m.price||0).toLocaleString()}</span></span>
+<button style="font-size:12px;color:#e53935;background:none;border:none;cursor:pointer;padding:2px 6px" data-rmspecial="${m.id}" title="Buang">✕</button>
+</div>`).join('')}</div>`:'';})()}
+<div style="display:flex;gap:6px;margin-bottom:10px">
+<button class="bsm" data-sppreset="Vegetable Shoyu Ramen" style="flex:1;border-color:#1a6b3c;color:#1a6b3c">🌱 Veg Shoyu</button>
+<button class="bsm" data-sppreset="Vegetable Miso Ramen" style="flex:1;border-color:#1a6b3c;color:#1a6b3c">🌱 Veg Miso</button>
+</div>
+<input class="inp" id="sp-nama" placeholder="Nama menu (cth: Vegetable Shoyu Ramen)" value="${S.addSpecial}"/>
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+<span style="font-size:13px;color:#888;font-weight:600">¥</span>
+<input class="inp" id="sp-harga" type="number" min="0" step="50" inputmode="numeric" placeholder="Harga" value="${S.addSpecialPrice}" style="margin:0;flex:1"/>
+<label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#1a6b3c;cursor:pointer;white-space:nowrap">
+<input type="checkbox" id="sp-vegan" ${S.addSpecialVegan?'checked':''} style="width:18px;height:18px"/> Vegan
+</label>
+</div>
+<p style="font-size:11px;color:#888;margin-bottom:10px">Menu bertanda Vegan akan dapat <b>lauk sampingan vegan</b> secara automatik, bukan Karaage.</p>
+<button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false)} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>`;
 }
 if(S.adminTab==="imgs"){
 const pending=S.pendingImgs||{};
@@ -1795,7 +1883,23 @@ Object.entries(pending).forEach(([k,v])=>assignedIdx[v.fileIdx]=k);
             ${isPending||isPriceDraft?`<div style="position:absolute;top:4px;right:4px;background:#e65100;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">!</div>`:hasEx?`<div style="position:absolute;top:4px;right:4px;background:#1a6b3c;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">✓</div>`:''}
           </div>`;
         }).join("")}
-      </div>`).join("");
+      </div>
+      ${getSides(sesi).length?`<div style="margin-top:8px">
+        ${getSides(sesi).map(sd=>{
+          const skey=`${sesi.id}_side_${sd.id}`;
+          const cur=pdrafts[skey]!==undefined?pdrafts[skey]:sd.price;
+          const isD=pdrafts[skey]!==undefined;
+          return`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;border:1.5px dashed ${isD?'#e65100':sd.forVegan?'#66bb6a':'#ffb74d'};background:${isD?'#fff8e1':'#fff'};margin-bottom:6px">
+            <span style="font-size:16px;flex-shrink:0">${sd.forVegan?'🌱':'🍗'}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:11px;font-weight:600;color:#1a1a1a">+ ${sd.name}</div>
+              <div style="font-size:9px;color:#888">${sd.forVegan?'Untuk peserta yang pilih menu vegan':'Untuk peserta biasa'}</div>
+            </div>
+            <span style="font-size:10px;color:#888;font-weight:600">¥</span>
+            <input type="number" min="0" step="50" value="${cur}" data-pricedraft="${skey}" inputmode="numeric" style="width:74px;padding:5px 7px;font-size:11px;border:1px solid ${isD?'#ff9800':'#ddd'};border-radius:6px;background:${isD?'#fff8e1':'#fff'};text-align:right;outline:none"/>
+          </div>`;
+        }).join("")}
+      </div>`:''}`).join("");
 
     const grid=previews.length>0?`
       <div style="font-size:13px;font-weight:600;margin:16px 0 6px">🖼️ Langkah 2 — Klik gambar untuk padankan</div>
@@ -2386,13 +2490,48 @@ on("cp-ringkasan","click",()=>{const t=S.trips.find(t=>t.id===S.selTrip);if(t)cp
 on("cp-namepermenu","click",()=>{const t=S.trips.find(t=>t.id===S.selTrip);if(t)cp(bNamePerMenu(t,S.orders));});
 // Special menu
 on("sp-nama","input",e=>S.addSpecial=e.target.value);
+on("sp-harga","input",e=>S.addSpecialPrice=e.target.value);
+on("sp-vegan","change",e=>S.addSpecialVegan=e.target.checked);
+document.querySelectorAll("[data-sppreset]").forEach(b=>b.addEventListener("click",()=>{
+S.addSpecial=b.dataset.sppreset;
+S.addSpecialVegan=true;
+if(!S.addSpecialPrice){
+const nb=SESI.find(s=>s.id==="namba");
+const base=nb&&nb.menus&&nb.menus[0]?nb.menus[0].price:1000;
+S.addSpecialPrice=String(base);
+}
+render();
+}));
 on("add-special","click",async()=>{
-const nama=S.addSpecial.trim();if(!nama)return;
-const tid=S.selTrip;const trip=S.trips.find(t=>t.id===tid);if(!trip)return;
-const sesi=trip.sesi||SESI;const namba=sesi.find(s=>s.id==="namba");if(!namba)return;
-namba.menus.push({id:Date.now(),name:nama,price:1000,desc:"Special/Vegan",isSpecial:true});
-await setDoc(doc(db,"trips",tid),trip);S.addSpecial="";toast(`✓ "${nama}" ditambah!`);render();
+const nama=S.addSpecial.trim();if(!nama){toast("Sila masukkan nama menu.");return;}
+const harga=parseInt(S.addSpecialPrice);
+if(isNaN(harga)||harga<0){toast("Sila masukkan harga yang sah.");return;}
+const tid=S.selTrip;const trip=S.trips.find(t=>t.id===tid);if(!trip){toast("Sila pilih trip dahulu.");return;}
+// Jangan sesekali ubah SESI global — trip lama tanpa `sesi` perlu salinan sendiri
+if(!Array.isArray(trip.sesi))trip.sesi=JSON.parse(JSON.stringify(SESI));
+const namba=trip.sesi.find(s=>s.id==="namba");if(!namba)return;
+if(!Array.isArray(namba.menus))namba.menus=[];
+if(namba.menus.some(m=>m.name.toLowerCase()===nama.toLowerCase())){toast("Menu dengan nama itu sudah ada.");return;}
+const isVegan=!!S.addSpecialVegan;
+namba.menus.push({id:Date.now(),name:nama,price:harga,desc:isVegan?"Pilihan vegan":"Menu khas",isSpecial:true,isVegan});
+try{
+await saveTrip(trip);
+S.addSpecial="";S.addSpecialPrice="";S.addSpecialVegan=false;
+toast(`✓ "${nama}" ditambah${isVegan?' (vegan)':''}!`);render();
+}catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");}
 });
+document.querySelectorAll("[data-rmspecial]").forEach(b=>b.addEventListener("click",async()=>{
+const mid=parseInt(b.dataset.rmspecial);
+const tid=S.selTrip;const trip=S.trips.find(t=>t.id===tid);if(!trip||!Array.isArray(trip.sesi))return;
+const namba=trip.sesi.find(s=>s.id==="namba");if(!namba)return;
+const menu=(namba.menus||[]).find(m=>m.id===mid);if(!menu)return;
+const dipakai=S.orders.some(o=>(o.persons||[]).some(p=>p.namba&&!p.namba.skip&&p.namba.id===mid));
+if(dipakai){toast("Tidak boleh buang — sudah ada peserta pilih menu ini.");return;}
+if(!confirm(`Buang menu khas "${menu.name}"?`))return;
+namba.menus=namba.menus.filter(m=>m.id!==mid);
+try{await saveTrip(trip);toast("✓ Menu dibuang.");render();}
+catch(e){console.error(e);toast("❌ Gagal simpan.");}
+}));
 // Images
 on("bulk-pick","change",async e=>{
 const files=Array.from(e.target.files);
@@ -2493,14 +2632,23 @@ render();
 });
 document.querySelectorAll("[data-pricedraft]").forEach(inp=>inp.addEventListener("input",e=>{
 const key=inp.dataset.pricedraft;
-const[sid,midStr]=key.split('_');
-const mid=parseInt(midStr);
-const sesi=SESI.find(s=>s.id===sid);
-if(!sesi)return;
-const menu=sesi.menus.find(m=>m.id===mid);
+let baseline;
+const ms=key.match(/^(.+)_side_(\d+)$/);
+if(ms){
+const sesi=SESI.find(s=>s.id===ms[1]);
+const sd=sesi&&Array.isArray(sesi.sides)?sesi.sides.find(x=>x.id===parseInt(ms[2])):null;
+if(!sd)return;
+baseline=sd.price;
+}else{
+const idx=key.indexOf('_');
+if(idx<0)return;
+const sesi=SESI.find(s=>s.id===key.slice(0,idx));
+const menu=sesi&&sesi.menus?sesi.menus.find(m=>m.id===parseInt(key.slice(idx+1))):null;
 if(!menu)return;
+baseline=menu.price;
+}
 const newVal=parseInt(e.target.value)||0;
-if(newVal===menu.price){delete S.priceDrafts[key];}
+if(newVal===baseline){delete S.priceDrafts[key];}
 else{S.priceDrafts[key]=newVal;}
 // Visual feedback tanpa re-render (jangan kehilangan focus input)
 if(S.priceDrafts[key]!==undefined){
