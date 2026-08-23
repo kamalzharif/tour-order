@@ -149,12 +149,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v11 — lauk sampingan boleh edit + menu vegan + tetapkan kepada peserta -->
+<!-- BUILD: v13 — modal papar peserta belum order + skrol dibetulkan -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v11 starting…");
+console.log("[Tour-Order] Build v13 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -1349,37 +1349,65 @@ const namba=(trip.sesi||SESI).find(s=>s.id==="namba");
 const menu=namba&&Array.isArray(namba.menus)?namba.menus.find(m=>m.id===as.menuId):null;
 if(!menu)return'';
 const q=(as.query||'').toLowerCase().trim();
+// Kumpulan 1 — peserta yang sudah hantar pesanan (boleh ditetapkan)
 const people=[];
 S.orders.forEach(o=>(o.persons||[]).forEach((p,pi)=>{
 people.push({orderId:o.id,pi,name:p.personName||(pi===0?o.name:`${o.name} (Orang ${pi+1})`),cur:p.namba});
 }));
 people.sort((a,b)=>a.name.localeCompare(b.name));
-return`<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:110;display:flex;align-items:flex-end;justify-content:center" id="as-overlay">
-<div style="background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:18px 16px 22px;max-height:88vh;overflow-y:auto">
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-<h3 style="font-size:15px;font-weight:700;margin:0">Tetapkan kepada peserta</h3>
-<button id="as-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">✕</button>
-</div>
-<p style="font-size:12px;color:#666;margin-bottom:12px">🍜 <b>${menu.name}</b>${menu.isVegan?'<span class="vtag">Vegan</span>':''} — ¥${(menu.price||0).toLocaleString()}</p>
-${people.length===0?`<p style="font-size:12px;color:#888;text-align:center;padding:20px">Tiada pesanan lagi untuk trip ini.</p>`:`
-<input class="inp" id="as-search" placeholder="🔍 Cari nama peserta..." value="${(as.query||'').replace(/"/g,'&quot;')}" style="font-size:13px"/>
-<div id="as-list" style="background:#f9f9f9;border-radius:10px;padding:6px;max-height:46vh;overflow-y:auto">
-${people.map(x=>{
+// Kumpulan 2 — peserta trip yang belum order (dipapar supaya nama tidak "hilang")
+const orderedNames=getAllOrderedPesertaNames(S.orders,trip.peserta);
+const pending=(trip.peserta||[]).filter(p=>!orderedNames.has(p.nama)).map(p=>p.nama).sort((a,b)=>a.localeCompare(b));
+const shownOk=people.filter(x=>!q||x.name.toLowerCase().includes(q)).length;
+const shownPend=pending.filter(n=>!q||n.toLowerCase().includes(q)).length;
+const esc=s=>s.replace(/"/g,'&quot;');
+const rowsOk=people.map(x=>{
 const isCur=x.cur&&!x.cur.skip&&x.cur.id===menu.id;
 const hidden=q&&!x.name.toLowerCase().includes(q);
-return`<div data-as-pick="${x.orderId}|${x.pi}" data-as-name="${x.name.toLowerCase().replace(/"/g,'&quot;')}" style="display:${hidden?'none':'flex'};align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:${isCur?'#f0f9f4':'#fff'};border:1.5px solid ${isCur?'#1a6b3c':'#eee'};margin-bottom:4px;cursor:${isCur?'default':'pointer'}">
+return`<div data-as-pick="${x.orderId}|${x.pi}" data-as-name="${esc(x.name.toLowerCase())}" style="display:${hidden?'none':'flex'};align-items:center;gap:10px;padding:11px 10px;border-radius:8px;background:${isCur?'#f0f9f4':'#fff'};border:1.5px solid ${isCur?'#1a6b3c':'#eee'};margin-bottom:5px;cursor:${isCur?'default':'pointer'}">
 <div style="flex:1;min-width:0">
 <div style="font-size:12px;font-weight:600">${x.name}</div>
 <div style="font-size:11px;color:#888;margin-top:2px">Sekarang: ${x.cur?(x.cur.skip?'🚫 Tidak order':x.cur.name):'—'}</div>
 </div>
 ${isCur?'<span style="font-size:11px;color:#1a6b3c;font-weight:700;flex-shrink:0">✓ Sudah</span>':'<span style="font-size:11px;color:#1a6b3c;font-weight:600;flex-shrink:0">Tetapkan →</span>'}
 </div>`;
-}).join('')}
+}).join('');
+const rowsPend=pending.map(n=>{
+const hidden=q&&!n.toLowerCase().includes(q);
+return`<div data-as-pending="1" data-as-name="${esc(n.toLowerCase())}" style="display:${hidden?'none':'flex'};align-items:center;gap:10px;padding:10px;border-radius:8px;background:#fafafa;border:1.5px dashed #e0e0e0;margin-bottom:5px;opacity:0.75">
+<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:#888">${n}</div></div>
+<span style="font-size:10px;color:#e65100;font-weight:600;flex-shrink:0">⏳ Belum order</span>
+</div>`;
+}).join('');
+return`<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:110;display:flex;align-items:flex-end;justify-content:center" id="as-overlay">
+<div style="background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;height:auto;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+<div style="padding:16px 16px 8px;flex-shrink:0">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+<h3 style="font-size:15px;font-weight:700;margin:0">Tetapkan kepada peserta</h3>
+<button id="as-close" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;padding:0 4px;line-height:1">✕</button>
 </div>
-<p id="as-count" style="font-size:11px;color:#888;text-align:center;margin-top:8px"></p>`}
+<p style="font-size:12px;color:#666;margin-bottom:8px">🍜 <b>${menu.name}</b>${menu.isVegan?'<span class="vtag">Vegan</span>':''} — ¥${(menu.price||0).toLocaleString()}</p>
+<div style="position:relative">
+<input class="inp" id="as-search" placeholder="🔍 Cari nama peserta..." value="${esc(as.query||'')}" style="margin-bottom:0;padding-right:36px;font-size:13px"/>
+<button id="as-clear" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:#eee;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;color:#666;display:${q?'flex':'none'};align-items:center;justify-content:center;font-weight:700">×</button>
+</div>
+</div>
+<div style="flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 16px;background:#f9f9f9">
+<div id="as-hdr-ok" style="display:${shownOk===0?'none':'block'};font-size:11px;font-weight:700;color:#1a6b3c;margin:0 0 6px">✅ SUDAH ORDER — BOLEH DITETAPKAN (${people.length})</div>
+${rowsOk}
+<div id="as-hdr-pend" style="display:${shownPend===0?'none':'block'};font-size:11px;font-weight:700;color:#e65100;margin:${people.length?'14px':'0'} 0 4px">⏳ BELUM ORDER (${pending.length})</div>
+<div id="as-note-pend" style="display:${shownPend===0?'none':'block'};font-size:11px;color:#888;line-height:1.6;margin-bottom:8px">Menu hanya boleh ditetapkan selepas mereka hantar pesanan. Sekarang menu vegan sudah wujud, jadi mereka boleh terus pilih sendiri melalui link trip.</div>
+${rowsPend}
+<div id="as-empty" style="display:${shownOk+shownPend===0?'block':'none'};padding:22px 10px;text-align:center;font-size:12px;color:#888;line-height:1.6">Tiada nama sepadan.<br><span style="font-size:11px">Cuba sebahagian nama sahaja, cth: "amiza".</span></div>
+</div>
+<div style="padding:10px 16px 18px;border-top:1px solid #eee;flex-shrink:0;background:#fff">
+<div id="as-count" style="font-size:11px;color:#888;text-align:center;margin-bottom:8px">${people.length} sudah order · ${pending.length} belum order</div>
+<button class="b2" id="as-close2" style="margin:0">Tutup</button>
+</div>
 </div>
 </div>`;
 }
+
 function rPriceApplyModal(){
 const pa=S.priceApply;
 if(!pa||!pa.active)return'';
@@ -1404,14 +1432,14 @@ ${pa.impacts.length===0?`<p style="font-size:12px;color:#888;text-align:center;p
 <div style="background:#f9f9f9;border-radius:10px;padding:6px;margin-bottom:12px">${rows}</div>
 ${anyPaid?`<div class="warnsec" style="font-size:11px">⚠️ Trip bertanda merah sudah ada duit dikutip. Menukar harga di situ buat jumlah bil tidak sepadan dengan wang yang sebenarnya diterima — jadi ia <b>tidak ditanda</b> secara lalai.</div>`:''}`}`;
 return`<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:110;display:flex;align-items:flex-end;justify-content:center" id="pa-overlay">
-<div style="background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:18px 16px 22px;max-height:88vh;overflow-y:auto">
-<div style="text-align:center;margin-bottom:12px">
+<div style="background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+<div style="text-align:center;padding:18px 16px 6px;flex-shrink:0">
 <div style="font-size:26px">💴</div>
 <h3 style="margin:6px 0 0;font-size:16px;font-weight:700">Sebarkan Harga Baru</h3>
 <p style="font-size:11px;color:#888;margin-top:4px">${nDrafts} harga menu diubah</p>
 </div>
-${body}
-<div style="display:flex;gap:8px;margin-top:6px">
+<div style="flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px 16px 10px">${body}</div>
+<div style="display:flex;gap:8px;padding:10px 16px 18px;border-top:1px solid #eee;flex-shrink:0;background:#fff">
 <button class="b2" id="pa-cancel" style="margin:0;flex:1;padding:14px 0">Batal</button>
 <button class="b1" id="pa-confirm" style="margin:0;flex:2" ${pa.loading?'disabled':''}>✓ Sahkan & Simpan</button>
 </div>
@@ -2572,7 +2600,10 @@ render();
 document.querySelectorAll("[data-asopen]").forEach(b=>b.addEventListener("click",()=>{
 S.assignSpecial={active:true,menuId:parseInt(b.dataset.asopen),query:""};render();
 }));
-on("as-close","click",()=>{S.assignSpecial={active:false,menuId:null,query:""};render();});
+const asClose=()=>{S.assignSpecial={active:false,menuId:null,query:""};render();};
+on("as-close","click",asClose);
+on("as-close2","click",asClose);
+on("as-clear","click",()=>{S.assignSpecial.query="";render();});
 on("as-overlay","click",e=>{if(e.target.id==="as-overlay"){S.assignSpecial={active:false,menuId:null,query:""};render();}});
 const asInp=document.getElementById("as-search");
 if(asInp){
@@ -2580,15 +2611,24 @@ if(asInp){
 asInp.addEventListener("input",e=>{
 const q=e.target.value.toLowerCase().trim();
 S.assignSpecial.query=q;
-let visible=0,total=0;
+let vOk=0,tOk=0,vPend=0,tPend=0;
 document.querySelectorAll("[data-as-pick]").forEach(row=>{
-const nm=row.dataset.asName||"";
-const ok=!q||nm.includes(q);
-row.style.display=ok?"flex":"none";
-total++;if(ok)visible++;
+const ok=!q||(row.dataset.asName||"").includes(q);
+row.style.display=ok?"flex":"none";tOk++;if(ok)vOk++;
 });
+document.querySelectorAll("[data-as-pending]").forEach(row=>{
+const ok=!q||(row.dataset.asName||"").includes(q);
+row.style.display=ok?"flex":"none";tPend++;if(ok)vPend++;
+});
+const show=(id,on)=>{const el=document.getElementById(id);if(el)el.style.display=on?"block":"none";};
+show("as-hdr-ok",vOk>0);
+show("as-hdr-pend",vPend>0);
+show("as-note-pend",vPend>0);
+show("as-empty",vOk+vPend===0);
 const c=document.getElementById("as-count");
-if(c)c.textContent=q?(visible===0?`Tiada nama sepadan "${q}"`:`${visible} daripada ${total} peserta`):"";
+if(c)c.textContent=q?`${vOk} sudah order · ${vPend} belum order (sepadan)`:`${tOk} sudah order · ${tPend} belum order`;
+const cl=document.getElementById("as-clear");
+if(cl)cl.style.display=q?"flex":"none";
 });
 }
 document.querySelectorAll("[data-as-pick]").forEach(row=>row.addEventListener("click",async()=>{
