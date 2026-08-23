@@ -149,12 +149,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v16 — preset vegan 1050 + harga menu khas boleh diedit -->
+<!-- BUILD: v17 — preset kesan menu sedia ada + tawar tukar harga -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v16 starting…");
+console.log("[Tour-Order] Build v17 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -1479,6 +1479,28 @@ s.sides.forEach(sd=>{if(typeof sd.price==='number')map.sides[s.id][sd.id]=sd.pri
 return map;
 }
 
+// Tukar harga satu menu khas dan segerakkan pesanan yang sudah memilihnya.
+async function applySpecialPrice(mid,val){
+const tid=S.selTrip;const trip=S.trips.find(t=>t.id===tid);
+if(!trip||!Array.isArray(trip.sesi))return false;
+const namba=trip.sesi.find(s=>s.id==="namba");if(!namba)return false;
+const menu=(namba.menus||[]).find(m=>m.id===mid);if(!menu)return false;
+if(isNaN(val)||val<0){toast("Harga tidak sah.");render();return false;}
+if(menu.price===val){render();return true;}
+menu.price=val;
+let n=0;const dirty={};
+S.orders.forEach(o=>(o.persons||[]).forEach(p=>{
+const it=p.namba;
+if(it&&!it.skip&&it.id===mid&&it.price!==val){it.price=val;n++;dirty[o.id]=o;}
+}));
+try{
+await saveTrip(trip);
+for(const o of Object.values(dirty))await saveOrder(tid,o);
+await loadOrders(tid);
+toast(n>0?`✓ ¥${val.toLocaleString()} · ${n} pesanan disegerak`:`✓ Harga → ¥${val.toLocaleString()}`);
+render();return true;
+}catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");render();return false;}
+}
 // Buat pesanan bagi pihak peserta yang belum order, dari panel admin.
 function startOrderOnBehalf(pesertaNama,preMenuId){
 const trip=S.trips.find(t=>t.id===S.selTrip);
@@ -1960,9 +1982,17 @@ ${(()=>{const nb=sl.find(x=>x.id==="namba");const sp=nb?(nb.menus||[]).filter(m=
 <input type="number" min="0" step="50" value="${m.price||0}" data-spprice="${m.id}" inputmode="numeric" title="Tukar harga" style="width:72px;padding:4px 6px;font-size:11px;border:1px solid #ddd;border-radius:6px;text-align:right;outline:none;flex-shrink:0"/>
 <button class="bsm g" data-asopen="${m.id}" style="padding:4px 9px;font-size:10px;flex-shrink:0">👤 Tetapkan</button>
 <button style="font-size:12px;color:#e53935;background:none;border:none;cursor:pointer;padding:2px 6px" data-rmspecial="${m.id}" title="Buang">✕</button>
-</div>`).join('')}</div>`:'';})()}
+</div>`).join('')}</div>
+<div style="font-size:10px;color:#888;margin:-4px 0 10px;padding:0 2px;line-height:1.5">💡 Tukar harga terus dalam kotak <b>¥</b> di atas — pesanan sedia ada akan disegerak sekali.</div>`:'';})()}
 <div style="display:flex;gap:6px;margin-bottom:10px">
-${VEGAN_PRESETS.map(v=>`<button class="bsm" data-sppreset="${v.name}" data-spval="${v.price}" style="flex:1;border-color:#1a6b3c;color:#1a6b3c">🌱 ${v.short} ¥${v.price.toLocaleString()}</button>`).join('')}
+${VEGAN_PRESETS.map(v=>{
+const nb2=sl.find(x=>x.id==="namba");
+const ex=nb2?(nb2.menus||[]).find(m=>m.name.toLowerCase()===v.name.toLowerCase()):null;
+const same=ex&&ex.price===v.price;
+const col=ex?(same?'#bbb':'#ff9800'):'#1a6b3c';
+const txt=ex?(same?`✓ ${v.short} — ada`:`⚠ ${v.short} ¥${ex.price.toLocaleString()} → ¥${v.price.toLocaleString()}`):`🌱 ${v.short} ¥${v.price.toLocaleString()}`;
+return`<button class="bsm" data-sppreset="${v.name}" data-spval="${v.price}"${ex?` data-spexists="${ex.id}"`:''} style="flex:1;border-color:${col};color:${same?'#888':ex?'#e65100':'#1a6b3c'};font-size:10px;padding:7px 6px;line-height:1.3">${txt}</button>`;
+}).join('')}
 </div>
 <input class="inp" id="sp-nama" placeholder="Nama menu (cth: Vegetable Shoyu Ramen)" value="${S.addSpecial}"/>
 <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
@@ -2633,36 +2663,28 @@ on("cp-namepermenu","click",()=>{const t=S.trips.find(t=>t.id===S.selTrip);if(t)
 on("sp-nama","input",e=>S.addSpecial=e.target.value);
 on("sp-harga","input",e=>S.addSpecialPrice=e.target.value);
 on("sp-vegan","change",e=>S.addSpecialVegan=e.target.checked);
-document.querySelectorAll("[data-sppreset]").forEach(b=>b.addEventListener("click",()=>{
-S.addSpecial=b.dataset.sppreset;
+document.querySelectorAll("[data-sppreset]").forEach(b=>b.addEventListener("click",async()=>{
+const nama=b.dataset.sppreset;
+const val=parseInt(b.dataset.spval)||0;
+const exId=b.dataset.spexists?parseInt(b.dataset.spexists):null;
+if(exId){
+const trip=S.trips.find(t=>t.id===S.selTrip);
+const namba=trip&&Array.isArray(trip.sesi)?trip.sesi.find(s=>s.id==="namba"):null;
+const menu=namba?(namba.menus||[]).find(m=>m.id===exId):null;
+if(!menu)return;
+if(menu.price===val){toast(`"${nama}" sudah ada pada ¥${val.toLocaleString()}.`);return;}
+if(!confirm(`"${nama}" sudah ada dalam senarai pada ¥${menu.price.toLocaleString()}.\n\nTukar harganya ke ¥${val.toLocaleString()}?\nPesanan sedia ada yang pilih menu ini akan disegerak sekali.`))return;
+await applySpecialPrice(exId,val);
+return;
+}
+S.addSpecial=nama;
 S.addSpecialVegan=true;
-S.addSpecialPrice=b.dataset.spval||"";
+S.addSpecialPrice=String(val);
 render();
 }));
 // Edit harga menu khas terus dalam senarai — segerak sekali dengan pesanan sedia ada
 document.querySelectorAll("[data-spprice]").forEach(inp=>inp.addEventListener("change",async()=>{
-const mid=parseInt(inp.dataset.spprice);
-const val=parseInt(inp.value);
-const tid=S.selTrip;const trip=S.trips.find(t=>t.id===tid);
-if(!trip||!Array.isArray(trip.sesi))return;
-const namba=trip.sesi.find(s=>s.id==="namba");if(!namba)return;
-const menu=(namba.menus||[]).find(m=>m.id===mid);if(!menu)return;
-if(isNaN(val)||val<0){toast("Harga tidak sah.");render();return;}
-if(menu.price===val)return;
-menu.price=val;
-// Betulkan harga beku dalam pesanan yang sudah pilih menu ini
-let n=0;const dirty={};
-S.orders.forEach(o=>(o.persons||[]).forEach(p=>{
-const it=p.namba;
-if(it&&!it.skip&&it.id===mid&&it.price!==val){it.price=val;n++;dirty[o.id]=o;}
-}));
-try{
-await saveTrip(trip);
-for(const o of Object.values(dirty))await saveOrder(tid,o);
-await loadOrders(tid);
-toast(n>0?`✓ ¥${val.toLocaleString()} · ${n} pesanan disegerak`:`✓ Harga → ¥${val.toLocaleString()}`);
-render();
-}catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");render();}
+await applySpecialPrice(parseInt(inp.dataset.spprice),parseInt(inp.value));
 }));
 on("add-special","click",async()=>{
 const nama=S.addSpecial.trim();if(!nama){toast("Sila masukkan nama menu.");return;}
@@ -2673,7 +2695,14 @@ const tid=S.selTrip;const trip=S.trips.find(t=>t.id===tid);if(!trip){toast("Sila
 if(!Array.isArray(trip.sesi))trip.sesi=JSON.parse(JSON.stringify(SESI));
 const namba=trip.sesi.find(s=>s.id==="namba");if(!namba)return;
 if(!Array.isArray(namba.menus))namba.menus=[];
-if(namba.menus.some(m=>m.name.toLowerCase()===nama.toLowerCase())){toast("Menu dengan nama itu sudah ada.");return;}
+const dup=namba.menus.find(m=>m.name.toLowerCase()===nama.toLowerCase());
+if(dup){
+if(dup.price===harga){toast(`"${dup.name}" sudah ada pada ¥${harga.toLocaleString()}.`);return;}
+if(!confirm(`"${dup.name}" sudah ada dalam senarai pada ¥${dup.price.toLocaleString()}.\n\nTukar harganya ke ¥${harga.toLocaleString()}?\nPesanan sedia ada akan disegerak sekali.`))return;
+S.addSpecial="";S.addSpecialPrice="";S.addSpecialVegan=false;
+await applySpecialPrice(dup.id,harga);
+return;
+}
 const isVegan=!!S.addSpecialVegan;
 const newId=Date.now();
 namba.menus.push({id:newId,name:nama,price:harga,desc:isVegan?"Pilihan vegan":"Menu khas",isSpecial:true,isVegan});
