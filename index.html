@@ -149,12 +149,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v20 — cukai 10% Fuji, bil dibundar ke atas ke ¥10 -->
+<!-- BUILD: v21 — import PDF: terima format tarikh Seishin baharu (YYYY/MM/DD) -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v20 starting…");
+console.log("[Tour-Order] Build v21 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -345,13 +345,21 @@ const MONTH_MAP={jan:'01',feb:'02',mac:'03',mar:'03',apr:'04',may:'05',mei:'05',
 function parseItinerary(lines){
 const text=lines.join('\n');
 const out={tarikhMula:null,bookingRef:null,mod:'tren',pax:null,groupName:null,dayModes:{}};
-// Day 1 date — format: "Day 1 25-May-26 (Mon)"
-const m=text.match(/Day\s*1\s+(\d{1,2})[-/](\w+)[-/](\d{2,4})/i);
-if(m){
-const day=m[1].padStart(2,'0');
-const monKey=m[2].toLowerCase().substr(0,3);
+// Day 1 date — Seishin guna DUA format, kedua-duanya mesti diterima:
+//   lama   : "Day 1 25-May-26 (Mon)"     → hari-Bulan-tahun, sengkang
+//   baharu : "Day 1 2026/09/14"          → tahun/bulan/hari, garis miring
+// Terima juga "2026-09-14" kerana eksport lain kadang guna sengkang.
+const mISO=text.match(/Day\s*1\s+(\d{4})[-/](\d{1,2})[-/](\d{1,2})/i);
+const mDMY=text.match(/Day\s*1\s+(\d{1,2})[-/]([A-Za-z]{3,})[-/](\d{2,4})/i);
+if(mISO){
+const month=mISO[2].padStart(2,'0');
+const day=mISO[3].padStart(2,'0');
+if(+month>=1&&+month<=12&&+day>=1&&+day<=31)out.tarikhMula=`${mISO[1]}-${month}-${day}`;
+}else if(mDMY){
+const day=mDMY[1].padStart(2,'0');
+const monKey=mDMY[2].toLowerCase().substr(0,3);
 const month=MONTH_MAP[monKey];
-let year=m[3];if(year.length===2)year='20'+year;
+let year=mDMY[3];if(year.length===2)year='20'+year;
 if(month)out.tarikhMula=`${year}-${month}-${day}`;
 }
 // Booking Ref
@@ -364,7 +372,11 @@ if(g)out.groupName=`Group ${g[1]}`;
 const p=text.match(/(\d{1,3})\s+PAX/i);
 if(p)out.pax=parseInt(p[1]);
 // Day-by-day mode detection
-const dayRe=/Day\s*(\d+)\s+\d{1,2}[-/]\w+[-/]\d{2,4}/gi;
+// Mesti terima kedua-dua format tarikh, sama seperti Day 1 di atas.
+// Kalau ini gagal padan, dayModes jadi kosong dan mod sistem jatuh ke
+// carian "big bus" seluruh dokumen — yang memilih BAS walaupun Day 2
+// tertulis "No bus service". Salah senyap. Jangan ringkaskan corak ini.
+const dayRe=/Day\s*(\d+)\s+(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/][A-Za-z]{3,}[-/]\d{2,4})/gi;
 const dMatches=[...text.matchAll(dayRe)];
 // Cari end marker — guna pattern unik kepada penghujung dokumen (bukan header)
 const endM=text.match(/TOUR\s*REMARKS|Bank\s*Details|Acceptance\s+\d/i);
