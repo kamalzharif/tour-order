@@ -149,12 +149,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v21 — import PDF: terima format tarikh Seishin baharu (YYYY/MM/DD) -->
+<!-- BUILD: v22 — kuota slot ikut senarai peserta, bukan panjang array persons -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v21 starting…");
+console.log("[Tour-Order] Build v22 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -624,6 +624,22 @@ if(m)ordered.add(m.match.nama);
 });
 });
 return ordered;
+}
+// Kira slot. Bila trip ada senarai peserta, kuota ikut senarai itu
+// (bilangan peserta yang sudah padan), BUKAN panjang array persons.
+// Sebab: entry order yang namanya tak padan senarai dulunya makan
+// kuota, sampai peserta sah tersekat "Slot pesanan sudah penuh".
+function slotInfo(trip,orders){
+const os=orders||[];
+const entries=os.reduce((s,o)=>s+((o.persons||[]).length||1),0);
+const senarai=trip&&trip.peserta&&trip.peserta.length?trip.peserta:null;
+if(senarai){
+const used=getAllOrderedPesertaNames(os,senarai).size;
+const pax=senarai.length;
+return{pax:pax,used:used,rem:Math.max(0,pax-used),entries:entries,hantu:Math.max(0,entries-used),ikutSenarai:true};
+}
+const pax=(trip&&trip.pax)||22;
+return{pax:pax,used:entries,rem:Math.max(0,pax-entries),entries:entries,hantu:0,ikutSenarai:false};
 }
 function suggestTripNama(itin,room){
 const dt=room.tarikhTrip||'';
@@ -1557,8 +1573,7 @@ function startOrderOnBehalf(pesertaNama,preMenuId){
 const trip=S.trips.find(t=>t.id===S.selTrip);
 if(!trip){toast("Trip tidak ditemui.");return;}
 if(findOrderByName(pesertaNama,S.orders)){toast("Peserta ini sudah ada pesanan.");return;}
-const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-if((trip.pax||22)-used<=0){toast("Slot pesanan sudah penuh.");return;}
+if(slotInfo(trip,S.orders).rem<=0){toast("Slot pesanan sudah penuh.");return;}
 S.tripId=trip.id;S.tripData=trip;
 const person={personName:pesertaNama};
 // Pra-pilih menu yang sedang ditetapkan supaya tinggal Fuji & Nara sahaja
@@ -1597,8 +1612,29 @@ const tot=trip.peserta.length;
 const ok=orderedNames.size;
 const pct=tot>0?Math.round(ok/tot*100):0;
 const pending=trip.peserta.filter(p=>!orderedNames.has(p.nama));
+// Kesan entry order yang tak padan senarai peserta — inilah yang dulu
+// makan kuota secara senyap sampai slot nampak penuh.
+const si=slotInfo(trip,orders);
+const pelik=[];
+if(si.hantu>0)orders.forEach(o=>{
+const ps=o.persons||[];
+const bil=ps.length||1;
+const padan=new Set();
+ps.forEach((p,i)=>{
+const n=p.personName||(i===0?o.name:null);
+if(!n)return;
+const m=fuzzyMatchPeserta(n,trip.peserta);
+if(m)padan.add(m.match.nama);
+});
+if(padan.size<bil)pelik.push({nama:o.name,bil:bil,padan:padan.size});
+});
 return`<div class="trkbox">
 <h4>📊 Status Pesanan Peserta</h4>
+${si.hantu>0?`<div class="warnsec" style="background:#fff3e0;border-left-color:#ff9800;color:#e65100;margin-bottom:10px">
+⚠️ <b>${si.hantu} entry order tak padan senarai peserta</b><br>
+<span style="font-size:11px">Jumlah Pax (${si.entries}) lebih daripada peserta yang dikesan (${si.used}). Punca biasa: bilangan orang terlebih isi, nama tersalah eja, atau peserta sama di-order dua kali.</span>
+${pelik.length?`<div style="margin-top:8px;font-size:11px">${pelik.map(x=>`• <b>${x.nama}</b> — isi ${x.bil} orang, ${x.padan} padan senarai`).join("<br>")}</div>`:''}
+</div>`:''}
 <div class="trkrow">
 <div class="trksc"><div class="v ok">${ok}</div><div class="l">Sudah order</div></div>
 <div class="trksc"><div class="v pending">${tot-ok}</div><div class="l">Belum order</div></div>
@@ -1783,9 +1819,8 @@ return`<div class="hdr"><div style="font-size:44px;margin-bottom:10px">🍱</div
 function rOrder(){
 const trip=S.tripData;if(!trip)return`<div class="loading">❌</div>`;
 const sl=trip.sesi||SESI;
-const pax=trip.pax||22;
-const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-const rem=pax-used;
+const _si=slotInfo(trip,S.orders);
+const pax=_si.pax,used=_si.used,rem=_si.rem;
 if(S.submitted){
 const o=S.form;
 const wasEdit=S.lastWasEdit;
@@ -2018,6 +2053,7 @@ const trip=S.trips.find(t=>t.id===S.selTrip)||S.trips[0];
 const sl=trip?(trip.sesi||SESI):SESI;
 const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
+const _si=slotInfo(trip,orders);
 if(S.adminTab==="trips"){
 const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax &nbsp;🚌 ${t.mod||'tren'}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm" data-priceedit-trip="${t.id}" style="border-color:#ff9800;color:#e65100">💴 Harga</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn active" data-tab="trips">🗺️ Trip</button> <button class="tabbtn" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> <div class="stitle">Senarai Trip</div>${cards}
@@ -2026,7 +2062,7 @@ ${rBookingSec()}
 }
 if(S.adminTab==="orders"){
 const sel=rTripSelect();
-return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div>
+return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${_si.pax}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${_si.rem}</div></div> </div> ${rTracking(trip,orders)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div>
 ${(()=>{const nb=sl.find(x=>x.id==="namba");const sp=nb?(nb.menus||[]).filter(m=>m.isSpecial):[];return sp.length?`<div style="background:#fff;border-radius:10px;padding:6px;margin-bottom:10px">${sp.map(m=>`<div style="display:flex;align-items:center;gap:6px;padding:8px 9px;border-bottom:1px solid #f5f5f5;font-size:12px;flex-wrap:wrap">
 <span style="flex:1;min-width:110px">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''}</span>
 <span style="font-size:10px;color:#888;font-weight:600">¥</span>
@@ -2186,6 +2222,7 @@ const trip=S.trips.find(t=>t.id===S.selTrip)||S.trips[0];
 const sl=trip?(trip.sesi||SESI):SESI;
 const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
+const _si=slotInfo(trip,orders);
 const sel=rTripSelect();
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tour Leader</h2></div>
 <div class="body" style="padding-bottom:40px">
@@ -2193,8 +2230,8 @@ return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tou
     ${sel}
     <div class="srow">
       <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div>
-      <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div>
-      <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div>
+      <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${_si.pax}</div></div>
+      <div class="sc"><div class="sl">Tinggal</div><div class="sv">${_si.rem}</div></div>
     </div>
     ${rTracking(trip,orders)}
     ${rPaymentDashboard(trip,orders)}
@@ -3019,9 +3056,9 @@ if((S.form.selectedMembers||[]).length>need)S.form.selectedMembers=S.form.select
 render();
 });
 on("cnt-plus","click",()=>{
-const trip=S.tripData;const pax=trip?trip.pax:22;
-const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-S.form.pax=Math.min(S.form.pax+1,pax-used);
+// Kaunter tidak boleh jatuh ke 0. Dulu Math.min(pax+1, 0) buat
+// nilai jadi 0 bila slot penuh, jadi butang "+" nampak rosak.
+S.form.pax=Math.max(1,Math.min(S.form.pax+1,slotInfo(S.tripData,S.orders).rem));
 render();
 });
 document.querySelectorAll(".member-chk").forEach(c=>c.addEventListener("change",e=>{
@@ -3058,8 +3095,8 @@ render();
 document.querySelectorAll("[data-ptab]").forEach(b=>b.addEventListener("click",()=>{S.activePerson=parseInt(b.dataset.ptab);render();}));
 on("next-step","click",async()=>{
 const trip=S.tripData;const sl=trip.sesi||SESI;
-const pax=trip?trip.pax:22;
-const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);const rem=pax-used;
+const _si=slotInfo(trip,S.orders);
+const pax=_si.pax,used=_si.used,rem=_si.rem;
 if(S.step===1){
 const name=$("order-name")?.value?.trim()||S.form.name.trim();
 S.form.name=name;
