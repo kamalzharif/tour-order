@@ -17,6 +17,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .body{padding:20px 16px 120px}
 .b1{width:100%;padding:16px 0;font-size:15px;border-radius:14px;cursor:pointer;background:#1a6b3c;border:none;color:#fff;font-weight:600;margin-bottom:10px}
 .b1:disabled{background:#ccc;cursor:not-allowed}
+.b2:disabled{opacity:.5;cursor:not-allowed}
+.okbox{background:#f0f9f4;border:1.5px solid #1a6b3c;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#1a6b3c;line-height:1.5}
+.ref{font-family:ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:.5px}
 .b2{width:100%;padding:14px 0;font-size:14px;border-radius:14px;cursor:pointer;background:#f5f5f5;border:1px solid #ddd;color:#1a1a1a;margin-bottom:10px}
 .bcp{width:100%;padding:12px 0;font-size:13px;border-radius:10px;cursor:pointer;background:#fff;border:1px solid #1a6b3c;color:#1a6b3c;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px}
 .inp{width:100%;padding:13px 14px;font-size:15px;border-radius:10px;border:1px solid #ddd;background:#fff;color:#1a1a1a;margin-bottom:12px;outline:none}
@@ -149,7 +152,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v22 — kuota slot ikut senarai peserta, bukan panjang array persons -->
+<!-- BUILD: v22 — elak pesanan berganda: butang Hantar dikunci, semakan ikut nama rasmi, skrin pengesahan + no. rujukan -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
@@ -511,6 +514,66 @@ const np=norm(p.personName);
 return inpWords.every(w=>np.includes(w));
 }));
 }
+// ── Elak pesanan berganda (v22) ──────────────────────
+// Cari pesanan sedia ada untuk satu nama. Kalau trip ada senarai peserta dan
+// nama itu dijumpai dalam senarai, semakan dibuat ikut NAMA RASMI — jadi
+// "Muhammad Faizal", "Muhd Faizal" atau salah eja kecil tetap dikenal pasti
+// sebagai orang yang sama, termasuk kalau dia dimasukkan oleh wakil lain.
+// Tiada senarai, atau nama di luar senarai: guna nama yang ditaip (cara lama).
+// excludeId: abaikan pesanan ini (pesanan sendiri yang sedang dihantar).
+// Pulang {nama,order} atau null.
+function cariPendua(nama,peserta,orders,excludeId){
+const list=(orders||[]).filter(o=>o&&o.id!==excludeId);
+if(!nama||!list.length)return null;
+const m=peserta&&peserta.length?fuzzyMatchPeserta(nama,peserta):null;
+if(!m||m.ambiguous){const o=findOrderByName(nama,list);return o?{nama,order:o}:null;}
+const rasmi=m.match.nama;
+for(const o of list){
+const ps=o.persons||[];
+const names=ps.length?ps.map((p,i)=>(p&&p.personName)||(i===0?o.name:null)):[o.name];
+for(const n of names){
+if(!n)continue;
+const mm=fuzzyMatchPeserta(n,peserta);
+if(mm&&mm.match.nama===rasmi)return{nama:rasmi,order:o};
+}
+}
+return null;
+}
+// Semakan terakhir sebelum simpan: siapa dalam borang ini yang sudah ada
+// pesanan LAIN? Pesanan borang ini sendiri (form.orderId) diabaikan.
+function cariBertindih(form,orders,peserta){
+const out=[];
+((form&&form.persons)||[]).forEach((p,i)=>{
+const n=(p&&p.personName)||(i===0?form.name:null);
+if(!n)return;
+const d=cariPendua(n,peserta,orders,form.orderId);
+if(d)out.push({idx:i,nama:d.nama,order:d.order});
+});
+return out;
+}
+// Langkah 1: kenal pasti wakil, kemudian semak pendua ikut NAMA RASMI.
+// Nama kabur (2+ peserta sepadan) mesti dipilih DAHULU — kalau tidak, pesanan
+// Faizal A boleh tersalah menghalang Faizal B. Pulang salah satu:
+// {jenis:'kosong'} | {jenis:'pilih',calon} | {jenis:'pendua',dup} | {jenis:'ok',m}
+function semakWakil(name,peserta,orders){
+if(!name)return{jenis:'kosong'};
+const m=peserta&&peserta.length?fuzzyMatchPeserta(name,peserta):null;
+if(m&&m.ambiguous)return{jenis:'pilih',calon:m.candidates};
+const d=cariPendua(m?m.match.nama:name,peserta,orders);
+if(d)return{jenis:'pendua',dup:{nama:d.nama,orderId:d.order.id,by:d.order.name}};
+return{jenis:'ok',m};
+}
+// No. rujukan pendek untuk skrin pengesahan: 4 aksara terakhir ID pesanan
+function refCode(id){return id?'#'+String(id).slice(-4).toUpperCase():'';}
+// Ingatan telefon: pesanan yang dihantar dari telefon ini. BANTUAN sahaja —
+// tukar telefon atau pelayar, ia tak ingat. Penghalang sebenar: cariPendua.
+function mineKey(tid){return`tourorder_mine_${tid}`;}
+function loadMine(tid){
+try{const v=JSON.parse(localStorage.getItem(mineKey(tid))||"[]");return Array.isArray(v)?v.filter(x=>x&&x.id):[];}catch(e){return[];}
+}
+function rememberMine(tid,o){
+try{const l=loadMine(tid).filter(x=>x.id!==o.id);l.push({id:o.id,name:o.name});localStorage.setItem(mineKey(tid),JSON.stringify(l.slice(-10)));}catch(e){}
+}
 function getCanSkip(sesi){
 if(sesi.canSkip!==undefined)return sesi.canSkip;
 const gs=SESI.find(s=>s.id===sesi.id);
@@ -624,22 +687,6 @@ if(m)ordered.add(m.match.nama);
 });
 });
 return ordered;
-}
-// Kira slot. Bila trip ada senarai peserta, kuota ikut senarai itu
-// (bilangan peserta yang sudah padan), BUKAN panjang array persons.
-// Sebab: entry order yang namanya tak padan senarai dulunya makan
-// kuota, sampai peserta sah tersekat "Slot pesanan sudah penuh".
-function slotInfo(trip,orders){
-const os=orders||[];
-const entries=os.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-const senarai=trip&&trip.peserta&&trip.peserta.length?trip.peserta:null;
-if(senarai){
-const used=getAllOrderedPesertaNames(os,senarai).size;
-const pax=senarai.length;
-return{pax:pax,used:used,rem:Math.max(0,pax-used),entries:entries,hantu:Math.max(0,entries-used),ikutSenarai:true};
-}
-const pax=(trip&&trip.pax)||22;
-return{pax:pax,used:entries,rem:Math.max(0,pax-entries),entries:entries,hantu:0,ikutSenarai:false};
 }
 function suggestTripNama(itin,room){
 const dt=room.tarikhTrip||'';
@@ -1009,6 +1056,7 @@ view:"home",tripId:null,tripData:null,trips:[],orders:[],
 adminOn:false,leaderOn:false,passErr:"",adminTab:"trips",selTrip:null,
 form:{name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null},step:1,sesiIdx:0,activePerson:0,
 submitted:false,formErr:"",loading:true,
+saving:false,slowSave:false,lastSaved:null,
 newTrip:{nama:"",tarikh:"",tarikhMula:"",mod:"tren",pax:""},
 addSpecial:"",addSpecialPrice:"",addSpecialVegan:false,
 assignSpecial:{active:false,menuId:null,query:""},
@@ -1016,7 +1064,7 @@ onBehalf:{active:false,returnTab:null},
 imgs:{},
 pendingImgs:{},pickedFiles:[],imgPreviews:[],selectingFileIdx:null,
 priceDrafts:{},defaultPrices:{},
-checkName:"",checkDone:false,
+checkName:"",checkDone:false,checkOrderId:null,
 pdfFlow:{step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""},
 editing:{active:false,orderId:null,origView:null,returnSelTrip:null},
 priceEditor:{active:false,tripId:null,sesiCopy:null,originalSesi:null},
@@ -1572,8 +1620,9 @@ render();return true;
 function startOrderOnBehalf(pesertaNama,preMenuId){
 const trip=S.trips.find(t=>t.id===S.selTrip);
 if(!trip){toast("Trip tidak ditemui.");return;}
-if(findOrderByName(pesertaNama,S.orders)){toast("Peserta ini sudah ada pesanan.");return;}
-if(slotInfo(trip,S.orders).rem<=0){toast("Slot pesanan sudah penuh.");return;}
+if(cariPendua(pesertaNama,trip.peserta,S.orders)){toast("Peserta ini sudah ada pesanan.");return;}
+const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
+if((trip.pax||22)-used<=0){toast("Slot pesanan sudah penuh.");return;}
 S.tripId=trip.id;S.tripData=trip;
 const person={personName:pesertaNama};
 // Pra-pilih menu yang sedang ditetapkan supaya tinggal Fuji & Nara sahaja
@@ -1588,6 +1637,75 @@ S.onBehalf={active:true,returnTab:"orders"};
 S.assignSpecial={active:false,menuId:null,query:""};
 S.step=2;S.sesiIdx=0;S.activePerson=0;S.submitted=false;S.formErr="";
 S.view="order";render();
+}
+// ── Hantar pesanan (butang akhir) ───────────────────
+// v22: elak pesanan berganda.
+//  1. Dikunci semasa menghantar — tekan dua kali tidak buat dua pesanan.
+//  2. Setiap borang baharu dapat SATU nombor pesanan tetap (form.orderId);
+//     kalau terpaksa hantar semula, ia menulis atas pesanan yang sama.
+//  3. Semakan akhir dengan data terkini: mungkin ada pesanan lain untuk
+//     nama yang sama dibuat sejak langkah 1 (telefon lain, ahli keluarga).
+const SLOW_SAVE_MS=6000;
+async function hantarPesanan(){
+if(S.saving)return;
+const isEdit=S.editing.active;
+const onBhf=!!(S.onBehalf&&S.onBehalf.active);
+if(!isEdit){
+if(!S.form.orderId)S.form.orderId=genId();
+const trip=S.tripData;
+const clash=cariBertindih(S.form,S.orders,trip&&trip.peserta);
+if(clash.length){
+if(onBhf){
+const c=clash[0];
+S.form.saveErr=`⚠️ ${c.nama} sudah ada pesanan (dibuat oleh ${c.order.name}). Pesanan ini TIDAK dihantar — tekan ✕ untuk batal.`;
+render();return;
+}
+S.step=1;S.sesiIdx=0;S.activePerson=0;
+const w=clash.find(c=>c.idx===0);
+if(w){S.form.dup={nama:w.nama,orderId:w.order.id,by:w.order.name};S.formErr="";}
+else{
+const names=clash.map(c=>c.nama);
+S.form.selectedMembers=(S.form.selectedMembers||[]).filter(n=>!names.includes(n));
+S.formErr=`${names.map(n=>`"${n}"`).join(", ")} baru sahaja ada pesanan lain, jadi dibuang daripada pilihan anda. Sila semak dan teruskan semula.`;
+}
+render();return;
+}
+}
+const order={id:isEdit?S.editing.orderId:S.form.orderId,name:S.form.name,persons:S.form.persons};
+S.saving=true;S.slowSave=false;S.form.saveErr="";render();
+const slowT=setTimeout(()=>{if(S.saving){S.slowSave=true;render();}},SLOW_SAVE_MS);
+try{await saveOrder(S.tripId,order);}
+catch(e){
+clearTimeout(slowT);S.saving=false;S.slowSave=false;
+console.error("[Tour-Order] Gagal simpan pesanan:",e);
+S.form.saveErr=`❌ Belum berjaya ${isEdit?'disimpan':'dihantar'}. Semak internet, kemudian tekan butang di bawah sekali lagi — pesanan tidak akan berganda.`;
+render();return;
+}
+clearTimeout(slowT);S.saving=false;S.slowSave=false;
+S.lastSaved={id:order.id,name:order.name,at:new Date().toISOString()};
+if(isEdit){
+S.lastWasEdit=true;
+const back=S.editing.origView;
+const trip=S.tripId;
+S.editing={active:false,orderId:null,origView:null,returnSelTrip:null};
+if(back==="check"){S.submitted=true;render();}
+else if(back==="leader"||back==="admin"){
+S.view=back;S.step=1;S.submitted=false;S.form={name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null};
+await loadOrders(S.selTrip||trip);render();toast("✓ Perubahan disimpan!");
+} else {S.submitted=true;render();}
+} else if(S.onBehalf&&S.onBehalf.active){
+const tb=S.onBehalf.returnTab||"orders";
+const nm=order.name;
+S.onBehalf={active:false,returnTab:null};
+S.form={name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null};
+S.step=1;S.submitted=false;S.lastWasEdit=false;
+S.view="admin";S.adminTab=tb;
+await loadOrders(S.selTrip);render();
+toast(`✓ Pesanan untuk ${nm} disimpan!`);
+} else {
+rememberMine(S.tripId,order);
+S.lastWasEdit=false;S.submitted=true;render();
+}
 }
 function startPriceEdit(tripId){
 const trip=S.trips.find(t=>t.id===tripId);
@@ -1612,29 +1730,8 @@ const tot=trip.peserta.length;
 const ok=orderedNames.size;
 const pct=tot>0?Math.round(ok/tot*100):0;
 const pending=trip.peserta.filter(p=>!orderedNames.has(p.nama));
-// Kesan entry order yang tak padan senarai peserta — inilah yang dulu
-// makan kuota secara senyap sampai slot nampak penuh.
-const si=slotInfo(trip,orders);
-const pelik=[];
-if(si.hantu>0)orders.forEach(o=>{
-const ps=o.persons||[];
-const bil=ps.length||1;
-const padan=new Set();
-ps.forEach((p,i)=>{
-const n=p.personName||(i===0?o.name:null);
-if(!n)return;
-const m=fuzzyMatchPeserta(n,trip.peserta);
-if(m)padan.add(m.match.nama);
-});
-if(padan.size<bil)pelik.push({nama:o.name,bil:bil,padan:padan.size});
-});
 return`<div class="trkbox">
 <h4>📊 Status Pesanan Peserta</h4>
-${si.hantu>0?`<div class="warnsec" style="background:#fff3e0;border-left-color:#ff9800;color:#e65100;margin-bottom:10px">
-⚠️ <b>${si.hantu} entry order tak padan senarai peserta</b><br>
-<span style="font-size:11px">Jumlah Pax (${si.entries}) lebih daripada peserta yang dikesan (${si.used}). Punca biasa: bilangan orang terlebih isi, nama tersalah eja, atau peserta sama di-order dua kali.</span>
-${pelik.length?`<div style="margin-top:8px;font-size:11px">${pelik.map(x=>`• <b>${x.nama}</b> — isi ${x.bil} orang, ${x.padan} padan senarai`).join("<br>")}</div>`:''}
-</div>`:''}
 <div class="trkrow">
 <div class="trksc"><div class="v ok">${ok}</div><div class="l">Sudah order</div></div>
 <div class="trksc"><div class="v pending">${tot-ok}</div><div class="l">Belum order</div></div>
@@ -1766,7 +1863,7 @@ function rOrderList(sl,orders,canDel,isLeader){
       if(it&&!it.skip&&!it.paid)orderUnpaid++;
     }));
     return`<div class="ocard">
-    <div class="oname"><span>${o.name}${(o.persons||[]).length>1?` <span style="font-size:11px;color:#888;font-weight:400">(${o.persons.length} orang)</span>`:''}</span>
+    <div class="oname"><span>${o.name}${(o.persons||[]).length>1?` <span style="font-size:11px;color:#888;font-weight:400">(${o.persons.length} orang)</span>`:''} <span class="ref" style="font-size:10px;color:#999;font-weight:400">${refCode(o.id)}</span></span>
     ${canDel?`<div style="display:flex;gap:4px;align-items:center">${orderUnpaid>0?`<button class="bsm g" data-payorder="${o.id}" style="padding:4px 10px;font-size:10px" title="Tandakan semua Fuji+Nara dibayar">✓ Bayar Semua</button>`:''}<button style="font-size:14px;color:#1a6b3c;background:none;border:none;cursor:pointer;padding:0 4px" data-edit="${o.id}" data-eview="${isLeader?'leader':'admin'}" title="Edit pesanan">✏️</button><button style="font-size:13px;color:#e53935;background:none;border:none;cursor:pointer;padding:0 4px" data-del="${o.id}" data-leader="${isLeader?1:0}" title="Padam">✕</button></div>`:''}</div>
     ${(o.persons||[]).map((p,pi)=>`
       ${(o.persons||[]).length>1?`<div style="font-size:11px;font-weight:600;color:#1a6b3c;margin:6px 0 2px">👤 ${p.personName||`Orang ${pi+1}`}</div>`:''}
@@ -1819,14 +1916,15 @@ return`<div class="hdr"><div style="font-size:44px;margin-bottom:10px">🍱</div
 function rOrder(){
 const trip=S.tripData;if(!trip)return`<div class="loading">❌</div>`;
 const sl=trip.sesi||SESI;
-const _si=slotInfo(trip,S.orders);
-const pax=_si.pax,used=_si.used,rem=_si.rem;
+const pax=trip.pax||22;
+const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
+const rem=pax-used;
 if(S.submitted){
 const o=S.form;
 const wasEdit=S.lastWasEdit;
-return`<div class="stk"><h2>${trip.nama}</h2></div> <div style="text-align:center;padding:50px 24px"> <div style="font-size:56px;margin-bottom:14px">${wasEdit?'💾':'✅'}</div> <h2 style="font-size:22px;font-weight:600;margin-bottom:8px">${wasEdit?'Perubahan Disimpan!':'Pesanan Diterima!'}</h2> <p style="font-size:15px;color:#666;margin-bottom:4px">${wasEdit?'Pesanan dikemas kini untuk':'Terima kasih,'} <b>${o.name}</b>.</p> <p style="font-size:13px;color:#aaa;margin-bottom:16px">${o.pax} orang.</p> <div style="background:#f9f9f9;border-radius:12px;padding:14px;text-align:left;margin:14px 0"> <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#1a6b3c">Ringkasan Pesanan</div> ${(o.persons||[]).map((p,i)=>`
+return`<div class="stk"><h2>${trip.nama}</h2></div> <div style="text-align:center;padding:50px 24px"> <div style="font-size:56px;margin-bottom:14px">${wasEdit?'💾':'✅'}</div> <h2 style="font-size:22px;font-weight:600;margin-bottom:8px">${wasEdit?'Perubahan Disimpan!':'Pesanan Diterima!'}</h2> <p style="font-size:15px;color:#666;margin-bottom:4px">${wasEdit?'Pesanan dikemas kini untuk':'Terima kasih,'} <b>${o.name}</b>.</p> <p style="font-size:13px;color:#aaa;margin-bottom:16px">${o.pax} orang.</p> ${(()=>{const ls=S.lastSaved||{};let masa="";try{if(ls.at)masa=new Date(ls.at).toLocaleString("ms-MY",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});}catch(e){}return`<div class="okbox" style="text-align:left"><div style="font-size:15px;font-weight:700">${wasEdit?"Perubahan anda SUDAH disimpan.":"Pesanan anda SUDAH disimpan."}</div>${wasEdit?"":"<div>Tak perlu order lagi.</div>"}${ls.id?`<div style="margin-top:8px">No. rujukan: <span class="ref" style="font-size:16px">${refCode(ls.id)}</span>${masa?` · ${masa}`:""}</div>`:""}<div style="margin-top:6px;font-size:12px">📸 Screenshot skrin ini sebagai bukti.</div></div>`;})()} <div style="background:#f9f9f9;border-radius:12px;padding:14px;text-align:left;margin:14px 0"> <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#1a6b3c">Ringkasan Pesanan</div> ${(o.persons||[]).map((p,i)=>`
 ${o.pax>1?`<div style="font-size:11px;font-weight:600;color:#1a6b3c;margin:8px 0 4px">👤 ${(o.persons||[])[i]?.personName||(i===0?'Anda':'Orang '+(i+1))}</div>`:''}
-${sl.map(s=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee;font-size:12px"> <span style="color:#666">${s.nama}</span><span style="font-weight:600;${p[s.id]&&p[s.id].skip?'color:#c62828':''}">${p[s.id]?(p[s.id].skip?'🚫 Tidak order':p[s.id].name):'—'}</span> </div>`).join("")}`).join("")} </div> <button class="b2" id="go-back" style="margin-top:8px">Kembali</button> </div>`;
+${sl.map(s=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee;font-size:12px"> <span style="color:#666">${s.nama}</span><span style="font-weight:600;${p[s.id]&&p[s.id].skip?'color:#c62828':''}">${p[s.id]?(p[s.id].skip?'🚫 Tidak order':p[s.id].name):'—'}</span> </div>`).join("")}`).join("")} </div> <button class="b1" id="go-mine" style="margin-top:8px">🔍 Lihat Pesanan Saya</button> </div>`;
 }
 if(S.step===1){
 // Cari peserta yang sudah order (untuk grey out)
@@ -1839,9 +1937,17 @@ const availablePeserta=(trip.peserta||[]).filter(p=>p.nama!==wakilNama&&!ordered
 const showMemberPicker=trip.peserta&&trip.peserta.length>0&&S.form.pax>1;
 const needSelect=S.form.pax-1;
 const selectedCount=(S.form.selectedMembers||[]).length;
+// v22: telefon ini sudah hantar pesanan untuk trip ini? (bantuan sahaja)
+const mine=loadMine(S.tripId).map(x=>S.orders.find(o=>o.id===x.id)).filter(Boolean);
+const dup=S.form.dup;
 return`<div class="stk"><h2>${trip.nama}</h2><span style="font-size:11px;background:#f0f9f4;color:#1a6b3c;border-radius:20px;padding:3px 10px">${trip.tarikh||''}</span></div>
 <div class="body">
 <div class="pb">${Array.from({length:sl.length+1}).map((_,i)=>`<div class="ps ${i===0?'active':''}"></div>`).join("")}</div>
+${mine.length?`<div class="okbox">✅ <b>${mine.length===1?`Anda sudah order atas nama ${mine[0].name}`:'Telefon ini sudah hantar pesanan untuk:'}</b>${mine.length===1?` <span class="ref">${refCode(mine[0].id)}</span>${(mine[0].persons||[]).length>1?` (${mine[0].persons.length} orang)`:''}`:mine.map(o=>`<br>• ${o.name} <span class="ref">${refCode(o.id)}</span>`).join('')}
+<div style="margin-top:4px">Tak perlu order lagi. Nak semak atau ubah?</div>
+<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${mine.map(o=>`<button class="bsm" data-mine-view="${o.id}" style="padding:9px 12px;font-size:12px;border-color:#1a6b3c;color:#1a6b3c;font-weight:600">🔍 Lihat pesanan${mine.length>1?' '+o.name:''}</button>`).join('')}</div>
+<div style="font-size:11px;margin-top:8px;color:#555">Nak order untuk orang lain? Teruskan di bawah.</div>
+</div>`:''}
 <div class="ins">📋 <b>Panduan untuk peserta:</b><br>
 <b>Untuk buat pesanan baharu:</b><br>
 1. Isi <b>nama anda</b> dan <b>bilangan orang</b> yang anda wakili<br>
@@ -1851,6 +1957,11 @@ ${trip.peserta&&trip.peserta.length>0?'2. Pilih nama ahli rombongan yang anda or
 <p style="font-size:13px;color:#666;margin-bottom:16px">Slot tinggal: <b style="color:${rem<5?'#e53935':'#1a6b3c'}">${rem}</b> / ${pax}</p>
 <label class="lbl">Nama Anda (Wakil)</label>
 <input class="inp" id="order-name" placeholder="cth: Ahmad bin Ali" value="${S.form.name}"/>
+${dup?`<div class="okbox">✅ <b>Anda sudah ada pesanan</b><br>
+<b>${dup.nama}</b> sudah ada dalam pesanan ${dup.by&&dup.by!==dup.nama?`yang dibuat oleh <b>${dup.by}</b>`:'anda'} <span class="ref">${refCode(dup.orderId)}</span>. Tak perlu order lagi.
+<button class="b1" id="dup-view" style="margin:10px 0 0">🔍 Lihat / Edit Pesanan Saya</button>
+<div style="font-size:11px;margin-top:8px;color:#555">Bukan anda? Semak semula ejaan nama di atas.</div>
+</div>`:''}
 ${S.form.disambiguating&&S.form.disambiguating.length>0?`<div class="warnsec" style="background:#fff3e0;border-left-color:#ff9800;color:#e65100">
 🤔 <b>Beberapa peserta menyamai nama ini</b><br>
 Sila pilih nama anda yang betul:
@@ -1931,19 +2042,25 @@ return`<div class="stk"><h2>${S.editing.active?'✏️ Edit Pesanan':onBhf?'👤
       ${sel?(showSkipDisplay?'<span style="color:#c62828;font-size:12px;font-weight:600"> 🚫 Tidak order</span>':sel.skip&&!canSkip?'<span style="color:#aaa;font-size:12px;font-weight:400"> Belum dipilih (sila pilih menu)</span>':`<span style="color:#1a6b3c;font-size:12px;font-weight:600"> ✓ ${sel.name}</span>`):'<span style="color:#aaa;font-size:12px;font-weight:400"> Belum dipilih</span>'}
     </div>
     ${canSkip?`<button class="skipbtn ${sel&&sel.skip?'sel':''}" id="skip-sesi">${sel&&sel.skip?'✓ Tidak order untuk sesi ini':'🚫 Tidak Mahu Order untuk Sesi Ini'}</button>`:''}
-    <div class="mgrid">${cards}</div>
+    <div class="mgrid"${S.saving?' style="opacity:.5;pointer-events:none"':''}>${cards}</div>
     ${S.formErr?`<div class="err">${S.formErr}</div>`:''}
   </div>
-  <div class="fb"><div style="display:flex;gap:8px">
-    <button class="b2" id="prev-step" style="margin:0;flex:1;padding:14px 0">← Balik</button>
-    <button class="b1" id="next-step" style="margin:0;flex:2">${isLast?(S.editing.active?'💾 Simpan Perubahan':'✅ Hantar Pesanan'):'Seterusnya →'}</button>
+  <div class="fb">${S.saving&&S.slowSave?`<div class="warnsec" style="margin-bottom:8px">📶 Internet perlahan — ${S.editing.active?'perubahan sedang disimpan':'pesanan sedang dihantar'}. <b>Jangan tutup skrin ini.</b></div>`:''}${S.form.saveErr?`<div class="err" style="margin-bottom:8px">${S.form.saveErr}</div>`:''}<div style="display:flex;gap:8px">
+    <button class="b2" id="prev-step" style="margin:0;flex:1;padding:14px 0"${S.saving?' disabled':''}>← Balik</button>
+    <button class="b1" id="next-step" style="margin:0;flex:2"${S.saving?' disabled':''}>${S.saving?(S.slowSave?'⏳ Masih menghantar...':'⏳ Menghantar...'):isLast?(S.editing.active?'💾 Simpan Perubahan':'✅ Hantar Pesanan'):'Seterusnya →'}</button>
   </div></div>`;
 }
+// v22: pesanan yang dipaparkan di skrin Semak Order — ikut ID bila dibuka
+// dari butang "Lihat" (pasti tepat), kalau tidak ikut nama yang ditaip.
+function orderDisemak(){
+return(S.checkOrderId&&S.orders.find(o=>o.id===S.checkOrderId))||findOrderByName(S.checkName||"",S.orders);
+}
+function bukaSemak(nama,orderId){S.view="check";S.checkName=nama||"";S.checkOrderId=orderId||null;S.checkDone=true;render();}
 function rCheck(){
 const trip=S.tripData;
 const sl=trip?trip.sesi||SESI:SESI;
 const name=S.checkName||"";
-const found=S.checkDone?findOrderByName(name,S.orders):null;
+const found=S.checkDone?orderDisemak():null;
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Semak Order</h2></div>
 <div class="body">
     <label class="lbl">Masukkan nama anda</label>
@@ -1967,7 +2084,7 @@ return sumS+withTax(s,it.price);
 const balanceTot=grandTot-paidTot;
 return`
     <div style="background:#f0f9f4;border-radius:12px;padding:16px;margin-top:16px;border:1px solid #1a6b3c">
-      <div style="font-size:15px;font-weight:600;margin-bottom:12px;color:#1a6b3c">✅ Order dijumpai — ${found.name}</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:12px;color:#1a6b3c">✅ Order dijumpai — ${found.name} <span class="ref" style="font-size:12px;color:#888">${refCode(found.id)}</span></div>
       ${(found.persons||[]).map((p,pi)=>`
         ${(found.persons||[]).length>1?`<div style="font-size:12px;font-weight:600;color:#1a6b3c;margin:10px 0 4px">👤 ${p.personName||(pi===0?'Anda':'Orang '+(pi+1))}</div>`:''}
         ${sl.map(s=>{
@@ -2053,7 +2170,6 @@ const trip=S.trips.find(t=>t.id===S.selTrip)||S.trips[0];
 const sl=trip?(trip.sesi||SESI):SESI;
 const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-const _si=slotInfo(trip,orders);
 if(S.adminTab==="trips"){
 const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax &nbsp;🚌 ${t.mod||'tren'}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm" data-priceedit-trip="${t.id}" style="border-color:#ff9800;color:#e65100">💴 Harga</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn active" data-tab="trips">🗺️ Trip</button> <button class="tabbtn" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> <div class="stitle">Senarai Trip</div>${cards}
@@ -2062,7 +2178,7 @@ ${rBookingSec()}
 }
 if(S.adminTab==="orders"){
 const sel=rTripSelect();
-return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${_si.pax}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${_si.rem}</div></div> </div> ${rTracking(trip,orders)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div>
+return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div>
 ${(()=>{const nb=sl.find(x=>x.id==="namba");const sp=nb?(nb.menus||[]).filter(m=>m.isSpecial):[];return sp.length?`<div style="background:#fff;border-radius:10px;padding:6px;margin-bottom:10px">${sp.map(m=>`<div style="display:flex;align-items:center;gap:6px;padding:8px 9px;border-bottom:1px solid #f5f5f5;font-size:12px;flex-wrap:wrap">
 <span style="flex:1;min-width:110px">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''}</span>
 <span style="font-size:10px;color:#888;font-weight:600">¥</span>
@@ -2222,7 +2338,6 @@ const trip=S.trips.find(t=>t.id===S.selTrip)||S.trips[0];
 const sl=trip?(trip.sesi||SESI):SESI;
 const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
-const _si=slotInfo(trip,orders);
 const sel=rTripSelect();
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tour Leader</h2></div>
 <div class="body" style="padding-bottom:40px">
@@ -2230,8 +2345,8 @@ return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tou
     ${sel}
     <div class="srow">
       <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div>
-      <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${_si.pax}</div></div>
-      <div class="sc"><div class="sl">Tinggal</div><div class="sv">${_si.rem}</div></div>
+      <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div>
+      <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div>
     </div>
     ${rTracking(trip,orders)}
     ${rPaymentDashboard(trip,orders)}
@@ -2270,10 +2385,6 @@ if(S.view==="admin"){S.adminOn=false;S.view="home";}
 else if(S.view==="leader"){S.leaderOn=false;S.view="home";}
 else if(S.view==="check"){S.view="order";S.step=1;}
 else if(S.view==="pdf"){S.view="admin";S.adminTab="trips";}
-else if(S.view==="order"&&S.submitted&&S.lastWasEdit){
-S.view="check";S.checkDone=true;S.submitted=false;S.lastWasEdit=false;
-S.step=1;S.form={name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null};
-}
 else{S.view="home";}
 render();
 });
@@ -2406,6 +2517,7 @@ S.step=1;S.submitted=false;S.formErr="";
 S.view="admin";S.adminTab=tb;render();
 }
 on("cancel-edit","click",()=>{
+if(S.saving)return;
 if(S.onBehalf&&S.onBehalf.active){
 if(confirm("Batal order bagi pihak? Pesanan tidak akan disimpan."))cancelOnBehalf();
 return;
@@ -2413,7 +2525,7 @@ return;
 if(confirm("Batal edit? Perubahan tidak akan disimpan."))cancelEdit();
 });
 on("check-edit","click",()=>{
-const found=findOrderByName(S.checkName,S.orders);
+const found=orderDisemak();
 if(found)startEdit(found.id,"check");
 });
 document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>{
@@ -3047,7 +3159,7 @@ btn.disabled=total===0;
 }
 }));
 // Order
-on("order-name","input",e=>S.form.name=e.target.value);
+on("order-name","input",e=>{S.form.name=e.target.value;S.form.dup=null;});
 on("cnt-minus","click",()=>{
 S.form.pax=Math.max(1,S.form.pax-1);
 // Trim selectedMembers jika lebih dari pax-1
@@ -3056,9 +3168,9 @@ if((S.form.selectedMembers||[]).length>need)S.form.selectedMembers=S.form.select
 render();
 });
 on("cnt-plus","click",()=>{
-// Kaunter tidak boleh jatuh ke 0. Dulu Math.min(pax+1, 0) buat
-// nilai jadi 0 bila slot penuh, jadi butang "+" nampak rosak.
-S.form.pax=Math.max(1,Math.min(S.form.pax+1,slotInfo(S.tripData,S.orders).rem));
+const trip=S.tripData;const pax=trip?trip.pax:22;
+const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
+S.form.pax=Math.min(S.form.pax+1,pax-used);
 render();
 });
 document.querySelectorAll(".member-chk").forEach(c=>c.addEventListener("change",e=>{
@@ -3094,28 +3206,33 @@ render();
 }));
 document.querySelectorAll("[data-ptab]").forEach(b=>b.addEventListener("click",()=>{S.activePerson=parseInt(b.dataset.ptab);render();}));
 on("next-step","click",async()=>{
+if(S.saving)return;
 const trip=S.tripData;const sl=trip.sesi||SESI;
-const _si=slotInfo(trip,S.orders);
-const pax=_si.pax,used=_si.used,rem=_si.rem;
+const pax=trip?trip.pax:22;
+const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);const rem=pax-used;
 if(S.step===1){
 const name=$("order-name")?.value?.trim()||S.form.name.trim();
-S.form.name=name;
-if(!name){S.formErr="Sila masukkan nama anda.";render();return;}
-if(findOrderByName(name,S.orders)){S.formErr="Nama ini sudah membuat pesanan. Klik 'Semak Order Saya' untuk edit.";render();return;}
+S.form.name=name;S.form.dup=null;S.form.disambiguating=null;
+// Kenal pasti wakil + sudah ada pesanan? Semak ikut NAMA RASMI dalam senarai,
+// bukan ejaan yang ditaip (lihat semakWakil)
+const k=semakWakil(name,trip.peserta,S.orders);
+if(k.jenis==="kosong"){S.formErr="Sila masukkan nama anda.";render();return;}
+if(k.jenis==="pilih"){
+// 2+ peserta menyamai — minta wakil pilih dahulu, baru boleh semak pendua
+S.form.disambiguating=k.calon;
+S.formErr=`Beberapa peserta menyamai "${name}". Sila pilih nama anda yang betul:`;
+render();return;
+}
+if(k.jenis==="pendua"){S.form.dup=k.dup;S.formErr="";render();return;}
+const m=k.m;const hasList=!!(trip.peserta&&trip.peserta.length>0);
 if(rem<=0){S.formErr="Slot pesanan sudah penuh.";render();return;}
 if(S.form.pax>rem){S.formErr=`Hanya ${rem} slot tinggal.`;render();return;}
 let wakilNama=name;
 // Validation: jika trip ada senarai peserta, semak nama
-if(trip.peserta&&trip.peserta.length>0){
-const m=fuzzyMatchPeserta(name,trip.peserta);
+if(hasList){
 if(!m){
 const ok=confirm(`⚠️ Nama "${name}" tidak ditemui dalam senarai peserta.\n\nSila semak ejaan, atau klik OK jika anda pasti nama anda betul untuk teruskan.`);
 if(!ok){S.formErr="Sila semak ejaan nama anda atau hubungi Tour Leader.";render();return;}
-} else if(m.ambiguous){
-// 2+ peserta menyamai — minta wakil pilih
-S.form.disambiguating=m.candidates;
-S.formErr=`Beberapa peserta menyamai "${name}". Sila pilih nama anda yang betul:`;
-render();return;
 } else {
 wakilNama=m.match.nama;
 S.form.name=wakilNama;
@@ -3123,15 +3240,22 @@ S.form.name=wakilNama;
 // Jika pax > 1, kena pastikan dah pilih peserta lain
 if(S.form.pax>1){
 const need=S.form.pax-1;
-const sel=S.form.selectedMembers||[];
+// Wakil sendiri bukan "peserta lain" — elak nama sama dua kali dalam satu pesanan
+S.form.selectedMembers=(S.form.selectedMembers||[]).filter(n=>n!==wakilNama);
+const sel=S.form.selectedMembers;
 if(sel.length!==need){
 S.formErr=`Sila pilih tepat ${need} peserta lain (sekarang ${sel.length} dipilih).`;
 render();return;
 }
-// Pastikan tiada duplicate dengan order sedia ada
+// Ahli yang sudah ada pesanan lain: buang terus dari pilihan. Kalau dibiar,
+// borang tersekat — nama itu sudah dikelabukan dan tak boleh dinyahpilih.
 const orderedSet=getAllOrderedPesertaNames(S.orders,trip.peserta);
-const conflict=sel.find(n=>orderedSet.has(n));
-if(conflict){S.formErr=`"${conflict}" sudah membuat pesanan dalam order lain.`;render();return;}
+const conflicts=sel.filter(n=>orderedSet.has(n));
+if(conflicts.length){
+S.form.selectedMembers=sel.filter(n=>!orderedSet.has(n));
+S.formErr=`${conflicts.map(n=>`"${n}"`).join(", ")} sudah ada pesanan lain, jadi dibuang daripada pilihan anda. Sila pilih semula.`;
+render();return;
+}
 }
 }
 // Bina persons dengan personName
@@ -3151,35 +3275,14 @@ S.formErr=msg;render();return;
 }
 S.formErr="";
 if(S.sesiIdx===sl.length-1){
-const isEdit=S.editing.active;
-const order={id:isEdit?S.editing.orderId:genId(),name:S.form.name,persons:S.form.persons};
-await saveOrder(S.tripId,order);
-if(isEdit){
-S.lastWasEdit=true;
-const back=S.editing.origView;
-const trip=S.tripId;
-S.editing={active:false,orderId:null,origView:null,returnSelTrip:null};
-if(back==="check"){S.submitted=true;render();}
-else if(back==="leader"||back==="admin"){
-S.view=back;S.step=1;S.submitted=false;S.form={name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null};
-await loadOrders(S.selTrip||trip);render();toast("✓ Perubahan disimpan!");
-} else {S.submitted=true;render();}
-} else if(S.onBehalf&&S.onBehalf.active){
-const tb=S.onBehalf.returnTab||"orders";
-const nm=order.name;
-S.onBehalf={active:false,returnTab:null};
-S.form={name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null};
-S.step=1;S.submitted=false;S.lastWasEdit=false;
-S.view="admin";S.adminTab=tb;
-await loadOrders(S.selTrip);render();
-toast(`✓ Pesanan untuk ${nm} disimpan!`);
-} else {
-S.lastWasEdit=false;S.submitted=true;render();
-}
+// Simpan — dikunci, nombor pesanan tetap, semakan akhir (lihat hantarPesanan)
+await hantarPesanan();
 } else {S.sesiIdx++;S.activePerson=0;render();}
 }
 });
 on("prev-step","click",()=>{
+if(S.saving)return;
+S.form.saveErr="";
 if(S.onBehalf&&S.onBehalf.active&&S.sesiIdx===0){
 if(confirm("Batal order bagi pihak? Pesanan tidak akan disimpan."))cancelOnBehalf();
 return;
@@ -3192,6 +3295,7 @@ if(S.sesiIdx>0){S.sesiIdx--;S.activePerson=0;S.formErr="";}
 else{S.step=1;S.formErr="";}render();
 });
 document.querySelectorAll(".mcard").forEach(c=>c.addEventListener("click",()=>{
+if(S.saving)return;
 const sid=c.dataset.sesi;const pid=parseInt(c.dataset.pid);const mid=parseInt(c.dataset.mid);
 const trip=S.tripData;const sl=trip.sesi||SESI;
 const sesi=sl.find(s=>s.id===sid);if(!sesi)return;
@@ -3203,6 +3307,7 @@ if(next!==-1)S.activePerson=next;
 render();
 }));
 on("skip-sesi","click",()=>{
+if(S.saving)return;
 const trip=S.tripData;const sl=trip.sesi||SESI;
 const sesi=sl[S.sesiIdx];if(!sesi)return;
 if(!getCanSkip(sesi)){toast("Sesi ini wajib — tidak boleh skip.");return;}
@@ -3216,10 +3321,22 @@ if(next!==-1)S.activePerson=next;}
 S.formErr="";render();
 });
 // Check order
-on("go-check","click",()=>{S.view="check";S.checkName="";S.checkDone=false;render();});
-on("check-inp","input",e=>S.checkName=e.target.value);
-on("do-check","click",()=>{S.checkName=$("check-inp")?.value?.trim()||"";S.checkDone=true;render();});
+on("go-check","click",()=>{S.view="check";S.checkName="";S.checkOrderId=null;S.checkDone=false;render();});
+on("check-inp","input",e=>{S.checkName=e.target.value;S.checkOrderId=null;});
+on("do-check","click",()=>{S.checkName=$("check-inp")?.value?.trim()||"";S.checkOrderId=null;S.checkDone=true;render();});
 on("check-inp","keydown",e=>{if(e.key==="Enter")$("do-check")?.click();});
+// v22: buka pesanan sedia ada terus ikut ID (kotak "sudah ada pesanan",
+// ingatan telefon, dan butang skrin berjaya)
+on("dup-view","click",()=>{const d=S.form.dup;if(d)bukaSemak(d.nama,d.orderId);});
+document.querySelectorAll("[data-mine-view]").forEach(b=>b.addEventListener("click",()=>{
+const o=S.orders.find(x=>x.id===b.dataset.mineView);if(o)bukaSemak(o.name,o.id);
+}));
+on("go-mine","click",()=>{
+const ls=S.lastSaved||{};
+S.submitted=false;S.lastWasEdit=false;S.step=1;S.sesiIdx=0;S.activePerson=0;S.formErr="";
+S.form={name:"",pax:1,persons:[],selectedMembers:[],disambiguating:null};
+bukaSemak(ls.name,ls.id);
+});
 }
 // ── Init ──────────────────────────────────────────
 console.log("[Tour-Order] Module loaded, registering DOMContentLoaded listener");
