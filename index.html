@@ -152,12 +152,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v22 — elak pesanan berganda: butang Hantar dikunci, semakan ikut nama rasmi, skrin pengesahan + no. rujukan -->
+<!-- BUILD: v24 — 📄 kemas kini senarai peserta dari rooming list PDF terkini (banding dulu, simpan kemudian) + nama berapostrof (ASH'ARI) dipadankan betul -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v22 starting…");
+console.log("[Tour-Order] Build v24 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -429,22 +429,36 @@ function fuzzyMatchPeserta(input,peserta){
 if(!input||!peserta||!peserta.length)return null;
 const norm=s=>(s||'').toString().toLowerCase()
 .replace(/[\u00A0\u200B-\u200D\uFEFF]/g,' ')
-.replace(/[.,'`"\-]/g,' ')
+// v24: apostrof DISAMBUNG, bukan dijadikan ruang: "ASH'ARI" = "ASHARI".
+// Dahulu ia jadi "ash ari" (dua perkataan pendek) dan pesanan AMALINA ASHARI
+// tak padan dengan senarai bilik baharu AMALINA ASH'ARI. Papan kekunci iPhone taip apostrof melengkung (U+2019).
+.replace(/['`\u2018\u2019]/g,'')
+.replace(/[.,"\-]/g,' ')
 .replace(/\s+/g,' ').trim();
+// Bentuk kedua: apostrof jadi RUANG (cara lama), supaya "NOR AIN" tetap padan
+// "NOR'AIN". Dua nama dikira sama jika SALAH SATU bentuk sama.
+const normRuang=s=>norm((s||'').toString().replace(/['`\u2018\u2019]/g,' '));
 const expand=s=>s
 .replace(/\b(mohd|muhd|muh|md|mhd|mhmd)\b/g,'mohamad')
 .replace(/\b(muhammad|muhammed|muhamad|mohamed|mohammed)\b/g,'mohamad')
 .replace(/\b(abd|abdl)\b/g,'abdul')
 .replace(/\b(bt|bte)\b/g,'binti');
-const inp=expand(norm(input));
-if(!inp)return null;
+const bentuk=s=>[...new Set([expand(norm(s)),expand(normRuang(s))])].filter(Boolean);
+const inpB=bentuk(input);
+if(!inpB.length)return null;
 // 1. Exact match — kalau jumpa, return tanpa cuba fuzzy (priority tertinggi)
 for(const p of peserta){
-if(expand(norm(p.nama))===inp)return{match:p,confidence:'exact',ambiguous:false,candidates:[p]};
+const pB=bentuk(p.nama);
+if(inpB.some(x=>pB.includes(x)))return{match:p,confidence:'exact',ambiguous:false,candidates:[p]};
 }
 const STOPWORDS=['bin','binti','bte','bt','b','haji','hj','hjh','dato','datin'];
-const inpWords=inp.split(' ').filter(w=>w.length>2&&!STOPWORDS.includes(w));
-if(!inpWords.length)return null;
+const kata=s=>s.split(' ').filter(w=>w.length>2&&!STOPWORDS.includes(w));
+const inpSets=inpB.map(kata).filter(ws=>ws.length);
+if(!inpSets.length)return null;
+// Bentuk ruang boleh hilangkan serpihan pendek ("MU'IZ" jadi "mu iz", dua-dua
+// dibuang), lalu SATU perkataan (cth. "ibrahim") dapat 100% dan padan orang
+// lain. Jadi syarat bilangan perkataan padan ikut bentuk yang paling banyak perkataan.
+const minM=Math.min(2,Math.max(...inpSets.map(ws=>ws.length)));
 const lev1=(a,b)=>{
 if(a===b)return true;
 if(Math.abs(a.length-b.length)>1)return false;
@@ -465,18 +479,22 @@ if(a.length>=5&&b.length>=5&&lev1(a,b))return true;
 return false;
 };
 // Kumpul SEMUA calon dengan score >= 70%
+// (setiap bentuk taipan dinilai berasingan; perkataan nama senarai = gabungan dua bentuk)
 const scored=[];
 for(const p of peserta){
-const pInp=expand(norm(p.nama));
-const pWords=pInp.split(' ').filter(w=>w.length>2&&!STOPWORDS.includes(w));
+const pWords=[...new Set(bentuk(p.nama).flatMap(kata))];
+let best=null;
+for(const iws of inpSets){
 let matched=0;
-for(const iw of inpWords){
+for(const iw of iws){
 if(pWords.some(pw=>wordMatches(iw,pw)))matched++;
 }
-const score=matched/inpWords.length;
-if(score>=0.7&&matched>=Math.min(2,inpWords.length)){
-scored.push({p,score,matched});
+const score=matched/iws.length;
+if(score>=0.7&&matched>=minM&&(!best||score>best.score||(score===best.score&&matched>best.matched))){
+best={p,score,matched};
 }
+}
+if(best)scored.push(best);
 }
 if(!scored.length)return null;
 // Susun: score tertinggi dahulu, tie-break dengan bilangan perkataan padan
@@ -493,7 +511,7 @@ candidates:topTied.map(s=>s.p)
 }
 function findOrderByName(input,orders){
 if(!input||!orders||!orders.length)return null;
-const norm=s=>(s||'').toLowerCase().replace(/[.,]/g,' ').replace(/\s+/g,' ').trim();
+const norm=s=>(s||'').toLowerCase().replace(/['`\u2018\u2019]/g,'').replace(/[.,]/g,' ').replace(/\s+/g,' ').trim();
 const inp=norm(input);
 if(!inp)return null;
 // Cari dalam wakil name
@@ -687,6 +705,108 @@ if(m)ordered.add(m.match.nama);
 });
 });
 return ordered;
+}
+// ── Peserta & Pax (v23) ──────────────────────────────
+// Kes sebenar 11 Okt 2026, Group 3 EE22188: ejen tambah 2 orang selepas
+// rooming list dihantar. Mereka order guna link trip, nama mereka tiada dalam
+// senarai — "Jumlah Pax" jadi 21 tetapi "Sudah order" cuma 19, dan slot habis
+// sebelum 3 peserta terakhir sempat order. Tiada cara ubah pax dalam app.
+//
+// semakPadanan menerangkan jurang itu. Peraturan nama SAMA seperti kiraan
+// "Sudah order" (personName, atau nama wakil untuk orang pertama), jadi
+// sentiasa benar: guna = sudah + luar + tanpaNama + lebihan nama berganda.
+function semakPadanan(trip,orders){
+const peserta=(trip&&trip.peserta)||[];
+const pax=parseInt(trip&&trip.pax)||22;
+const kira=new Map();const luar=[],tanpaNama=[];let guna=0;
+(orders||[]).forEach(o=>{
+const ps=(o&&o.persons)||[];
+guna+=ps.length||1;
+if(!ps.length){tanpaNama.push((o&&o.name)||'(tiada nama)');return;}
+ps.forEach((p,i)=>{
+const n=(p&&p.personName)||(i===0?o.name:null);
+if(!n){tanpaNama.push(`${o.name} (Orang ${i+1})`);return;}
+const m=fuzzyMatchPeserta(n,peserta);
+if(!m){luar.push(n);return;}
+kira.set(m.match.nama,(kira.get(m.match.nama)||0)+1);
+});
+});
+const berganda=[...kira.entries()].filter(e=>e[1]>1).map(e=>({nama:e[0],kali:e[1]}));
+const belum=peserta.filter(p=>!kira.has(p.nama)).length;
+return{pax,guna,kosong:pax-guna,sudah:kira.size,belum,luar,tanpaNama,berganda};
+}
+// Nama untuk senarai: ruang dikemas, huruf besar — ikut format rooming list.
+function namaBersih(s){return String(s||'').replace(/\s+/g,' ').trim().toUpperCase();}
+// Cuba tambah satu nama ke senarai. Pulang SALINAN baharu; senarai asal tak
+// disentuh. "(TL)" di hujung = Tour Leader, sama seperti masa import PDF.
+// {ok:false,sebab:'kosong'|'ada',sama} | {ok:true,senarai,nama,isTL,hampir}
+function cubaTambahNama(senarai,input){
+const raw=String(input||'');
+const isTL=/\(\s*TL\s*\)|\(\s*TOUR\s*LEADER\s*\)/i.test(raw);
+const nama=namaBersih(raw.replace(/\(\s*TL\s*\)|\(\s*TOUR\s*LEADER\s*\)/gi,' '));
+if(nama.length<3)return{ok:false,sebab:'kosong'};
+const list=senarai||[];
+const m=fuzzyMatchPeserta(nama,list);
+if(m&&m.confidence==='exact')return{ok:false,sebab:'ada',sama:m.match.nama};
+return{ok:true,senarai:[...list,{nama,isTL}],nama,isTL,hampir:m?m.match.nama:null};
+}
+// Pax = nama dalam senarai + tambahan yang tiada nama (guide dll).
+// Tidak boleh kurang daripada orang yang sudah ada dalam pesanan.
+function semakPesertaPax(senarai,tambahan,guna){
+const t=Math.max(0,parseInt(tambahan)||0);
+const pax=(senarai||[]).length+t;
+if(pax<1)return{ok:false,pax,ralat:'Jumlah pax mesti sekurang-kurangnya 1.'};
+if(pax<guna)return{ok:false,pax,ralat:`Sudah ada ${guna} orang dalam pesanan, jadi pax tidak boleh kurang daripada ${guna}.`};
+return{ok:true,pax,ralat:''};
+}
+// Tambahan asal = pax trip tolak bilangan nama dalam senarai (guide dll).
+function tambahanAsal(trip){
+const n=((trip&&trip.peserta)||[]).length;
+return Math.max(0,(parseInt(trip&&trip.pax)||22)-n);
+}
+// Nama yang ditambah / dibuang berbanding senarai asal — untuk pengesahan.
+function bezaSenarai(asal,baru){
+const a=(asal||[]).map(p=>p.nama),b=(baru||[]).map(p=>p.nama);
+return{tambah:b.filter(n=>!a.includes(n)),buang:a.filter(n=>!b.includes(n))};
+}
+// ── Rooming list PDF terkini (v24) ───────────────────
+// Kes sebenar: rooming list "Very Latest" Group 3 tambah 2 orang DAN tukar
+// ejaan 3 nama (NADHIRAH→NADHIRA, FADHILAH→FADILAH, ASHARI→ASH'ARI).
+// Tanpa pengelasan ini, ejaan baharu nampak macam "3 baharu + 3 dibuang".
+// Laluan 1: sama selepas dikemas (huruf/ruang/apostrof). Teks lain = ejaan
+//   berubah (pasti orang sama).
+// Laluan 2: baki — padanan kabur yang JELAS (satu calon sahaja) = ejaan
+//   berubah, tanda agak:true (mungkin orang sama). Selebihnya baharu/dibuang.
+// Ini untuk PAPARAN sahaja — senarai yang diguna tetap senarai PDF penuh.
+// Nama lama dijejak ikut KEDUDUKAN, bukan ikut teks nama: kalau dua orang
+// senama dan seorang batal, yang batal tetap dilapor sebagai dibuang; nama
+// berulang dalam PDF pula kelihatan sebagai baharu.
+function bandingRoomingList(semasa,baharu){
+const lama=semasa||[];const guna=new Set();
+const baki=()=>lama.map((x,i)=>({nama:x.nama,i})).filter(x=>!guna.has(x.i));
+const sama=[],ubah=[],tambah=[],tunggu=[];
+(baharu||[]).forEach(p=>{
+const m=fuzzyMatchPeserta(p.nama,baki());
+if(m&&m.confidence==='exact'){guna.add(m.match.i);if(m.match.nama===p.nama)sama.push(p.nama);else ubah.push({dari:m.match.nama,ke:p.nama,agak:false});}
+else tunggu.push(p);
+});
+tunggu.forEach(p=>{
+const m=fuzzyMatchPeserta(p.nama,baki());
+if(m&&!m.ambiguous){guna.add(m.match.i);ubah.push({dari:m.match.nama,ke:p.nama,agak:true});}
+else tambah.push(p.nama);
+});
+return{sama,ubah,tambah,buang:lama.filter((x,i)=>!guna.has(i)).map(x=>x.nama)};
+}
+// Baris pengesahan sebelum Simpan (👥 Peserta & Pax). Ejaan yang berubah
+// disebut sebagai ejaan, bukan "ditambah + dibuang"; tekaan (?) ditanda jelas.
+function barisSimpanPeserta(pe,pax){
+const bz=bandingRoomingList(pe.asalSenarai,pe.senarai);
+const baris=[`Pax: ${pe.asalPax} → ${pax}`];
+if(bz.tambah.length)baris.push(`Ditambah: ${bz.tambah.join(", ")}`);
+if(bz.ubah.length)baris.push(`Ejaan dikemas kini: ${bz.ubah.map(x=>`${x.dari} → ${x.ke}${x.agak?' (?)':''}`).join(", ")}`);
+if(bz.buang.length)baris.push(`Dibuang: ${bz.buang.join(", ")}`);
+if(bz.ubah.some(x=>x.agak))baris.push(`(?) = ejaan hampir sama — pastikan memang orang yang sama.`);
+return baris;
 }
 function suggestTripNama(itin,room){
 const dt=room.tarikhTrip||'';
@@ -1071,6 +1191,7 @@ priceEditor:{active:false,tripId:null,sesiCopy:null,originalSesi:null},
 priceApply:{active:false,loading:false,impacts:[],selected:[],priceMap:null,mode:'draft'},
 payCollect:{selected:[],sesiFilter:"all",searchQuery:""},
 payDialog:{active:false,total:0,received:"",personLines:[],ordersToSave:null},
+pesertaEdit:{active:false,tripId:null,senarai:[],asalSenarai:[],tambahan:0,asalPax:0,returnTab:"trips",err:"",input:"",saving:false,pdfStatus:"",pdfBanding:null},
 };
 // ── Render helpers ──────────────────────────────────────────
 function rExpSec(){
@@ -1458,6 +1579,90 @@ ${changed?`<span style="font-size:10px;color:#e65100;font-weight:600;min-width:a
 <button class="b1" id="save-price" style="margin:0;flex:2">💾 Simpan Perubahan</button>
 </div></div>`;
 }
+// 👥 Peserta & Pax (v23) — ubah senarai peserta dan jumlah pax trip sedia ada,
+// tanpa menunggu rooming list baharu. Data dibaca dari S.pesertaEdit + S.orders.
+function rPesertaEdit(){
+const pe=S.pesertaEdit;
+const trip=S.trips.find(t=>t.id===pe.tripId);
+if(!trip)return`<div class="loading">Trip tidak ditemui.</div>`;
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const guna=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
+const pax=pe.senarai.length+pe.tambahan;
+const kosong=pax-guna;
+const orderedNames=getAllOrderedPesertaNames(S.orders,pe.senarai);
+const cadangan=[...new Set(semakPadanan({peserta:pe.senarai,pax},S.orders).luar.map(namaBersih))];
+const beza=bezaSenarai(pe.asalSenarai,pe.senarai);
+const berubah=pax!==pe.asalPax||beza.tambah.length>0||beza.buang.length>0;
+// v24: label BARU / EJAAN ikut pengelasan yang sama dengan semakan rooming list
+const bz=bandingRoomingList(pe.asalSenarai,pe.senarai);
+const ejaanBaru=new Set(bz.ubah.map(x=>x.ke));
+return`<div class="stk"><button class="bk" id="pe-batal" title="Batal">←</button><h2>👥 Peserta & Pax</h2></div>
+<div class="body" style="padding-bottom:120px">
+<div class="tlsec"><b>${esc(trip.nama)}</b><br>Tambah atau buang nama peserta, dan betulkan jumlah pax — tak perlu tunggu rooming list baharu.</div>
+${pe.asalSenarai.length===0?`<div class="warnsec">ℹ️ Trip ini belum ada senarai peserta. Bila nama ditambah, borang order akan mula menyemak nama peserta.</div>`:''}
+${pe.pdfStatus==='proses'?`<div class="abox" style="text-align:center;font-size:13px;color:#666">⏳ Membaca rooming list...</div>`:pe.pdfBanding?(()=>{
+// Dikira semula setiap render ikut senarai SEMASA — suntingan selepas muat naik turut ditunjuk
+const b={...pe.pdfBanding,...bandingRoomingList(pe.senarai,pe.pdfBanding.senarai)};
+const tiada=!b.tambah.length&&!b.buang.length&&!b.ubah.length;
+// Kebanyakan nama sekarang tiada dalam PDF = mungkin rooming list kumpulan lain.
+const nLama=b.sama.length+b.ubah.length+b.buang.length;
+const silap=nLama>0&&(b.sama.length+b.ubah.length)*2<nLama;
+return`<div class="abox" style="background:#f0f9f4;border-left:3px solid #1a6b3c">
+<div style="font-size:13px;font-weight:600;color:#1a6b3c;margin-bottom:6px">📄 ${esc(b.fail)} — ${b.senarai.length} nama</div>
+${silap?`<div style="font-size:12px;font-weight:600;color:#c62828;margin-bottom:6px;line-height:1.5">⚠️ Hanya ${b.sama.length+b.ubah.length} daripada ${nLama} nama dalam senarai sekarang ada dalam PDF ini. Pastikan ini rooming list untuk trip ini.</div>`:''}
+<div style="font-size:12px;line-height:1.7;color:#333">✅ Sama: <b>${b.sama.length}</b>
+${b.tambah.length?`<br>➕ <b>Baharu (${b.tambah.length}):</b>${b.tambah.map(n=>`<br>• ${esc(n)}`).join('')}`:''}
+${b.ubah.length?`<br>✏️ <b>Ejaan berubah (${b.ubah.length}):</b>${b.ubah.map(x=>`<br>• ${esc(x.dari)} → ${esc(x.ke)}${x.agak?' (?)':''}`).join('')}`:''}
+${b.buang.length?`<br>➖ <b>Tiada dalam PDF ini (${b.buang.length}):</b>${b.buang.map(n=>`<br>• ${esc(n)}${orderedNames.has(n)?' <span style="color:#c62828">(sudah order — pesanan tidak dipadam)</span>':''}`).join('')}`:''}
+</div>
+${b.ubah.some(x=>x.agak)?`<p style="font-size:10px;color:#888;margin-top:4px">(?) = ejaan hampir sama, mungkin orang yang sama</p>`:''}
+${tiada?`<p style="font-size:12px;color:#1a6b3c;font-weight:600;margin-top:8px">Senarai PDF sama dengan senarai sekarang — tiada perubahan.</p>`:`<p style="font-size:11px;color:#666;margin-top:8px;line-height:1.5">Selepas diguna: ${b.senarai.length} nama + ${pe.tambahan} tambahan = <b>${b.senarai.length+pe.tambahan} pax</b>. Belum disimpan — semak senarai, kemudian tekan Simpan.</p>`}
+<div style="display:flex;gap:8px;margin-top:10px">
+<button class="b2" id="pe-pdf-abai" style="margin:0;flex:1;padding:12px 0"${pe.saving?' disabled':''}>Abai</button>
+<button class="b1" id="pe-pdf-guna" style="margin:0;flex:2;padding:12px 0"${tiada||pe.saving?' disabled':''}>✓ Guna Senarai PDF</button>
+</div>
+</div>`;})():`<label class="pdfdrop" style="margin-bottom:14px">📄 Muat naik rooming list terkini (PDF)<br><span style="font-size:11px;color:#666">Sistem banding dengan senarai sekarang — anda semak dulu sebelum disimpan</span><input type="file" accept="application/pdf" id="pe-pdf"${pe.saving?' disabled':''}/></label>`}
+${cadangan.length?`<div class="abox" style="background:#fff8e1;border-left:3px solid #ff9800">
+<div style="font-size:13px;font-weight:600;color:#e65100;margin-bottom:4px">⚠️ Sudah order, tetapi tiada dalam senarai (${cadangan.length})</div>
+<p style="font-size:11px;color:#856404;margin-bottom:8px;line-height:1.5">Kalau mereka memang ahli trip ini (contoh: tambahan dari ejen), tekan nama untuk masukkan ke senarai.</p>
+<div style="display:flex;flex-direction:column;gap:6px">${cadangan.map(n=>`<button class="bsm" data-pe-cadang="${esc(n)}" style="text-align:left;padding:10px 12px;font-size:12px;border-color:#ff9800;color:#e65100;background:#fff">+ ${esc(n)}</button>`).join('')}</div>
+</div>`:''}
+<div class="stitle">Senarai Peserta (${pe.senarai.length})</div>
+<div class="plist">
+${pe.senarai.length?pe.senarai.map((p,i)=>`<div class="pitem ${p.isTL?'tl':''}">
+<span class="pn">${i+1}.</span>
+<span class="pname">${esc(p.nama)}${bz.tambah.includes(p.nama)?' <span style="font-size:10px;color:#1a6b3c;font-weight:700">BARU</span>':ejaanBaru.has(p.nama)?' <span style="font-size:10px;color:#1565c0;font-weight:700">EJAAN</span>':''}</span>
+${orderedNames.has(p.nama)?'<span style="font-size:11px" title="Sudah order">✅</span>':''}
+<button class="px" data-pe-buang="${i}" title="Buang">✕</button>
+</div>`).join(''):`<div style="padding:14px;text-align:center;color:#aaa;font-size:12px">Tiada nama dalam senarai.</div>`}
+</div>
+<div style="display:flex;gap:6px;margin-bottom:4px">
+<input class="inp" id="pe-nama" placeholder="Tambah nama peserta" value="${esc(pe.input||'')}" style="margin:0;flex:1"/>
+<button class="bsm g" id="pe-tambah" style="padding:13px 14px">+ Tambah</button>
+</div>
+<p style="font-size:11px;color:#888;margin-bottom:14px">Taip (TL) di hujung nama untuk Tour Leader.</p>
+<div class="abox">
+<label class="lbl">Tambahan yang tiada nama dalam senarai (guide, dll.)</label>
+<div class="cntrow" style="margin-bottom:0">
+<button class="cntbtn" id="pe-tb-minus">−</button>
+<div class="cntval">${pe.tambahan}</div>
+<button class="cntbtn" id="pe-tb-plus">+</button>
+</div>
+${pe.asalSenarai.length>0&&pe.tambahan>1?`<p style="font-size:11px;color:#e65100;margin-top:8px;line-height:1.5">ℹ️ Tambahan biasanya 1 (guide). Kalau pax pernah diubah terus di Firebase, kurangkan di sini supaya pax tidak terlebih.</p>`:''}
+</div>
+<div class="abox" style="background:#f0f9f4;border-left:3px solid #1a6b3c">
+<div style="font-size:13px;font-weight:600;color:#1a6b3c;margin-bottom:6px">📊 Jumlah Pax</div>
+<div style="font-size:12px;color:#333">${pe.senarai.length} nama + ${pe.tambahan} tambahan = <b style="font-size:16px;color:#1a6b3c">${pax} pax</b>${pax!==pe.asalPax?` <span style="color:#e65100;font-weight:600">(sebelum ini ${pe.asalPax})</span>`:''}</div>
+<div style="font-size:11px;color:#666;margin-top:6px">Sudah ada ${guna} orang dalam pesanan · slot kosong selepas simpan: <b style="color:${kosong<0?'#c62828':'#1a6b3c'}">${kosong}</b></div>
+</div>
+${pe.err?`<div class="err">${esc(pe.err)}</div>`:''}
+<div class="warnsec">📅 Booking restoran ikut jumlah pax ini. Kalau booking dah dihantar, maklumkan perubahan kepada restoran.<br>📱 Peserta yang sedang buka link perlu refresh untuk nampak slot baharu.</div>
+</div>
+<div class="fb"><div style="display:flex;gap:8px">
+<button class="b2" id="pe-batal2" style="margin:0;flex:1;padding:14px 0"${pe.saving?' disabled':''}>Batal</button>
+<button class="b1" id="pe-simpan" style="margin:0;flex:2"${pe.saving||!berubah?' disabled':''}>${pe.saving?'⏳ Menyimpan...':berubah?'💾 Simpan Perubahan':'Tiada perubahan'}</button>
+</div></div>`;
+}
 // Tetapkan satu menu Namba terus kepada peserta tertentu.
 function rAssignSpecialModal(){
 const as=S.assignSpecial;
@@ -1723,13 +1928,90 @@ function cancelPriceEdit(){
 S.priceEditor={active:false,tripId:null,sesiCopy:null,originalSesi:null};
 S.view="admin";S.adminTab="trips";render();
 }
-function rTracking(trip,orders){
+// ── 👥 Peserta & Pax (v23) ───────────────────────────
+async function bukaPesertaEdit(tripId,returnTab){
+const trip=S.trips.find(t=>t.id===tripId);
+if(!trip){toast("Trip tidak ditemui.");return;}
+toast("⏳ Memuatkan peserta...");
+// Muat pesanan trip INI dahulu — had pax dan kiraan "sudah order" bergantung
+// padanya. Gagal muat = jangan buka, supaya pax tak boleh diturunkan atas data kosong.
+let orders;
+try{const s=await getDocs(collection(db,"trips",tripId,"orders"));orders=s.docs.map(d=>d.data());}
+catch(e){console.error("bukaPesertaEdit:",e);toast("❌ Gagal muat pesanan. Semak internet dan cuba lagi.");return;}
+S.selTrip=tripId;S.orders=orders;
+const senarai=JSON.parse(JSON.stringify(trip.peserta||[]));
+S.pesertaEdit={active:true,tripId,senarai,asalSenarai:JSON.parse(JSON.stringify(senarai)),tambahan:tambahanAsal(trip),asalPax:parseInt(trip.pax)||22,returnTab:returnTab||"trips",err:"",input:"",saving:false,pdfStatus:"",pdfBanding:null};
+S.view="peserta-edit";render();
+}
+function tutupPesertaEdit(){
+const tb=S.pesertaEdit.returnTab||"trips";
+S.pesertaEdit={active:false,tripId:null,senarai:[],asalSenarai:[],tambahan:0,asalPax:0,returnTab:"trips",err:"",input:"",saving:false,pdfStatus:"",pdfBanding:null};
+S.view="admin";S.adminTab=tb;render();
+}
+async function simpanPesertaEdit(){
+const pe=S.pesertaEdit;
+if(!pe.active||pe.saving)return;
+const trip=S.trips.find(t=>t.id===pe.tripId);
+if(!trip){toast("Trip tidak ditemui.");return;}
+const guna=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
+const r=semakPesertaPax(pe.senarai,pe.tambahan,guna);
+if(!r.ok){pe.err=r.ralat;render();return;}
+const beza=bezaSenarai(pe.asalSenarai,pe.senarai);
+if(r.pax===pe.asalPax&&!beza.tambah.length&&!beza.buang.length){toast("Tiada perubahan.");return;}
+const baris=barisSimpanPeserta(pe,r.pax);
+if(!confirm(`Simpan perubahan untuk "${trip.nama}"?\n\n${baris.join("\n")}`))return;
+pe.saving=true;pe.err="";render();
+const peserta=JSON.parse(JSON.stringify(pe.senarai));
+// merge: tulis peserta & pax SAHAJA — menu, harga dan medan lain trip tidak disentuh
+try{await setDoc(doc(db,"trips",trip.id),{peserta,pax:r.pax},{merge:true});}
+catch(e){console.error("simpanPesertaEdit:",e);pe.saving=false;pe.err="❌ Gagal simpan. Semak internet dan cuba lagi.";render();return;}
+trip.peserta=peserta;trip.pax=r.pax;
+tutupPesertaEdit();
+toast(`✓ Disimpan — ${r.pax} pax`);
+}
+// v24: rooming list PDF terkini — baca dan simpan PDF dalam keadaan skrin
+// SAHAJA (nama fail + senarai). Perbandingan dikira semula setiap render ikut
+// senarai semasa, jadi suntingan selepas muat naik tidak hilang tanpa disedari.
+// Tiada apa ditulis ke Firebase di sini. baca = pdfToLines (diganti dalam ujian).
+const RALAT_PDF_TIADA_NAMA="Tiada nama peserta dijumpai dalam PDF ini. Pastikan ia rooming list yang ada nombor pasport.";
+async function prosesPdfPeserta(f,baca){
+const pe=S.pesertaEdit;
+if(!f||!pe.active||pe.saving)return;
+pe.pdfStatus="proses";pe.err="";pe.pdfBanding=null;render();
+let banding=null,ralat="";
+try{
+const room=parseRoomingList(await baca(f));
+if(room.peserta.length)banding={fail:f.name||"rooming list.pdf",senarai:room.peserta};
+else ralat=RALAT_PDF_TIADA_NAMA;
+}catch(err){console.error("pe-pdf:",err);ralat="❌ Gagal baca PDF ini. Cuba lagi, atau pastikan ia fail PDF rooming list.";}
+if(S.pesertaEdit!==pe||!pe.active)return; // skrin sudah ditutup semasa membaca
+pe.pdfStatus="";pe.pdfBanding=banding;pe.err=ralat;render();
+}
+// Ganti senarai kerja dengan senarai PDF (salinan). Belum disimpan.
+function gunaSenaraiPdf(){
+const pe=S.pesertaEdit;const b=pe.pdfBanding;
+if(!b||pe.saving)return false;
+pe.senarai=JSON.parse(JSON.stringify(b.senarai));pe.pdfBanding=null;pe.err="";
+return true;
+}
+// bolehUbah: admin sahaja nampak butang betulkan (TL nampak amaran sahaja)
+function rTracking(trip,orders,bolehUbah){
 if(!trip||!trip.peserta||!trip.peserta.length)return'';
 const orderedNames=getAllOrderedPesertaNames(orders,trip.peserta);
 const tot=trip.peserta.length;
 const ok=orderedNames.size;
 const pct=tot>0?Math.round(ok/tot*100):0;
 const pending=trip.peserta.filter(p=>!orderedNames.has(p.nama));
+// v23: terangkan kenapa "Jumlah Pax" lain daripada "Sudah order", dan
+// beri amaran SEBELUM peserta terakhir tersekat kerana slot habis.
+const a=semakPadanan(trip,orders);
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const kosong=Math.max(0,a.kosong);
+const amaran=[];
+if(a.luar.length)amaran.push(`<b>${a.luar.length} orang dalam pesanan tiada dalam senarai:</b> ${a.luar.map(esc).join(', ')}`);
+if(a.tanpaNama.length)amaran.push(`<b>${a.tanpaNama.length} orang dalam pesanan tiada nama:</b> ${a.tanpaNama.map(esc).join(', ')}`);
+if(a.berganda.length)amaran.push(`<b>Nama sama dalam lebih satu pesanan:</b> ${a.berganda.map(x=>`${esc(x.nama)} (${x.kali} kali)`).join(', ')}`);
+if(pending.length>kosong)amaran.push(`<b>Slot kosong ${kosong}, tetapi ${pending.length} peserta belum order</b> — ${pending.length-kosong} orang tak dapat order selagi pax tidak dibetulkan.`);
 return`<div class="trkbox">
 <h4>📊 Status Pesanan Peserta</h4>
 <div class="trkrow">
@@ -1739,6 +2021,7 @@ return`<div class="trkbox">
 </div>
 <div class="trkbar"><div class="fill" style="width:${pct}%"></div></div>
 ${pending.length>0?`<button class="bcp" id="cp-pending" style="margin-top:6px">📋 Copy Senarai Belum Order (${pending.length})</button>`:'<p style="font-size:12px;color:#1a6b3c;text-align:center;font-weight:600">🎉 Semua peserta sudah order!</p>'}
+${amaran.length?`<div class="warnsec" style="margin:10px 0 0">⚠️ ${amaran.join('<br>⚠️ ')}${bolehUbah?`<button class="bcp" id="pe-buka" style="margin:10px 0 0;background:#fff">👥 Betulkan Senarai / Pax</button>`:''}</div>`:''}
 <div class="trklist">
 ${trip.peserta.map(p=>{
 const done=orderedNames.has(p.nama);
@@ -1753,7 +2036,7 @@ const orderedNames=getAllOrderedPesertaNames(orders,trip.peserta);
 const pending=trip.peserta.filter(p=>!orderedNames.has(p.nama));
 let txt=`📋 *PESERTA BELUM ORDER*\n📌 ${trip.nama}\n📅 ${trip.tarikh||'—'}\n${'─'.repeat(28)}\n\n`;
 pending.forEach((p,i)=>{txt+=`${i+1}. ${p.nama}${p.isTL?' ⭐ (TL)':''}\n`;});
-txt+=`\n${'─'.repeat(28)}\n👥 Tinggal ${pending.length} / ${trip.peserta.length} peserta`;
+txt+=`\n${'─'.repeat(28)}\n👥 Belum order: ${pending.length} / ${trip.peserta.length} peserta`;
 return txt;
 }
 function rNamePerMenu(sl,orders){
@@ -2171,14 +2454,14 @@ const sl=trip?(trip.sesi||SESI):SESI;
 const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
 if(S.adminTab==="trips"){
-const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax &nbsp;🚌 ${t.mod||'tren'}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm" data-priceedit-trip="${t.id}" style="border-color:#ff9800;color:#e65100">💴 Harga</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
+const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax &nbsp;🚌 ${t.mod||'tren'}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm" data-peserta-trip="${t.id}" style="border-color:#1a6b3c;color:#1a6b3c">👥 Peserta</button> <button class="bsm" data-priceedit-trip="${t.id}" style="border-color:#ff9800;color:#e65100">💴 Harga</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn active" data-tab="trips">🗺️ Trip</button> <button class="tabbtn" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> <div class="stitle">Senarai Trip</div>${cards}
 ${rBookingSec()}
 <div class="stitle">Tambah Trip Baru</div> <button class="pdfbtn" id="open-pdf-import">📄 Cipta Trip dari PDF (Auto)</button> <div class="abox"> <input class="inp" id="nt-nama" placeholder="Nama trip" value="${S.newTrip.nama}"/> <input class="inp" id="nt-tarikh" placeholder="Tarikh (cth: 1-7 Nov 2025)" value="${S.newTrip.tarikh}"/> <label class="lbl">Tarikh mula di Osaka</label> <input class="inp" id="nt-mula" type="date" value="${S.newTrip.tarikhMula||''}"/> <label class="lbl">Mod pengangkutan</label> <select class="inp" id="nt-mod"> <option value="tren" ${(S.newTrip.mod||'tren')==='tren'?'selected':''}>🚃 Tren (Nara:11am | Namba:5pm)</option> <option value="bas" ${S.newTrip.mod==='bas'?'selected':''}>🚌 Bas (Nara:11:30am | Namba:5:30pm)</option> </select> <input class="inp" id="nt-pax" placeholder="Jumlah peserta" value="${S.newTrip.pax}" type="number"/> <button class="b1" id="add-trip" style="margin-bottom:0">+ Cipta Trip Baru (manual)</button> </div></div>`;
 }
 if(S.adminTab==="orders"){
 const sel=rTripSelect();
-return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div>
+return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Slot Kosong</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders,true)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div>
 ${(()=>{const nb=sl.find(x=>x.id==="namba");const sp=nb?(nb.menus||[]).filter(m=>m.isSpecial):[];return sp.length?`<div style="background:#fff;border-radius:10px;padding:6px;margin-bottom:10px">${sp.map(m=>`<div style="display:flex;align-items:center;gap:6px;padding:8px 9px;border-bottom:1px solid #f5f5f5;font-size:12px;flex-wrap:wrap">
 <span style="flex:1;min-width:110px">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''}</span>
 <span style="font-size:10px;color:#888;font-weight:600">¥</span>
@@ -2346,7 +2629,7 @@ return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tou
     <div class="srow">
       <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div>
       <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div>
-      <div class="sc"><div class="sl">Tinggal</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div>
+      <div class="sc"><div class="sl">Slot Kosong</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div>
     </div>
     ${rTracking(trip,orders)}
     ${rPaymentDashboard(trip,orders)}
@@ -2371,6 +2654,7 @@ else if(S.view==="admin")el.innerHTML=rAdmin();
 else if(S.view==="leader")el.innerHTML=rLeader();
 else if(S.view==="pdf")el.innerHTML=rPdfImport();
 else if(S.view==="price-edit")el.innerHTML=rPriceEditor();
+else if(S.view==="peserta-edit")el.innerHTML=rPesertaEdit();
 attachEvents();
 }
 // ── Events ──────────────────────────────────────────
@@ -2601,6 +2885,49 @@ render();
 });
 // Tracking - copy senarai belum order
 on("cp-pending","click",()=>{const t=S.trips.find(x=>x.id===S.selTrip);if(t)cp(bPendingList(t,S.orders));});
+// 👥 Peserta & Pax (v23)
+document.querySelectorAll("[data-peserta-trip]").forEach(b=>b.addEventListener("click",()=>{bukaPesertaEdit(b.dataset.pesertaTrip,"trips");}));
+on("pe-buka","click",()=>{if(S.selTrip)bukaPesertaEdit(S.selTrip,"orders");});
+const peBatal=()=>{
+const pe=S.pesertaEdit;if(pe.saving)return;
+const beza=bezaSenarai(pe.asalSenarai,pe.senarai);
+const berubah=(pe.senarai.length+pe.tambahan)!==pe.asalPax||beza.tambah.length>0||beza.buang.length>0;
+if(berubah&&!confirm("Batal? Perubahan senarai dan pax tidak akan disimpan."))return;
+tutupPesertaEdit();
+};
+on("pe-batal","click",peBatal);
+on("pe-batal2","click",peBatal);
+on("pe-nama","input",e=>{S.pesertaEdit.input=e.target.value;});
+on("pe-nama","keydown",e=>{if(e.key==="Enter")$("pe-tambah")?.click();});
+on("pe-tambah","click",()=>{
+const pe=S.pesertaEdit;
+const r=cubaTambahNama(pe.senarai,$("pe-nama")?.value||pe.input||"");
+if(!r.ok){pe.err=r.sebab==="ada"?`Nama ini sudah ada dalam senarai: ${r.sama}`:"Sila taip nama peserta.";render();return;}
+if(r.hampir&&!confirm(`"${r.nama}" hampir sama dengan "${r.hampir}" yang sudah ada dalam senarai.\n\nTambah juga sebagai orang lain?`))return;
+pe.senarai=r.senarai;pe.input="";pe.err="";render();
+});
+document.querySelectorAll("[data-pe-cadang]").forEach(b=>b.addEventListener("click",()=>{
+const pe=S.pesertaEdit;
+const r=cubaTambahNama(pe.senarai,b.dataset.peCadang);
+if(!r.ok){pe.err=r.sebab==="ada"?`Nama ini sudah ada dalam senarai: ${r.sama}`:"Nama tidak sah.";render();return;}
+pe.senarai=r.senarai;pe.err="";render();
+}));
+document.querySelectorAll("[data-pe-buang]").forEach(b=>b.addEventListener("click",()=>{
+const pe=S.pesertaEdit;const i=parseInt(b.dataset.peBuang);const p=pe.senarai[i];if(!p)return;
+const adaPesanan=getAllOrderedPesertaNames(S.orders,pe.senarai).has(p.nama);
+if(!confirm(adaPesanan?`"${p.nama}" sudah ada pesanan.\n\nBuang dari senarai? Pesanannya TIDAK dipadam — cuma nama ini tidak lagi dijejak dalam senarai.`:`Buang "${p.nama}" dari senarai?`))return;
+pe.senarai=pe.senarai.filter((_,j)=>j!==i);pe.err="";render();
+}));
+on("pe-tb-minus","click",()=>{const pe=S.pesertaEdit;pe.tambahan=Math.max(0,pe.tambahan-1);pe.err="";render();});
+on("pe-tb-plus","click",()=>{const pe=S.pesertaEdit;pe.tambahan=pe.tambahan+1;pe.err="";render();});
+on("pe-simpan","click",()=>{simpanPesertaEdit();});
+// v24: rooming list PDF terkini — baca, banding, tunjuk; TIADA apa disimpan di sini
+on("pe-pdf","change",e=>prosesPdfPeserta(e.target.files&&e.target.files[0],pdfToLines));
+on("pe-pdf-abai","click",()=>{if(S.pesertaEdit.saving)return;S.pesertaEdit.pdfBanding=null;render();});
+on("pe-pdf-guna","click",()=>{
+if(!gunaSenaraiPdf())return;
+render();toast("✓ Senarai PDF diguna — semak, kemudian tekan Simpan");
+});
 // Payment tracking
 on("cp-unpaid","click",()=>{
 const t=S.trips.find(x=>x.id===S.selTrip);
