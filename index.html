@@ -159,12 +159,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v26 — 📄 PDF pesanan untuk Tour Guide (jumlah menu, nama ikut menu, senarai kutip bayaran, pesanan setiap peserta) -->
+<!-- BUILD: v27 — 📄 PDF Tour Guide lebih padat: muka surat lebih sedikit, semua data kekal (menu & nama dalam satu jadual, bab mengalir, Kandungan bernombor muka) -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v26 starting…");
+console.log("[Tour-Order] Build v27 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -1243,6 +1243,7 @@ return txt;
 // Penjana PDF kecil sendiri — tiada pustaka luar (tiada apa dimuat dari internet).
 // Fon standard Helvetica (WinAnsi): emoji & tulisan Jepun dibuang, dan
 // cili (Spicy Noodle) ditukar jadi "(cili xN)" supaya tahap pedas tak hilang.
+// v27: susun atur padat — muka surat lebih sedikit, tiada data dibuang.
 const PDF_CP1252=[8364,0,8218,402,8222,8230,8224,8225,710,8240,352,8249,338,0,381,0,0,8216,8217,8220,8221,8226,8211,8212,732,8482,353,8250,339,0,382,376];
 const PDF_LEBAR=[[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,500,556,0,222,556,333,1000,556,556,333,1000,667,333,1000,0,611,0,0,222,222,333,333,350,556,1000,333,1000,500,333,944,0,500,667,278,333,556,556,556,556,260,556,333,737,370,556,584,333,737,333,400,584,333,333,333,556,537,278,333,333,365,556,834,834,834,611,667,667,667,667,667,667,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,500,556,556,556,556,278,278,278,278,556,556,556,556,556,556,556,584,611,556,556,556,556,500,556,500],[278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584,500,556,0,278,556,500,1000,556,556,333,1000,667,333,1000,0,611,0,0,278,278,500,500,350,556,1000,333,1000,556,333,944,0,500,667,278,333,556,556,556,556,280,556,333,737,370,556,584,333,737,333,400,584,333,333,333,611,556,278,333,333,365,556,834,834,834,611,722,722,722,722,722,722,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,556,556,556,556,556,278,278,278,278,611,611,611,611,611,611,611,584,611,611,611,611,611,556,611,556]];
 // Kod titik Unicode → bait WinAnsi, atau -1 kalau fon standard tiada aksara itu.
@@ -1311,7 +1312,9 @@ if(cur||!out.length)out.push(cur);
 return out;
 }
 // ── Susun atur halaman (A4, unit point) ──
-function pdfDokumen(){return{W:595.28,H:841.89,M:40,BAWAH:64,pages:[],ops:null,y:0,bab:null};}
+// v27: kandungan MENGALIR (bab baharu tidak paksa muka baharu) supaya muka surat sedikit;
+// tajuk bab sentiasa satu muka dengan kepala jadual & baris pertamanya.
+function pdfDokumen(){return{W:595.28,H:841.89,M:40,BAWAH:64,pages:[],ops:null,y:0,bab:null,babMuka:{}};}
 // Muka sambungan dalam bab yang sama: ulang tajuk bab di atas supaya TG tahu ini sesi mana.
 function pdfMukaBaru(d){d.ops=[];d.pages.push(d.ops);d.y=d.H-d.M;
 if(d.bab){const b=pdfBungkus(`${d.bab} (sambungan)`,d.W-2*d.M,9,true);
@@ -1319,6 +1322,11 @@ b.forEach((t,j)=>pdfTulis(d,d.M,d.y-9-j*11,t,9,true,PDF_KELABU));d.y-=20+11*(b.l
 }
 // Pastikan ada ruang h; kalau tidak, muka baharu. Pulang true kalau muka baharu dibuka.
 function pdfPerlu(d,h){if(!d.ops||d.y-h<d.BAWAH){pdfMukaBaru(d);return true;}return false;}
+// Tinggi yang akan diguna oleh fn(d) — dilukis "kering" pada salinan dokumen, tiada apa berubah.
+function pdfTinggi(d,fn){const t={...d,pages:[],ops:[],y:1e6,bab:null,babMuka:{}};t.pages.push(t.ops);fn(t);return 1e6-t.y;}
+// Pilih calon yang paling pendek (cth. lebar lajur ikut data). Calon pertama = lalai; calon lain
+// dipakai hanya kalau benar-benar lebih pendek.
+function pdfPilih(calon,tinggi){let best=calon[0],h0=tinggi(best);for(const c of calon.slice(1)){const h=tinggi(c);if(h<h0-0.5){best=c;h0=h;}}return best;}
 const PDF_HITAM=[0,0,0],PDF_HIJAU=[0.10,0.42,0.24],PDF_KELABU=[0.40,0.40,0.40],PDF_MERAH=[0.78,0.16,0.16];
 function pdfWarna(w){return w.map(v=>+v.toFixed(3)).join(' ');}
 function pdfTulis(d,x,y,teks,saiz,tebal,warna){
@@ -1339,80 +1347,92 @@ const baris=pdfBungkus(pdfTeks(teks),lebar,saiz,o.tebal);
 baris.forEach(b=>{pdfPerlu(d,ld);d.y-=ld;pdfTulis(d,x,d.y+saiz*0.3,b,saiz,o.tebal,o.warna);});
 d.y-=(o.selepas==null?4:o.selepas);
 }
-// Tajuk (dibungkus kalau panjang). mukaBaru: bab baharu — muka baharu tanpa tajuk bab lama,
-// kemudian tajuk ini jadi tajuk "(sambungan)" untuk muka seterusnya dalam bab yang sama.
+// Tajuk (dibungkus kalau panjang). o.terus: tanpa semak ruang (pemanggil sudah pastikan ruang).
 function pdfTajuk(d,teks,o={}){
 const saiz=o.saiz||14;
 const baris=pdfBungkus(pdfTeks(teks),d.W-2*d.M,saiz,true);
-if(o.mukaBaru){d.bab=null;pdfMukaBaru(d);d.bab=pdfTeks(teks);}else pdfPerlu(d,saiz*(3+1.2*(baris.length-1))+40);
-baris.forEach((b,j)=>{d.y-=saiz*(j?1.2:1.3);pdfTulis(d,d.M,d.y,b,saiz,true,o.warna||PDF_HIJAU);});
-d.y-=6;
+if(!o.terus)pdfPerlu(d,saiz*(3+1.2*(baris.length-1))+40);
+baris.forEach((b,j)=>{d.y-=saiz*(j?1.2:1.25);pdfTulis(d,d.M,d.y,b,saiz,true,o.warna||PDF_HIJAU);});
+d.y-=4;
 if(o.garis!==false)pdfGaris(d,d.M,d.y,d.W-d.M,d.y,o.warna||PDF_HIJAU,1);
-d.y-=10;
+d.y-=7;
 }
 // Jadual: lajur [{t,w (pecahan lebar),a:'L'|'R'|'C'}]; baris: {sel:[...]} | {span:'teks'}.
-// Sel boleh {kotak:true} (kotak tanda kosong). Kepala diulang pada setiap muka baharu.
+// Sel: teks | {t,tebal,warna} | {baris:[...]} (beberapa baris) | {kotak:true} (kotak tanda kosong).
+// Pilihan baris: latar, warna, tebal, padY / padAtas / padBawah (ruang), garis:false (tiada garis bawah),
+// ikat:k (mesti satu muka dengan k baris seterusnya — berantai), sambung:'label' (kalau baris ini terpaksa
+// mula di muka baharu, sel pertamanya jadi "label (sambungan)").
+// o.awal(d): lukis tajuk bab — sentiasa satu muka dengan kepala jadual & baris pertama.
+// o.ekor(d): lukis nota selepas jadual — sentiasa satu muka dengan baris terakhir.
+// Kepala jadual diulang pada setiap muka baharu.
 function pdfJadual(d,lajur,baris,o={}){
 const saiz=o.saiz||9,pad=4,ld=saiz*1.25,X0=d.M,LW=d.W-2*d.M;
 const lebar=lajur.map(c=>c.w*LW);
 const xs=[];let acc=X0;lebar.forEach(w=>{xs.push(acc);acc+=w;});
 const teksSel=c=>c==null?'':typeof c==='object'?(c.t==null?'':String(c.t)):String(c);
+// Ruang atas & bawah baris (padAtas / padBawah, lalai padY, lalai 3)
+const pa=r=>r.padAtas!=null?r.padAtas:r.padY!=null?r.padY:3;
+const pb=r=>r.padBawah!=null?r.padBawah:r.padY!=null?r.padY:3;
 const ukur=r=>{
-if(r.span!=null){const b=pdfBungkus(pdfTeks(r.span),LW-2*pad,saiz,true);return{b,h:b.length*ld+2*pad};}
-const bs=r.sel.map((c,i)=>pdfBungkus(pdfTeks(teksSel(c)),lebar[i]-2*pad,saiz,r.tebal||(c&&c.tebal)));
-return{bs,h:Math.max(1,...bs.map(b=>b.length))*ld+2*pad};
+if(r.span!=null){const b=pdfBungkus(pdfTeks(r.span),LW-2*pad,saiz,true);return{b,h:b.length*ld+pa(r)+pb(r)};}
+const bs=r.sel.map((c,i)=>{const tb=r.tebal||(c&&c.tebal);
+return c&&c.baris?c.baris.flatMap(b=>pdfBungkus(pdfTeks(b),lebar[i]-2*pad,saiz,tb)):pdfBungkus(pdfTeks(teksSel(c)),lebar[i]-2*pad,saiz,tb);});
+return{bs,h:Math.max(1,...bs.map(b=>b.length))*ld+pa(r)+pb(r)};
 };
-const kepala={sel:lajur.map(c=>c.t),tebal:true,latar:[0.89,0.94,0.90],kepala:true};
+const kepala={sel:lajur.map(c=>c.t),tebal:true,latar:[0.89,0.94,0.90]};
 const lukis=(r,u)=>{
-const top=d.y;
+const top=d.y,p=pa(r);
 if(r.latar)pdfSegi(d,X0,top-u.h,LW,u.h,r.latar);
-if(r.span!=null){u.b.forEach((t,j)=>pdfTulis(d,X0+pad,top-pad-saiz*0.85-j*ld,t,saiz,true,r.warna||PDF_HIJAU));}
+if(r.span!=null){u.b.forEach((t,j)=>pdfTulis(d,X0+pad,top-p-saiz*0.85-j*ld,t,saiz,true,r.warna||PDF_HIJAU));}
 else r.sel.forEach((c,i)=>{
 if(c&&typeof c==='object'&&c.kotak){const k=Math.min(11,u.h-6);pdfSegi(d,xs[i]+(lebar[i]-k)/2,top-u.h/2-k/2,k,k,null,PDF_HITAM);return;}
 const al=lajur[i].a||'L',tb=r.tebal||(c&&c.tebal),w=(c&&typeof c==='object'&&c.warna)||r.warna||PDF_HITAM;
 u.bs[i].forEach((t,j)=>{
 const tw=pdfLebar(t,saiz,tb);
 const x=al==='R'?xs[i]+lebar[i]-pad-tw:al==='C'?xs[i]+(lebar[i]-tw)/2:xs[i]+pad;
-pdfTulis(d,x,top-pad-saiz*0.85-j*ld,t,saiz,tb,w);
+pdfTulis(d,x,top-p-saiz*0.85-j*ld,t,saiz,tb,w);
 });
 });
-pdfGaris(d,X0,top-u.h,X0+LW,top-u.h,[0.80,0.80,0.80],0.5);
+if(r.garis!==false)pdfGaris(d,X0,top-u.h,X0+LW,top-u.h,[0.80,0.80,0.80],0.5);
 d.y-=u.h;
 };
 const uk=o.tanpaKepala?null:ukur(kepala);
 const kepalaLukis=()=>{if(uk)lukis(kepala,uk);};
-// Tajuk kumpulan (span) tidak ditinggalkan seorang diri di hujung muka:
-// ia mesti muat bersama baris pertamanya.
-const tinggiDengan=(i,u)=>u.h+(baris[i].span!=null&&baris[i+1]&&baris[i+1].span==null?ukur(baris[i+1]).h:0);
-const r0=baris.length?ukur(baris[0]):{h:0};
-pdfPerlu(d,(uk?uk.h:0)+(baris.length?tinggiDengan(0,r0):0));
+const U=baris.map(ukur);
+const hAwal=o.awal?pdfTinggi(d,o.awal):0,hEkor=o.ekor?pdfTinggi(d,o.ekor):0;
+// Baris i mesti satu muka dengan baris yang terikat padanya: tajuk kumpulan (span) + baris
+// pertamanya; ikat:k + k baris seterusnya. BERANTAI: baris terikat yang ada ikat sendiri
+// membawa baris seterusnya juga. Rantai yang sampai baris terakhir membawa nota ekor sekali.
+const hujung=i=>{let j=i;
+for(let k=i;k<=j&&k<baris.length;k++){const r=baris[k];j=Math.max(j,k+(r.ikat||0),r.span!=null&&baris[k+1]&&baris[k+1].span==null?k+1:k);}
+return Math.min(j,baris.length-1);};
+const tinggiIkat=i=>{const j=hujung(i);let h=0;for(let k=i;k<=j;k++)h+=U[k].h;return h+(j===baris.length-1?hEkor:0);};
+pdfPerlu(d,hAwal+(uk?uk.h:0)+(baris.length?tinggiIkat(0):hEkor));
+if(o.awal)o.awal(d);
 kepalaLukis();
-let kump=null;
 baris.forEach((r,i)=>{
-const u=i===0?r0:ukur(r);
-if(r.span!=null){
-if(pdfPerlu(d,tinggiDengan(i,u)))kepalaLukis();
-lukis(r,u);kump=r;return;
-}
-if(pdfPerlu(d,u.h)){
+let u=U[i];
+if(pdfPerlu(d,tinggiIkat(i))){
 kepalaLukis();
-// Kumpulan bersambung ke muka baharu: ulang tajuknya
-if(kump){const s={...kump,span:`${kump.span} (sambungan)`};lukis(s,ukur(s));}
+// Kumpulan menu bersambung ke muka baharu: sel pertama dilabel "Menu (sambungan)"
+if(r.sambung!=null){r={...r,padAtas:3,sel:[{t:`${r.sambung} (sambungan)`,tebal:true,warna:PDF_KELABU},...r.sel.slice(1)]};u=ukur(r);}
 }
 if(!r.latar&&o.zebra&&i%2===1)r={...r,latar:[0.965,0.965,0.965]};
 lukis(r,u);
 });
+if(o.ekor)o.ekor(d);
 d.y-=(o.selepas==null?12:o.selepas);
 }
-// Kaki muka: nama trip, masa dicetak, "Muka x / n".
+// Kaki muka: nama trip, masa dicetak, "Muka x / n". kiri(maks) pulang teks kiri yang muat dalam
+// lebar maks (nama trip panjang dipendekkan dengan "…" supaya tidak bertindih dengan nombor muka).
 function pdfKaki(d,kiri){
 const n=d.pages.length;
 d.pages.forEach((ops,i)=>{
 const s={...d,ops};
 pdfGaris(s,d.M,46,d.W-d.M,46,[0.75,0.75,0.75],0.5);
-pdfTulis(s,d.M,34,kiri,8,false,PDF_KELABU);
-const kanan=`Muka ${i+1} / ${n}`;
-pdfTulis(s,d.W-d.M-pdfLebar(kanan,8,false),34,kanan,8,false,PDF_KELABU);
+const kanan=`Muka ${i+1} / ${n}`,wk=pdfLebar(kanan,8,false);
+pdfTulis(s,d.M,34,kiri(d.W-2*d.M-wk-12),8,false,PDF_KELABU);
+pdfTulis(s,d.W-d.M-wk,34,kanan,8,false,PDF_KELABU);
 });
 }
 // Fail PDF lengkap (bait). Objek: katalog, halaman, 2 fon standard, setiap muka + kandungan, info.
@@ -1451,52 +1471,52 @@ return out.sort((a,b)=>String(a.nama).localeCompare(String(b.nama)));
 }
 function labelSesiTG(s){return s.id==='fuji'?'Fuji':s.id==='nara'?'Nara':s.id==='namba'?'Namba':pdfTeks(s.nama);}
 function yenTG(n){return'¥'+Number(n||0).toLocaleString('en-US');}
-// Pulang {nama (fail), tajuk, bait}. bila: masa dicetak (untuk ujian).
-// lama=true: data TIDAK dapat dimuat semula dari pelayan (luar talian) — PDF beri amaran.
-function binaPdfTG(trip,orders,bila,lama){
+// Susun semua muka. muka: {kunci bab: nombor muka} dari laluan pertama (untuk Kandungan), atau null.
+function susunPdfTG(trip,orders,bila,lama,muka){
 const d=pdfDokumen();
 const sl=trip.sesi||SESI;
 const orang=orangPesananTG(orders);
-const masa=(bila||new Date()).toLocaleString('ms-MY',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+const masa=bila.toLocaleString('ms-MY',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 const namaTrip=pdfTeks(trip.nama)||'Trip';
 const pax=parseInt(trip.pax)||22;
 const sesiBayar=sl.filter(s=>getPayType(s)==='pay');
+const noMuka=k=>`muka ${muka&&muka[k]?muka[k]:'-'}`;
 // ── Muka 1: ringkasan ──
 pdfMukaBaru(d);
-pdfSegi(d,0,d.H-96,d.W,96,PDF_HIJAU);
-pdfTulis(d,d.M,d.H-52,'PESANAN MAKAN UNTUK TOUR GUIDE',18,true,[1,1,1]);
-pdfTulis(d,d.M,d.H-76,namaTrip,11,false,[1,1,1]);
-d.y=d.H-120;
-pdfPerenggan(d,`Tarikh trip: ${trip.tarikh||'-'}`,{saiz:11});
-pdfPerenggan(d,`Jumlah pax: ${pax} orang · Dalam pesanan: ${orang.length} orang (${(orders||[]).length} wakil)`,{saiz:11});
-pdfPerenggan(d,`Dicetak: ${masa}`,{saiz:11,selepas:10});
-if(lama)pdfJadual(d,[{t:'',w:1}],[{span:'AMARAN: tiada sambungan internet semasa PDF ini dibuat — pesanan mungkin BUKAN yang terkini. Cetak semula bila ada internet.',latar:[1,0.92,0.92],warna:PDF_MERAH}],{tanpaKepala:true,saiz:10});
+// Nama trip yang sangat panjang dibungkus; jalur hijau ikut tinggi.
+const barisTrip=pdfBungkus(namaTrip,d.W-2*d.M,10,false),jalur=62+12*(barisTrip.length-1);
+pdfSegi(d,0,d.H-jalur,d.W,jalur,PDF_HIJAU);
+pdfTulis(d,d.M,d.H-30,'PESANAN MAKAN UNTUK TOUR GUIDE',16,true,[1,1,1]);
+barisTrip.forEach((b,j)=>pdfTulis(d,d.M,d.H-49-12*j,b,10,false,[1,1,1]));
+d.y=d.H-jalur-10;
+pdfPerenggan(d,`Tarikh trip: ${trip.tarikh||'-'} · Dicetak: ${masa}`,{saiz:10,selepas:1});
+pdfPerenggan(d,`Jumlah pax: ${pax} orang · Dalam pesanan: ${orang.length} orang (${(orders||[]).length} wakil)`,{saiz:10,selepas:6});
+if(lama)pdfJadual(d,[{t:'',w:1}],[{span:'AMARAN: tiada sambungan internet semasa PDF ini dibuat — pesanan mungkin BUKAN yang terkini. Cetak semula bila ada internet.',latar:[1,0.92,0.92],warna:PDF_MERAH}],{tanpaKepala:true,saiz:9.5,selepas:4});
 const k=kunciAktif(trip);
 const notaKunci=k?`PESANAN DIKUNCI${masaKunci(trip.kunci)?` sejak ${masaKunci(trip.kunci)}`:''}${lama?'.':' — senarai ini muktamad.'}`:'Pesanan masih DIBUKA — senarai mungkin berubah. Minta admin cetak semula selepas pesanan dikunci.';
-pdfJadual(d,[{t:'',w:1}],[{span:notaKunci,latar:k?[0.89,0.94,0.90]:[1,0.95,0.88],warna:k?PDF_HIJAU:PDF_MERAH}],{tanpaKepala:true,saiz:10});
-pdfTajuk(d,'Cara guna',{saiz:12});
-['1. Semak BILANGAN setiap menu (lajur Bil.) dengan restoran.','2. Semasa agih makanan, panggil NAMA IKUT MENU.',sesiBayar.length?`3. Kutip bayaran ${sesiBayar.map(labelSesiTG).join(' + ')} ikut SENARAI KUTIP BAYARAN, kemudian tanda kotak.`:'3. Semua makan disupport — tiada bayaran untuk dikutip.','4. Kalau ada yang tanya pesanan sendiri, rujuk PESANAN SETIAP PESERTA.'].forEach(t=>pdfPerenggan(d,t,{saiz:10,selepas:2}));
-d.y-=8;
-pdfTajuk(d,'Kandungan',{saiz:12});
-sl.forEach((s,i)=>{
+pdfJadual(d,[{t:'',w:1}],[{span:notaKunci,latar:k?[0.89,0.94,0.90]:[1,0.95,0.88],warna:k?PDF_HIJAU:PDF_MERAH}],{tanpaKepala:true,saiz:9.5,selepas:4});
+pdfTajuk(d,'Cara guna',{saiz:11});
+['1. Semak BILANGAN setiap menu (lajur Bil.) dengan restoran.','2. Semasa agih makanan, panggil NAMA IKUT MENU.',sesiBayar.length?`3. Kutip bayaran ${sesiBayar.map(labelSesiTG).join(' + ')} ikut SENARAI KUTIP BAYARAN, kemudian tanda kotak.`:'3. Semua makan disupport — tiada bayaran untuk dikutip.','4. Kalau ada yang tanya pesanan sendiri, rujuk PESANAN SETIAP PESERTA.'].forEach(t=>pdfPerenggan(d,t,{saiz:9,selepas:1}));
+d.y-=4;
+pdfTajuk(d,'Kandungan',{saiz:11});
+const kand=sl.map((s,i)=>{
 const makan=orang.filter(x=>x.p[s.id]&&!x.p[s.id].skip).length;
 const tarikh=getTarikhLoc(trip,s.id,'ms-MY'),waktu=getWaktu(trip,s.id);
-pdfPerenggan(d,`${i+1}. ${pdfTeks(s.nama)} — ${tarikh}${waktu?`, ${waktu}`:''} — ${makan} orang makan${getPayType(s)==='pay'?' · bayar kepada TG':' · percuma (disupport)'}`,{saiz:10,selepas:2});
+return{sel:[`${i+1}. ${pdfTeks(s.nama)} — ${tarikh}${waktu?`, ${waktu}`:''} — ${makan} orang makan${getPayType(s)==='pay'?' · bayar kepada TG':' · percuma (disupport)'}`,noMuka(`sesi${i}`)]};
 });
-if(sesiBayar.length)pdfPerenggan(d,`${sl.length+1}. Senarai kutip bayaran (${sesiBayar.map(labelSesiTG).join(' + ')})`,{saiz:10,selepas:2});
-pdfPerenggan(d,`${sl.length+(sesiBayar.length?2:1)}. Pesanan setiap peserta`,{saiz:10,selepas:8});
+if(sesiBayar.length)kand.push({sel:[`${sl.length+1}. Senarai kutip bayaran (${sesiBayar.map(labelSesiTG).join(' + ')})`,noMuka('kutip')]});
+kand.push({sel:[`${sl.length+(sesiBayar.length?2:1)}. Pesanan setiap peserta`,noMuka('peserta')]});
+pdfJadual(d,[{t:'',w:0.86},{t:'',w:0.14,a:'R'}],kand.map(r=>({...r,padY:1.5,garis:false})),{tanpaKepala:true,saiz:9,selepas:6});
 if(trip.peserta&&trip.peserta.length){
 const ok=getAllOrderedPesertaNames(orders||[],trip.peserta);
 const belum=trip.peserta.filter(p=>!ok.has(p.nama)).map(p=>p.nama);
-if(belum.length){pdfTajuk(d,`Belum order (${belum.length})`,{saiz:12,warna:PDF_MERAH});pdfPerenggan(d,belum.join(', '),{saiz:10});}
+if(belum.length){pdfTajuk(d,`Belum order (${belum.length})`,{saiz:11,warna:PDF_MERAH});pdfPerenggan(d,belum.join(', '),{saiz:9,selepas:4});}
 }
-// ── Setiap sesi ──
+// ── Setiap sesi: SATU jadual — menu, bilangan, harga, jumlah DAN nama untuk dipanggil ──
 sl.forEach((s,i)=>{
 const bayar=getPayType(s)==='pay',cukai=getTaxRate(s);
-pdfTajuk(d,`${i+1}. ${pdfTeks(s.nama)}`,{saiz:16,mukaBaru:true});
+const tajuk=`${i+1}. ${pdfTeks(s.nama)}`;
 const tarikh=getTarikhLoc(trip,s.id,'ms-MY'),waktu=getWaktu(trip,s.id);
-pdfPerenggan(d,`Tarikh: ${tarikh}${waktu?` · Masa: ${waktu} (${(trip.mod||'tren')==='tren'?'tren':'bas'})`:''}`,{saiz:11,tebal:true});
-pdfPerenggan(d,bayar?`Bayaran: peserta bayar kepada Tour Guide.${cukai?` Harga termasuk cukai ${taxPct(s)}% (dibundar ke atas ke ¥${TAX_ROUND_TO}).`:''}`:'Bayaran: disupport — peserta TIDAK perlu bayar.',{saiz:10,selepas:10});
 // Setiap item dikira dengan harganya SENDIRI (harga trip boleh berubah selepas ada yang order)
 const kira=new Map();let skip=[];
 orang.forEach(x=>{const it=x.p[s.id];if(!it)return;if(it.skip){skip.push(x.nama);return;}
@@ -1506,34 +1526,55 @@ const menu=[...kira.entries()].sort((a,b)=>b[1].nama.length-a[1].nama.length||a[
 const jumlahOrang=menu.reduce((t,m)=>t+m[1].nama.length,0);
 const jumlahYen=menu.reduce((t,m)=>t+m[1].jumlah,0);
 const hargaTeks=m=>[...m.harga].sort((a,b)=>a-b).map(yenTG).join(' / ');
-pdfTajuk(d,'A. Jumlah menu',{saiz:12,garis:false});
-const lajurA=bayar?[{t:'Menu',w:0.52},{t:'Bil.',w:0.12,a:'C'},{t:'Harga seunit',w:0.18,a:'R'},{t:'Jumlah',w:0.18,a:'R'}]:[{t:'Menu',w:0.76},{t:'Bil.',w:0.24,a:'C'}];
-const barisA=menu.map(([nm,m])=>({sel:bayar?[nm,m.nama.length,hargaTeks(m),yenTG(m.jumlah)]:[nm,m.nama.length]}));
-countSides(s,orders||[]).forEach(({side,pax:n})=>barisA.push({sel:bayar?[`+ ${side.name} (lauk sampingan)`,n,'','']:[`+ ${side.name} (lauk sampingan)`,n],warna:PDF_KELABU}));
-if(skip.length)barisA.push({sel:bayar?['Tidak order',skip.length,'','']:['Tidak order',skip.length],warna:PDF_KELABU});
-barisA.push({sel:bayar?['JUMLAH',`${jumlahOrang} orang`,'',yenTG(jumlahYen)]:['JUMLAH',`${jumlahOrang} orang`],tebal:true,latar:[0.93,0.93,0.93]});
-pdfJadual(d,lajurA,barisA,{saiz:10,selepas:bayar&&cukai&&jumlahOrang?4:12});
-// Bil restoran dikira lain (cukai tepat atas subjumlah) — beri angka supaya TG tak keliru.
-if(bayar&&cukai&&jumlahOrang){const sub=menu.reduce((t,m)=>t+m[1].asal,0),tx=exactTax(s,sub);
-pdfPerenggan(d,`Anggaran bil restoran: ${yenTG(sub+tx)} (${yenTG(sub)} + cukai ${taxPct(s)}% ${yenTG(tx)}). Beza dengan JUMLAH di atas kerana harga peserta dibundar ke ¥${TAX_ROUND_TO}.`,{saiz:9,warna:PDF_KELABU,selepas:12});}
-pdfTajuk(d,'B. Nama ikut menu',{saiz:12,garis:false});
-const barisB=[];
-const kumpul=(tajuk,senarai,warna)=>{
-barisB.push({span:`${tajuk} — ${senarai.length} orang`,latar:[0.89,0.94,0.90],warna});
-const n=senarai; // sudah ikut abjad: orang diisih dalam orangPesananTG
-for(let j=0;j<n.length;j+=2)barisB.push({sel:[`${j+1}. ${n[j]}`,n[j+1]!=null?`${j+2}. ${n[j+1]}`:'']});
+const kosong=bayar?['','','','']:['',''];
+// Lebar lajur Menu / Nama ikut data (nama menu panjang vs nama peserta panjang): jadual paling pendek.
+const bina=wm=>{
+const lajur=bayar?[{t:'Menu',w:wm},{t:'Bil.',w:0.10,a:'C'},{t:'Harga seunit',w:0.12,a:'R'},{t:'Jumlah',w:0.11,a:'R'},{t:'Nama (panggil ikut menu)',w:0.67-wm}]
+:[{t:'Menu',w:wm},{t:'Bil.',w:0.10,a:'C'},{t:'Nama (panggil ikut menu)',w:0.90-wm}];
+const barisS=[];let g=0;
+// Satu kumpulan = satu menu: baris pertama ada menu, bilangan & harga; satu nama sebaris (bernombor).
+// Nama menu yang panjang diisi dengan nama seterusnya di sebelahnya (tiada ruang kosong), tetapi
+// baris itu tidak pernah lebih tinggi daripada nama menu itu sendiri (atau nama pertama).
+// Kumpulan kecil (<=6) tidak dipecah; kumpulan besar yang bersambung dilabel "(sambungan)".
+const LW=d.W-2*d.M,lebarMenu=LW*lajur[0].w-8,lebarNama=LW*lajur[lajur.length-1].w-8;
+const kumpul=(nm,nama,info,warna)=>{
+const latar=g++%2?[0.965,0.965,0.965]:null;
+const no=nama.map((n,j)=>`${j+1}. ${n}`);
+const garisMenu=pdfBungkus(pdfTeks(nm),lebarMenu,9.5,true).length;
+const garis=no.map(x=>pdfBungkus(pdfTeks(x),lebarNama,9.5,false).length);
+let k=1,guna=garis[0];
+while(k<no.length&&guna+garis[k]<=garisMenu){guna+=garis[k];k++;}
+const baki=no.length-k;
+barisS.push({sel:[{t:nm,tebal:true},nama.length,...info,{baris:no.slice(0,k)}],latar,warna,padAtas:3,padBawah:baki?0:3,garis:!baki,ikat:nama.length<=6?baki:Math.min(baki,2)});
+no.slice(k).forEach((x,j)=>barisS.push({sel:[...kosong,x],latar,warna,padAtas:0,padBawah:j===baki-1?3:0,garis:j===baki-1,sambung:nm}));
 };
-menu.forEach(([nm,m])=>kumpul(nm,m.nama));
-if(skip.length)kumpul('Tidak order',skip,PDF_KELABU);
-if(barisB.length)pdfJadual(d,[{t:'',w:0.5},{t:'',w:0.5}],barisB,{tanpaKepala:true,saiz:10});
-else pdfPerenggan(d,'Tiada pesanan untuk sesi ini.',{saiz:10});
+menu.forEach(([nm,m])=>kumpul(nm,m.nama,bayar?[hargaTeks(m),yenTG(m.jumlah)]:[],null));
+countSides(s,orders||[]).forEach(({side,pax:n})=>barisS.push({sel:[`+ ${side.name} (lauk sampingan)`,n,...(bayar?['','']:[]),''],warna:PDF_KELABU,padY:2}));
+if(skip.length)kumpul('Tidak order',skip,bayar?['','']:[],PDF_KELABU);
+if(!menu.length&&!skip.length)barisS.push({sel:[...kosong,'Tiada pesanan untuk sesi ini.'],warna:PDF_KELABU,padY:2});
+// Baris sebelum JUMLAH ikut ke muka baharu bersama JUMLAH — JUMLAH tidak pernah seorang diri di atas muka.
+{const r=barisS[barisS.length-1];r.ikat=Math.max(r.ikat||0,1);}
+barisS.push({sel:bayar?['JUMLAH',`${jumlahOrang} orang`,'',yenTG(jumlahYen),'']:['JUMLAH',`${jumlahOrang} orang`,''],tebal:true,latar:[0.93,0.93,0.93]});
+return{lajur,barisS};
+};
+const{lajur,barisS}=pdfPilih((bayar?[0.22,0.18,0.20,0.24,0.26]:[0.32,0.24,0.28,0.36]).map(bina),c=>pdfTinggi(d,t=>pdfJadual(t,c.lajur,c.barisS,{saiz:9.5,selepas:0})));
+d.bab=null;
+// Bil restoran dikira lain (cukai tepat atas subjumlah) — beri angka supaya TG tak keliru.
+const sub=menu.reduce((t,m)=>t+m[1].asal,0),tx=exactTax(s,sub);
+const ekor=bayar&&cukai&&jumlahOrang?t=>{t.y-=3;pdfPerenggan(t,`Anggaran bil restoran: ${yenTG(sub+tx)} (${yenTG(sub)} + cukai ${taxPct(s)}% ${yenTG(tx)}). Beza dengan JUMLAH di atas kerana harga peserta dibundar ke ¥${TAX_ROUND_TO}.`,{saiz:8.5,warna:PDF_KELABU,selepas:0});}:null;
+pdfJadual(d,lajur,barisS,{saiz:9.5,selepas:14,ekor,awal:t=>{
+t.y-=6;
+pdfTajuk(t,tajuk,{saiz:13,terus:true});
+pdfPerenggan(t,`Tarikh: ${tarikh}${waktu?` · Masa: ${waktu} (${(trip.mod||'tren')==='tren'?'tren':'bas'})`:''}`,{saiz:9.5,tebal:true,selepas:1});
+pdfPerenggan(t,bayar?`Bayaran: peserta bayar kepada Tour Guide.${cukai?` Harga termasuk cukai ${taxPct(s)}% (dibundar ke atas ke ¥${TAX_ROUND_TO}).`:''}`:'Bayaran: disupport — peserta TIDAK perlu bayar.',{saiz:9,selepas:5});
+t.babMuka[`sesi${i}`]=t.pages.length;t.bab=tajuk;
+}});
 });
 // ── Senarai kutip bayaran ──
 if(sesiBayar.length){
-pdfTajuk(d,`${sl.length+1}. Senarai kutip bayaran (${sesiBayar.map(labelSesiTG).join(' + ')})`,{saiz:16,mukaBaru:true});
-pdfPerenggan(d,'Jumlah sudah termasuk cukai. Kutip jumlah dalam lajur BAKI, kemudian tanda kotak. "SUDAH" = sudah bayar penuh.',{saiz:10,selepas:10});
-const lw=0.36/sesiBayar.length;
-const lajur=[{t:'No',w:0.06,a:'C'},{t:'Nama',w:0.34},...sesiBayar.map(s=>({t:labelSesiTG(s),w:lw,a:'R'})),{t:'Baki',w:0.14,a:'R'},{t:'Tanda',w:0.10,a:'C'}];
+const tajukK=`${sl.length+1}. Senarai kutip bayaran (${sesiBayar.map(labelSesiTG).join(' + ')})`;
+// Lebar lajur Nama ikut data (nama panjang vs amaun): jadual paling pendek. Lalai 0.42.
+const lajurK=wn=>[{t:'No',w:0.05,a:'C'},{t:'Nama',w:wn},...sesiBayar.map(s=>({t:labelSesiTG(s),w:(0.74-wn)/sesiBayar.length,a:'R'})),{t:'Baki',w:0.12,a:'R'},{t:'Tanda',w:0.09,a:'C'}];
 let jum=sesiBayar.map(()=>0),jumBaki=0,jumBayar=0;
 const baris=orang.map((x,i)=>{
 let baki=0,ada=0;
@@ -1543,18 +1584,44 @@ if(it.paid){jumBayar+=a;return{t:`${yenTG(a)} (sudah)`,warna:PDF_HIJAU};}
 baki+=a;return yenTG(a);});
 jumBaki+=baki;
 const tanda=!ada?'-':baki?{kotak:true}:{t:'SUDAH',tebal:true,warna:PDF_HIJAU};
-return{sel:[i+1,x.nama,...sel,ada?yenTG(baki):'-',tanda],warna:ada?null:PDF_KELABU};
+return{sel:[i+1,x.nama,...sel,ada?yenTG(baki):'-',tanda],warna:ada?null:PDF_KELABU,padY:2.5};
 });
+if(baris.length)baris[baris.length-1].ikat=1; // orang terakhir ikut bersama JUMLAH
 baris.push({sel:['','JUMLAH',...jum.map(yenTG),yenTG(jumBaki),''],tebal:true,latar:[0.93,0.93,0.93]});
-pdfJadual(d,lajur,baris,{saiz:9,zebra:true});
-pdfPerenggan(d,`Jumlah bil: ${yenTG(jum.reduce((a,b)=>a+b,0))} · Sudah dibayar: ${yenTG(jumBayar)} · Baki belum dikutip: ${yenTG(jumBaki)}`,{saiz:10,tebal:true});
+const lajur=pdfPilih([0.42,0.34,0.38,0.46,0.50].map(lajurK),l=>pdfTinggi(d,t=>pdfJadual(t,l,baris,{saiz:9,selepas:0})));
+d.bab=null;
+pdfJadual(d,lajur,baris,{saiz:9,zebra:true,selepas:14,ekor:t=>{t.y-=3;pdfPerenggan(t,`Jumlah bil: ${yenTG(jum.reduce((a,b)=>a+b,0))} · Sudah dibayar: ${yenTG(jumBayar)} · Baki belum dikutip: ${yenTG(jumBaki)}`,{saiz:9.5,tebal:true,selepas:0});},awal:t=>{
+t.y-=6;
+pdfTajuk(t,tajukK,{saiz:13,terus:true});
+pdfPerenggan(t,'Jumlah sudah termasuk cukai. Kutip jumlah dalam lajur BAKI, kemudian tanda kotak. "SUDAH" = sudah bayar penuh.',{saiz:9,selepas:5});
+t.babMuka.kutip=t.pages.length;t.bab=tajukK;
+}});
 }
 // ── Pesanan setiap peserta ──
-pdfTajuk(d,`${sl.length+(sesiBayar.length?2:1)}. Pesanan setiap peserta`,{saiz:16,mukaBaru:true});
-const lwS=0.60/Math.max(1,sl.length);
-pdfJadual(d,[{t:'No',w:0.06,a:'C'},{t:'Nama',w:0.34},...sl.map(s=>({t:labelSesiTG(s),w:lwS}))],
-orang.map((x,i)=>({sel:[i+1,x.nama,...sl.map(s=>{const it=x.p[s.id];return!it?'-':it.skip?{t:'Tidak order',warna:PDF_KELABU}:(it.name||'-');})]})),{saiz:9,zebra:true});
-pdfKaki(d,`Pesanan makan untuk TG — ${namaTrip} · dicetak ${masa}`);
+const tajukP=`${sl.length+(sesiBayar.length?2:1)}. Pesanan setiap peserta`;
+const barisP=orang.map((x,i)=>({sel:[i+1,x.nama,...sl.map(s=>{const it=x.p[s.id];return!it?'-':it.skip?{t:'Tidak order',warna:PDF_KELABU}:(it.name||'-');})],padY:2.5}));
+// Lebar lajur Nama ikut data (nama panjang vs nama menu panjang): jadual paling pendek. Lalai 0.32.
+const lajurP=wn=>[{t:'No',w:0.05,a:'C'},{t:'Nama',w:wn},...sl.map(s=>({t:labelSesiTG(s),w:(0.95-wn)/Math.max(1,sl.length)}))];
+const lajurPilih=pdfPilih([0.32,0.28,0.30,0.34,0.36,0.38,0.40,0.42].map(lajurP),l=>pdfTinggi(d,t=>pdfJadual(t,l,barisP,{saiz:9,selepas:0})));
+d.bab=null;
+pdfJadual(d,lajurPilih,barisP,{saiz:9,zebra:true,awal:t=>{
+t.y-=6;
+pdfTajuk(t,tajukP,{saiz:13,terus:true});
+t.babMuka.peserta=t.pages.length;t.bab=tajukP;
+}});
+return{d,namaTrip,masa};
+}
+// Pulang {nama (fail), tajuk, bait}. bila: masa dicetak (untuk ujian).
+// lama=true: data TIDAK dapat dimuat semula dari pelayan (luar talian) — PDF beri amaran.
+function binaPdfTG(trip,orders,bila,lama){
+const b=bila||new Date();
+// Dua laluan: laluan pertama cari muka setiap bab untuk Kandungan. Nombor muka berada dalam
+// lajur sendiri, jadi susun atur laluan kedua sama tepat.
+const p1=susunPdfTG(trip,orders,b,lama,null);
+const{d,namaTrip,masa}=susunPdfTG(trip,orders,b,lama,p1.d.babMuka);
+pdfKaki(d,maks=>{const a='Pesanan makan untuk TG — ',z=` · dicetak ${pdfTeks(masa)}`;let t=namaTrip;
+while(t.length>1&&pdfLebar(a+t+z,8,false)>maks)t=t.slice(0,-1);
+return a+(t===namaTrip?t:t.trimEnd()+'…')+z;});
 const fail=`Pesanan-TG_${namaTrip.replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'trip'}.pdf`;
 return{nama:fail,tajuk:`Pesanan makan untuk Tour Guide — ${namaTrip}`,bait:pdfBina(d,`Pesanan makan untuk Tour Guide — ${namaTrip}`)};
 }
