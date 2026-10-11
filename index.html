@@ -81,6 +81,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .tabbtn.active{color:#1a6b3c;border-bottom-color:#1a6b3c;font-weight:600}
 .expsec{background:#f9f9f9;border-radius:12px;padding:14px;margin-bottom:14px}
 .expsec h4{font-size:13px;font-weight:600;margin-bottom:10px}
+.pdftg{background:#f1f8f4;border:1px solid #c8e6c9;border-radius:10px;padding:10px 10px 2px;margin-bottom:8px}
+.pdftg .nota{font-size:12px;color:#1a6b3c;margin-bottom:8px;line-height:1.5}
+.pdftg .nota.lama{color:#c62828}
+.bcp.utama{background:#1a6b3c;color:#fff}
+.bcp:disabled{opacity:.6;cursor:default}
 .cntrow{display:flex;align-items:center;gap:0;margin-bottom:20px;background:#f5f5f5;border-radius:12px;padding:4px;width:fit-content}
 .cntbtn{width:42px;height:42px;border-radius:10px;cursor:pointer;font-size:20px;background:#fff;border:1px solid #eee;color:#1a1a1a;line-height:1}
 .cntval{font-size:18px;font-weight:600;width:48px;text-align:center}
@@ -154,12 +159,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v25 — 🔒 kunci / buka kunci pesanan setiap trip oleh admin (peserta tak boleh order atau ubah, TL tak boleh ubah atau padam, bayaran masih boleh) -->
+<!-- BUILD: v26 — 📄 PDF pesanan untuk Tour Guide (jumlah menu, nama ikut menu, senarai kutip bayaran, pesanan setiap peserta) -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v25 starting…");
+console.log("[Tour-Order] Build v26 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -1064,8 +1069,9 @@ return{trips,menus,items,failed};
 function listenOrders(tid){
 onSnapshot(collection(db,"trips",tid,"orders"),s=>{S.orders=s.docs.map(d=>d.data());render();});
 }
-async function saveOrder(tid,o){await setDoc(doc(db,"trips",tid,"orders",o.id),o);}
-async function delOrder(tid,oid){await deleteDoc(doc(db,"trips",tid,"orders",oid));}
+// v26: S.tulisPesanan dikira supaya PDF TG tahu ada simpanan semasa ia memuat pesanan
+async function saveOrder(tid,o){S.tulisPesanan++;await setDoc(doc(db,"trips",tid,"orders",o.id),o);}
+async function delOrder(tid,oid){S.tulisPesanan++;await deleteDoc(doc(db,"trips",tid,"orders",oid));}
 // v25: merge, dan JANGAN tulis `kunci` — kunci hanya ditukar oleh butang
 // Kunci / Buka Kunci. Tanpa ini, telefon atau laptop admin yang dibuka sebelum
 // dikunci akan membuang kunci secara senyap bila simpan harga atau menu.
@@ -1231,6 +1237,394 @@ txt+=`  👥 ${pax} orang\n\n`;
 txt+=`${'─'.repeat(28)}\n📊 *Ringkasan Booking*\n  • Bilangan trip: ${sorted.length}\n  • Jumlah keseluruhan: ${totalPax} orang\n\n_Menu pilihan akan dimaklumkan lebih dekat dengan tarikh masing-masing._\n\nMohon pengesahan tempahan. Terima kasih banyak. 🙏`;
 return txt;
 }
+// ── PDF untuk Tour Guide (v26) ───────────────────────
+// TG yang kurang biasa dengan telefon / web dapat SATU fail PDF ringkas:
+// jumlah menu, nama ikut menu, senarai kutip bayaran, pesanan setiap peserta.
+// Penjana PDF kecil sendiri — tiada pustaka luar (tiada apa dimuat dari internet).
+// Fon standard Helvetica (WinAnsi): emoji & tulisan Jepun dibuang, dan
+// cili (Spicy Noodle) ditukar jadi "(cili xN)" supaya tahap pedas tak hilang.
+const PDF_CP1252=[8364,0,8218,402,8222,8230,8224,8225,710,8240,352,8249,338,0,381,0,0,8216,8217,8220,8221,8226,8211,8212,732,8482,353,8250,339,0,382,376];
+const PDF_LEBAR=[[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,500,556,0,222,556,333,1000,556,556,333,1000,667,333,1000,0,611,0,0,222,222,333,333,350,556,1000,333,1000,500,333,944,0,500,667,278,333,556,556,556,556,260,556,333,737,370,556,584,333,737,333,400,584,333,333,333,556,537,278,333,333,365,556,834,834,834,611,667,667,667,667,667,667,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,500,556,556,556,556,278,278,278,278,556,556,556,556,556,556,556,584,611,556,556,556,556,500,556,500],[278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584,500,556,0,278,556,500,1000,556,556,333,1000,667,333,1000,0,611,0,0,278,278,500,500,350,556,1000,333,1000,556,333,944,0,500,667,278,333,556,556,556,556,280,556,333,737,370,556,584,333,737,333,400,584,333,333,333,611,556,278,333,333,365,556,834,834,834,611,722,722,722,722,722,722,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,556,556,556,556,556,278,278,278,278,611,611,611,611,611,611,611,584,611,611,611,611,611,556,611,556]];
+// Kod titik Unicode → bait WinAnsi, atau -1 kalau fon standard tiada aksara itu.
+function pdfBait(c){
+if(c>=32&&c<127)return c;
+if(c>=160&&c<=255)return c;
+const i=c?PDF_CP1252.indexOf(c):-1;
+return i>=0?128+i:-1;
+}
+// Bersihkan teks untuk PDF: buang emoji / aksara yang fon tiada; cili jadi "(cili xN)".
+function pdfTeks(s){
+const asal=String(s==null?'':s);
+let out='',cili=0;
+const tutupCili=()=>{if(cili){out=out.replace(/\s+$/,'')+` (cili x${cili})`;cili=0;}};
+for(const ch of asal){
+const c=ch.codePointAt(0);
+if(c===0x1F336){cili++;continue;}
+if(c===0xFE0F||c===0xFE0E||c===0x200D)continue;
+tutupCili();
+if(c===0x2192){out+='->';continue;}
+// Apostrof bentuk lain (cth. MUʼIZ) → ' biasa
+if(c===0x02BC||c===0x02BB||c===0x2032){out+="'";continue;}
+// Aksara kawalan & semua jenis ruang (ruang Jepun, ruang nipis...) → ruang biasa
+if(c<32||/\s/.test(ch)){out+=' ';continue;}
+if(pdfBait(c)>=0)out+=ch;
+}
+tutupCili();
+const t=out.replace(/\s+/g,' ').trim();
+// Teks yang semuanya tiada dalam fon (cth. tulisan Jepun sahaja) jadi "?" — bukan sel kosong.
+return t||(asal.trim()?'?':'');
+}
+// Rentetan PDF ( ... ) dalam bait WinAnsi, dengan escape.
+function pdfStr(s){
+let out='(';
+for(const ch of String(s)){
+const b=pdfBait(ch.codePointAt(0));
+const k=b<0?63:b;
+if(k===40||k===41||k===92)out+='\\';
+out+=String.fromCharCode(k);
+}
+return out+')';
+}
+// Rentetan teks maklumat dokumen (/Title) mesti UTF-16BE, bukan WinAnsi.
+function pdfHex16(s){
+let h='<FEFF';
+for(let i=0;i<s.length;i++)h+=s.charCodeAt(i).toString(16).toUpperCase().padStart(4,'0');
+return h+'>';
+}
+function pdfLebar(s,saiz,tebal){
+let w=0;
+for(const ch of String(s)){const b=pdfBait(ch.codePointAt(0));w+=b<0?500:(PDF_LEBAR[tebal?1:0][b-32]||0);}
+return w*saiz/1000;
+}
+// Pecah teks kepada baris yang muat dalam lebar (kata terlalu panjang dipotong).
+function pdfBungkus(s,lebar,saiz,tebal){
+const out=[];let cur='';
+const muat=t=>pdfLebar(t,saiz,tebal)<=lebar;
+const potong=k=>{let p='';for(const ch of k){if(p&&!muat(p+ch)){out.push(p);p=ch;}else p+=ch;}return p;};
+for(const k of String(s).split(' ').filter(Boolean)){
+const cuba=cur?cur+' '+k:k;
+if(muat(cuba)){cur=cuba;continue;}
+if(cur)out.push(cur);
+cur=muat(k)?k:potong(k);
+}
+if(cur||!out.length)out.push(cur);
+return out;
+}
+// ── Susun atur halaman (A4, unit point) ──
+function pdfDokumen(){return{W:595.28,H:841.89,M:40,BAWAH:64,pages:[],ops:null,y:0,bab:null};}
+// Muka sambungan dalam bab yang sama: ulang tajuk bab di atas supaya TG tahu ini sesi mana.
+function pdfMukaBaru(d){d.ops=[];d.pages.push(d.ops);d.y=d.H-d.M;
+if(d.bab){const b=pdfBungkus(`${d.bab} (sambungan)`,d.W-2*d.M,9,true);
+b.forEach((t,j)=>pdfTulis(d,d.M,d.y-9-j*11,t,9,true,PDF_KELABU));d.y-=20+11*(b.length-1);}
+}
+// Pastikan ada ruang h; kalau tidak, muka baharu. Pulang true kalau muka baharu dibuka.
+function pdfPerlu(d,h){if(!d.ops||d.y-h<d.BAWAH){pdfMukaBaru(d);return true;}return false;}
+const PDF_HITAM=[0,0,0],PDF_HIJAU=[0.10,0.42,0.24],PDF_KELABU=[0.40,0.40,0.40],PDF_MERAH=[0.78,0.16,0.16];
+function pdfWarna(w){return w.map(v=>+v.toFixed(3)).join(' ');}
+function pdfTulis(d,x,y,teks,saiz,tebal,warna){
+const t=pdfTeks(teks);if(!t)return;
+d.ops.push(`BT /F${tebal?2:1} ${saiz} Tf ${pdfWarna(warna||PDF_HITAM)} rg ${x.toFixed(2)} ${y.toFixed(2)} Td ${pdfStr(t)} Tj ET`);
+}
+function pdfSegi(d,x,y,w,h,isi,garis){
+const lukis=isi&&garis?'B':isi?'f':'S';
+d.ops.push(`${isi?pdfWarna(isi)+' rg ':''}${garis?pdfWarna(garis)+' RG 0.7 w ':''}${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re ${lukis}`);
+}
+function pdfGaris(d,x1,y1,x2,y2,warna,tebal){
+d.ops.push(`${pdfWarna(warna||PDF_KELABU)} RG ${tebal||0.5} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
+}
+// Perenggan berbungkus (pindah ke muka baharu bila perlu).
+function pdfPerenggan(d,teks,o={}){
+const saiz=o.saiz||10,ld=saiz*1.35,x=d.M+(o.inden||0),lebar=d.W-2*d.M-(o.inden||0);
+const baris=pdfBungkus(pdfTeks(teks),lebar,saiz,o.tebal);
+baris.forEach(b=>{pdfPerlu(d,ld);d.y-=ld;pdfTulis(d,x,d.y+saiz*0.3,b,saiz,o.tebal,o.warna);});
+d.y-=(o.selepas==null?4:o.selepas);
+}
+// Tajuk (dibungkus kalau panjang). mukaBaru: bab baharu — muka baharu tanpa tajuk bab lama,
+// kemudian tajuk ini jadi tajuk "(sambungan)" untuk muka seterusnya dalam bab yang sama.
+function pdfTajuk(d,teks,o={}){
+const saiz=o.saiz||14;
+const baris=pdfBungkus(pdfTeks(teks),d.W-2*d.M,saiz,true);
+if(o.mukaBaru){d.bab=null;pdfMukaBaru(d);d.bab=pdfTeks(teks);}else pdfPerlu(d,saiz*(3+1.2*(baris.length-1))+40);
+baris.forEach((b,j)=>{d.y-=saiz*(j?1.2:1.3);pdfTulis(d,d.M,d.y,b,saiz,true,o.warna||PDF_HIJAU);});
+d.y-=6;
+if(o.garis!==false)pdfGaris(d,d.M,d.y,d.W-d.M,d.y,o.warna||PDF_HIJAU,1);
+d.y-=10;
+}
+// Jadual: lajur [{t,w (pecahan lebar),a:'L'|'R'|'C'}]; baris: {sel:[...]} | {span:'teks'}.
+// Sel boleh {kotak:true} (kotak tanda kosong). Kepala diulang pada setiap muka baharu.
+function pdfJadual(d,lajur,baris,o={}){
+const saiz=o.saiz||9,pad=4,ld=saiz*1.25,X0=d.M,LW=d.W-2*d.M;
+const lebar=lajur.map(c=>c.w*LW);
+const xs=[];let acc=X0;lebar.forEach(w=>{xs.push(acc);acc+=w;});
+const teksSel=c=>c==null?'':typeof c==='object'?(c.t==null?'':String(c.t)):String(c);
+const ukur=r=>{
+if(r.span!=null){const b=pdfBungkus(pdfTeks(r.span),LW-2*pad,saiz,true);return{b,h:b.length*ld+2*pad};}
+const bs=r.sel.map((c,i)=>pdfBungkus(pdfTeks(teksSel(c)),lebar[i]-2*pad,saiz,r.tebal||(c&&c.tebal)));
+return{bs,h:Math.max(1,...bs.map(b=>b.length))*ld+2*pad};
+};
+const kepala={sel:lajur.map(c=>c.t),tebal:true,latar:[0.89,0.94,0.90],kepala:true};
+const lukis=(r,u)=>{
+const top=d.y;
+if(r.latar)pdfSegi(d,X0,top-u.h,LW,u.h,r.latar);
+if(r.span!=null){u.b.forEach((t,j)=>pdfTulis(d,X0+pad,top-pad-saiz*0.85-j*ld,t,saiz,true,r.warna||PDF_HIJAU));}
+else r.sel.forEach((c,i)=>{
+if(c&&typeof c==='object'&&c.kotak){const k=Math.min(11,u.h-6);pdfSegi(d,xs[i]+(lebar[i]-k)/2,top-u.h/2-k/2,k,k,null,PDF_HITAM);return;}
+const al=lajur[i].a||'L',tb=r.tebal||(c&&c.tebal),w=(c&&typeof c==='object'&&c.warna)||r.warna||PDF_HITAM;
+u.bs[i].forEach((t,j)=>{
+const tw=pdfLebar(t,saiz,tb);
+const x=al==='R'?xs[i]+lebar[i]-pad-tw:al==='C'?xs[i]+(lebar[i]-tw)/2:xs[i]+pad;
+pdfTulis(d,x,top-pad-saiz*0.85-j*ld,t,saiz,tb,w);
+});
+});
+pdfGaris(d,X0,top-u.h,X0+LW,top-u.h,[0.80,0.80,0.80],0.5);
+d.y-=u.h;
+};
+const uk=o.tanpaKepala?null:ukur(kepala);
+const kepalaLukis=()=>{if(uk)lukis(kepala,uk);};
+// Tajuk kumpulan (span) tidak ditinggalkan seorang diri di hujung muka:
+// ia mesti muat bersama baris pertamanya.
+const tinggiDengan=(i,u)=>u.h+(baris[i].span!=null&&baris[i+1]&&baris[i+1].span==null?ukur(baris[i+1]).h:0);
+const r0=baris.length?ukur(baris[0]):{h:0};
+pdfPerlu(d,(uk?uk.h:0)+(baris.length?tinggiDengan(0,r0):0));
+kepalaLukis();
+let kump=null;
+baris.forEach((r,i)=>{
+const u=i===0?r0:ukur(r);
+if(r.span!=null){
+if(pdfPerlu(d,tinggiDengan(i,u)))kepalaLukis();
+lukis(r,u);kump=r;return;
+}
+if(pdfPerlu(d,u.h)){
+kepalaLukis();
+// Kumpulan bersambung ke muka baharu: ulang tajuknya
+if(kump){const s={...kump,span:`${kump.span} (sambungan)`};lukis(s,ukur(s));}
+}
+if(!r.latar&&o.zebra&&i%2===1)r={...r,latar:[0.965,0.965,0.965]};
+lukis(r,u);
+});
+d.y-=(o.selepas==null?12:o.selepas);
+}
+// Kaki muka: nama trip, masa dicetak, "Muka x / n".
+function pdfKaki(d,kiri){
+const n=d.pages.length;
+d.pages.forEach((ops,i)=>{
+const s={...d,ops};
+pdfGaris(s,d.M,46,d.W-d.M,46,[0.75,0.75,0.75],0.5);
+pdfTulis(s,d.M,34,kiri,8,false,PDF_KELABU);
+const kanan=`Muka ${i+1} / ${n}`;
+pdfTulis(s,d.W-d.M-pdfLebar(kanan,8,false),34,kanan,8,false,PDF_KELABU);
+});
+}
+// Fail PDF lengkap (bait). Objek: katalog, halaman, 2 fon standard, setiap muka + kandungan, info.
+function pdfBina(d,tajuk){
+const objs=[];const tambah=s=>{objs.push(s);return objs.length;};
+const kat=tambah(''),hlm=tambah('');
+const f1=tambah('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+const f2=tambah('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+const kids=[];
+d.pages.forEach(ops=>{
+const isi=ops.join('\n');
+const c=tambah(`<< /Length ${isi.length} >>\nstream\n${isi}\nendstream`);
+kids.push(tambah(`<< /Type /Page /Parent ${hlm} 0 R /MediaBox [0 0 ${d.W} ${d.H}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> >> /Contents ${c} 0 R >>`));
+});
+objs[kat-1]=`<< /Type /Catalog /Pages ${hlm} 0 R >>`;
+objs[hlm-1]=`<< /Type /Pages /Kids [${kids.map(k=>k+' 0 R').join(' ')}] /Count ${kids.length} >>`;
+const info=tambah(`<< /Title ${pdfHex16(pdfTeks(tajuk))} /Producer (Sistem Order Makan) >>`);
+let out='%PDF-1.4\n%'+String.fromCharCode(226,227,207,211)+'\n';
+const off=[];
+objs.forEach((s,i)=>{off.push(out.length);out+=`${i+1} 0 obj\n${s}\nendobj\n`;});
+const xref=out.length;
+out+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`+off.map(n=>String(n).padStart(10,'0')+' 00000 n \n').join('');
+out+=`trailer\n<< /Size ${objs.length+1} /Root ${kat} 0 R /Info ${info} 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+const bait=new Uint8Array(out.length);
+for(let i=0;i<out.length;i++)bait[i]=out.charCodeAt(i)&255;
+return bait;
+}
+// ── Kandungan PDF untuk TG ──
+// Nama setiap orang dalam pesanan — sama seperti di skrin admin.
+function orangPesananTG(orders){
+const out=[];
+(orders||[]).forEach(o=>(o.persons||[]).forEach((p,pi)=>{
+out.push({nama:p.personName||(pi===0?o.name:`${o.name} (Orang ${pi+1})`),p});
+}));
+return out.sort((a,b)=>String(a.nama).localeCompare(String(b.nama)));
+}
+function labelSesiTG(s){return s.id==='fuji'?'Fuji':s.id==='nara'?'Nara':s.id==='namba'?'Namba':pdfTeks(s.nama);}
+function yenTG(n){return'¥'+Number(n||0).toLocaleString('en-US');}
+// Pulang {nama (fail), tajuk, bait}. bila: masa dicetak (untuk ujian).
+// lama=true: data TIDAK dapat dimuat semula dari pelayan (luar talian) — PDF beri amaran.
+function binaPdfTG(trip,orders,bila,lama){
+const d=pdfDokumen();
+const sl=trip.sesi||SESI;
+const orang=orangPesananTG(orders);
+const masa=(bila||new Date()).toLocaleString('ms-MY',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+const namaTrip=pdfTeks(trip.nama)||'Trip';
+const pax=parseInt(trip.pax)||22;
+const sesiBayar=sl.filter(s=>getPayType(s)==='pay');
+// ── Muka 1: ringkasan ──
+pdfMukaBaru(d);
+pdfSegi(d,0,d.H-96,d.W,96,PDF_HIJAU);
+pdfTulis(d,d.M,d.H-52,'PESANAN MAKAN UNTUK TOUR GUIDE',18,true,[1,1,1]);
+pdfTulis(d,d.M,d.H-76,namaTrip,11,false,[1,1,1]);
+d.y=d.H-120;
+pdfPerenggan(d,`Tarikh trip: ${trip.tarikh||'-'}`,{saiz:11});
+pdfPerenggan(d,`Jumlah pax: ${pax} orang · Dalam pesanan: ${orang.length} orang (${(orders||[]).length} wakil)`,{saiz:11});
+pdfPerenggan(d,`Dicetak: ${masa}`,{saiz:11,selepas:10});
+if(lama)pdfJadual(d,[{t:'',w:1}],[{span:'AMARAN: tiada sambungan internet semasa PDF ini dibuat — pesanan mungkin BUKAN yang terkini. Cetak semula bila ada internet.',latar:[1,0.92,0.92],warna:PDF_MERAH}],{tanpaKepala:true,saiz:10});
+const k=kunciAktif(trip);
+const notaKunci=k?`PESANAN DIKUNCI${masaKunci(trip.kunci)?` sejak ${masaKunci(trip.kunci)}`:''}${lama?'.':' — senarai ini muktamad.'}`:'Pesanan masih DIBUKA — senarai mungkin berubah. Minta admin cetak semula selepas pesanan dikunci.';
+pdfJadual(d,[{t:'',w:1}],[{span:notaKunci,latar:k?[0.89,0.94,0.90]:[1,0.95,0.88],warna:k?PDF_HIJAU:PDF_MERAH}],{tanpaKepala:true,saiz:10});
+pdfTajuk(d,'Cara guna',{saiz:12});
+['1. Semak BILANGAN setiap menu (lajur Bil.) dengan restoran.','2. Semasa agih makanan, panggil NAMA IKUT MENU.',sesiBayar.length?`3. Kutip bayaran ${sesiBayar.map(labelSesiTG).join(' + ')} ikut SENARAI KUTIP BAYARAN, kemudian tanda kotak.`:'3. Semua makan disupport — tiada bayaran untuk dikutip.','4. Kalau ada yang tanya pesanan sendiri, rujuk PESANAN SETIAP PESERTA.'].forEach(t=>pdfPerenggan(d,t,{saiz:10,selepas:2}));
+d.y-=8;
+pdfTajuk(d,'Kandungan',{saiz:12});
+sl.forEach((s,i)=>{
+const makan=orang.filter(x=>x.p[s.id]&&!x.p[s.id].skip).length;
+const tarikh=getTarikhLoc(trip,s.id,'ms-MY'),waktu=getWaktu(trip,s.id);
+pdfPerenggan(d,`${i+1}. ${pdfTeks(s.nama)} — ${tarikh}${waktu?`, ${waktu}`:''} — ${makan} orang makan${getPayType(s)==='pay'?' · bayar kepada TG':' · percuma (disupport)'}`,{saiz:10,selepas:2});
+});
+if(sesiBayar.length)pdfPerenggan(d,`${sl.length+1}. Senarai kutip bayaran (${sesiBayar.map(labelSesiTG).join(' + ')})`,{saiz:10,selepas:2});
+pdfPerenggan(d,`${sl.length+(sesiBayar.length?2:1)}. Pesanan setiap peserta`,{saiz:10,selepas:8});
+if(trip.peserta&&trip.peserta.length){
+const ok=getAllOrderedPesertaNames(orders||[],trip.peserta);
+const belum=trip.peserta.filter(p=>!ok.has(p.nama)).map(p=>p.nama);
+if(belum.length){pdfTajuk(d,`Belum order (${belum.length})`,{saiz:12,warna:PDF_MERAH});pdfPerenggan(d,belum.join(', '),{saiz:10});}
+}
+// ── Setiap sesi ──
+sl.forEach((s,i)=>{
+const bayar=getPayType(s)==='pay',cukai=getTaxRate(s);
+pdfTajuk(d,`${i+1}. ${pdfTeks(s.nama)}`,{saiz:16,mukaBaru:true});
+const tarikh=getTarikhLoc(trip,s.id,'ms-MY'),waktu=getWaktu(trip,s.id);
+pdfPerenggan(d,`Tarikh: ${tarikh}${waktu?` · Masa: ${waktu} (${(trip.mod||'tren')==='tren'?'tren':'bas'})`:''}`,{saiz:11,tebal:true});
+pdfPerenggan(d,bayar?`Bayaran: peserta bayar kepada Tour Guide.${cukai?` Harga termasuk cukai ${taxPct(s)}% (dibundar ke atas ke ¥${TAX_ROUND_TO}).`:''}`:'Bayaran: disupport — peserta TIDAK perlu bayar.',{saiz:10,selepas:10});
+// Setiap item dikira dengan harganya SENDIRI (harga trip boleh berubah selepas ada yang order)
+const kira=new Map();let skip=[];
+orang.forEach(x=>{const it=x.p[s.id];if(!it)return;if(it.skip){skip.push(x.nama);return;}
+const kk=it.name||'-';if(!kira.has(kk))kira.set(kk,{harga:new Set(),jumlah:0,asal:0,nama:[]});
+const m=kira.get(kk),h=withTax(s,it.price);m.harga.add(h);m.jumlah+=h;m.asal+=it.price||0;m.nama.push(x.nama);});
+const menu=[...kira.entries()].sort((a,b)=>b[1].nama.length-a[1].nama.length||a[0].localeCompare(b[0]));
+const jumlahOrang=menu.reduce((t,m)=>t+m[1].nama.length,0);
+const jumlahYen=menu.reduce((t,m)=>t+m[1].jumlah,0);
+const hargaTeks=m=>[...m.harga].sort((a,b)=>a-b).map(yenTG).join(' / ');
+pdfTajuk(d,'A. Jumlah menu',{saiz:12,garis:false});
+const lajurA=bayar?[{t:'Menu',w:0.52},{t:'Bil.',w:0.12,a:'C'},{t:'Harga seunit',w:0.18,a:'R'},{t:'Jumlah',w:0.18,a:'R'}]:[{t:'Menu',w:0.76},{t:'Bil.',w:0.24,a:'C'}];
+const barisA=menu.map(([nm,m])=>({sel:bayar?[nm,m.nama.length,hargaTeks(m),yenTG(m.jumlah)]:[nm,m.nama.length]}));
+countSides(s,orders||[]).forEach(({side,pax:n})=>barisA.push({sel:bayar?[`+ ${side.name} (lauk sampingan)`,n,'','']:[`+ ${side.name} (lauk sampingan)`,n],warna:PDF_KELABU}));
+if(skip.length)barisA.push({sel:bayar?['Tidak order',skip.length,'','']:['Tidak order',skip.length],warna:PDF_KELABU});
+barisA.push({sel:bayar?['JUMLAH',`${jumlahOrang} orang`,'',yenTG(jumlahYen)]:['JUMLAH',`${jumlahOrang} orang`],tebal:true,latar:[0.93,0.93,0.93]});
+pdfJadual(d,lajurA,barisA,{saiz:10,selepas:bayar&&cukai&&jumlahOrang?4:12});
+// Bil restoran dikira lain (cukai tepat atas subjumlah) — beri angka supaya TG tak keliru.
+if(bayar&&cukai&&jumlahOrang){const sub=menu.reduce((t,m)=>t+m[1].asal,0),tx=exactTax(s,sub);
+pdfPerenggan(d,`Anggaran bil restoran: ${yenTG(sub+tx)} (${yenTG(sub)} + cukai ${taxPct(s)}% ${yenTG(tx)}). Beza dengan JUMLAH di atas kerana harga peserta dibundar ke ¥${TAX_ROUND_TO}.`,{saiz:9,warna:PDF_KELABU,selepas:12});}
+pdfTajuk(d,'B. Nama ikut menu',{saiz:12,garis:false});
+const barisB=[];
+const kumpul=(tajuk,senarai,warna)=>{
+barisB.push({span:`${tajuk} — ${senarai.length} orang`,latar:[0.89,0.94,0.90],warna});
+const n=senarai; // sudah ikut abjad: orang diisih dalam orangPesananTG
+for(let j=0;j<n.length;j+=2)barisB.push({sel:[`${j+1}. ${n[j]}`,n[j+1]!=null?`${j+2}. ${n[j+1]}`:'']});
+};
+menu.forEach(([nm,m])=>kumpul(nm,m.nama));
+if(skip.length)kumpul('Tidak order',skip,PDF_KELABU);
+if(barisB.length)pdfJadual(d,[{t:'',w:0.5},{t:'',w:0.5}],barisB,{tanpaKepala:true,saiz:10});
+else pdfPerenggan(d,'Tiada pesanan untuk sesi ini.',{saiz:10});
+});
+// ── Senarai kutip bayaran ──
+if(sesiBayar.length){
+pdfTajuk(d,`${sl.length+1}. Senarai kutip bayaran (${sesiBayar.map(labelSesiTG).join(' + ')})`,{saiz:16,mukaBaru:true});
+pdfPerenggan(d,'Jumlah sudah termasuk cukai. Kutip jumlah dalam lajur BAKI, kemudian tanda kotak. "SUDAH" = sudah bayar penuh.',{saiz:10,selepas:10});
+const lw=0.36/sesiBayar.length;
+const lajur=[{t:'No',w:0.06,a:'C'},{t:'Nama',w:0.34},...sesiBayar.map(s=>({t:labelSesiTG(s),w:lw,a:'R'})),{t:'Baki',w:0.14,a:'R'},{t:'Tanda',w:0.10,a:'C'}];
+let jum=sesiBayar.map(()=>0),jumBaki=0,jumBayar=0;
+const baris=orang.map((x,i)=>{
+let baki=0,ada=0;
+const sel=sesiBayar.map((s,j)=>{const it=x.p[s.id];if(!it)return'-';if(it.skip)return{t:'Tidak order',warna:PDF_KELABU};
+const a=withTax(s,it.price);ada+=a;jum[j]+=a;
+if(it.paid){jumBayar+=a;return{t:`${yenTG(a)} (sudah)`,warna:PDF_HIJAU};}
+baki+=a;return yenTG(a);});
+jumBaki+=baki;
+const tanda=!ada?'-':baki?{kotak:true}:{t:'SUDAH',tebal:true,warna:PDF_HIJAU};
+return{sel:[i+1,x.nama,...sel,ada?yenTG(baki):'-',tanda],warna:ada?null:PDF_KELABU};
+});
+baris.push({sel:['','JUMLAH',...jum.map(yenTG),yenTG(jumBaki),''],tebal:true,latar:[0.93,0.93,0.93]});
+pdfJadual(d,lajur,baris,{saiz:9,zebra:true});
+pdfPerenggan(d,`Jumlah bil: ${yenTG(jum.reduce((a,b)=>a+b,0))} · Sudah dibayar: ${yenTG(jumBayar)} · Baki belum dikutip: ${yenTG(jumBaki)}`,{saiz:10,tebal:true});
+}
+// ── Pesanan setiap peserta ──
+pdfTajuk(d,`${sl.length+(sesiBayar.length?2:1)}. Pesanan setiap peserta`,{saiz:16,mukaBaru:true});
+const lwS=0.60/Math.max(1,sl.length);
+pdfJadual(d,[{t:'No',w:0.06,a:'C'},{t:'Nama',w:0.34},...sl.map(s=>({t:labelSesiTG(s),w:lwS}))],
+orang.map((x,i)=>({sel:[i+1,x.nama,...sl.map(s=>{const it=x.p[s.id];return!it?'-':it.skip?{t:'Tidak order',warna:PDF_KELABU}:(it.name||'-');})]})),{saiz:9,zebra:true});
+pdfKaki(d,`Pesanan makan untuk TG — ${namaTrip} · dicetak ${masa}`);
+const fail=`Pesanan-TG_${namaTrip.replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'trip'}.pdf`;
+return{nama:fail,tajuk:`Pesanan makan untuk Tour Guide — ${namaTrip}`,bait:pdfBina(d,`Pesanan makan untuk Tour Guide — ${namaTrip}`)};
+}
+// ── Butang PDF TG: (1) Sediakan — muat data TERKINI dari pelayan, (2) Kongsi / Muat turun ──
+// Dua langkah sebab telefon (terutama iPhone) hanya benarkan "kongsi" terus dari tekanan butang;
+// kalau tunggu internet dahulu, kongsi boleh ditolak. Skrin admin/TL tidak dikemas kini secara
+// langsung, jadi tanpa muat semula PDF boleh guna pesanan lama.
+// Cap jari pesanan + kunci: kalau berubah selepas PDF disediakan, minta sediakan semula.
+function capPdfTG(tid){const t=S.trips.find(x=>x.id===tid);return JSON.stringify([S.orders,(t&&t.kunci)||null]);}
+async function sediaPdfTG(){
+const tid=S.selTrip;
+if(!tid||(S.pdfTG&&S.pdfTG.status==='memuat'&&S.pdfTG.tid===tid))return;
+S.pdfTG={status:'memuat',tid};render();
+let trip=S.trips.find(x=>x.id===tid),orders=S.orders,lama=true;
+const tulis0=S.tulisPesanan;
+try{
+// Internet lemah: tunggu paling lama 15 saat, kemudian guna data skrin (dengan amaran)
+const[sn,td]=await Promise.race([Promise.all([getDocs(collection(db,"trips",tid,"orders")),getDoc(doc(db,"trips",tid))]),
+new Promise((_,r)=>setTimeout(()=>r(new Error("masa tamat")),15000))]);
+// Luar talian: Firestore TIDAK beri ralat — ia pulang data cache (pesanan selalunya kosong)
+if((sn.metadata&&sn.metadata.fromCache)||(td.metadata&&td.metadata.fromCache))throw new Error("luar talian (data cache)");
+orders=sn.docs.map(x=>x.data());
+if(td.exists())trip={...trip,...td.data(),id:tid};
+lama=false;
+}catch(e){console.error("sediaPdfTG:",e);}
+// Trip ditukar semasa memuat — abaikan hasil ini
+if(S.selTrip!==tid||!S.pdfTG||S.pdfTG.tid!==tid){if(S.pdfTG&&S.pdfTG.tid===tid)S.pdfTG=null;return;}
+if(!trip){S.pdfTG=null;render();return;}
+// Pesanan disimpan dari peranti ini SEMASA memuat (cth. tanda bayar): data pelayan mungkin belum
+// termasuk — jangan timpa skrin; PDF terus ditanda "berubah" supaya disediakan semula.
+const bertembung=!lama&&S.tulisPesanan!==tulis0;
+if(!lama&&!bertembung)S.orders=orders;
+const bila=new Date();
+let out;
+try{out=binaPdfTG(trip,orders,bila,lama);}
+catch(e){console.error("PDF TG:",e);S.pdfTG=null;toast("❌ Gagal jana PDF.");render();return;}
+let bolehKongsi=false;
+try{bolehKongsi=!!(navigator.canShare&&navigator.canShare({files:[new File([out.bait],out.nama,{type:"application/pdf"})]}));}catch(e){}
+S.pdfTG={status:'sedia',tid,...out,lama,bolehKongsi,orang:orangPesananTG(orders).length,kunci:kunciAktif(trip),masa:bila,cap:bertembung?'':capPdfTG(tid),sibuk:false};
+render();
+}
+function rPdfTG(){
+const p=S.pdfTG;
+if(!p||p.tid!==S.selTrip)return`<button class="bcp" id="pdf-tg">📄 PDF Pesanan untuk TG</button>`;
+if(p.status==='memuat')return`<button class="bcp" id="pdf-tg" disabled>⏳ Menyediakan PDF (muat pesanan terkini)…</button>`;
+if(p.cap!==capPdfTG(p.tid))return`<div class="pdftg"><div class="nota lama">⚠️ Pesanan atau kunci berubah selepas PDF disediakan.</div><button class="bcp" id="pdf-tg">🔄 Sediakan semula PDF</button></div>`;
+return`<div class="pdftg"><div class="nota${p.lama?' lama':''}">${p.lama?'⚠️ Tiada internet — PDF guna data dalam skrin (mungkin lama).':`✅ PDF sedia — data pelayan ${p.masa.toLocaleTimeString('ms-MY',{hour:'2-digit',minute:'2-digit'})}.`} ${p.orang} orang · ${p.kunci?'🔒 dikunci':'🔓 belum dikunci'}</div>
+${p.bolehKongsi?`<button class="bcp utama" id="pdf-tg-kongsi">📤 Kongsi PDF (WhatsApp dll.)</button>`:''}
+<button class="bcp" id="pdf-tg-muat">⬇️ Muat turun PDF</button>
+<button class="bcp" id="pdf-tg">🔄 Sediakan semula</button></div>`;
+}
+// Kongsi terus — dipanggil TERUS dari tekanan butang (tiada await sebelum share).
+async function kongsiPdfTG(){
+const p=S.pdfTG;
+if(!p||p.status!=='sedia'||p.sibuk)return'abai';
+p.sibuk=true;
+try{await navigator.share({files:[new File([p.bait],p.nama,{type:"application/pdf"})],title:p.tajuk});return'kongsi';}
+catch(e){if(e&&e.name==="AbortError")return'batal';console.error("share:",e);toast("⚠️ Tidak dapat kongsi terus — tekan ⬇️ Muat turun PDF.");return'gagal';}
+finally{p.sibuk=false;}
+}
+function muatTurunPdfTG(){
+const p=S.pdfTG;
+if(!p||p.status!=='sedia')return'abai';
+const url=URL.createObjectURL(new Blob([p.bait],{type:"application/pdf"}));
+const a=document.createElement("a");a.href=url;a.download=p.nama;
+document.body.appendChild(a);a.click();a.remove();
+setTimeout(()=>URL.revokeObjectURL(url),60000);
+toast("📄 PDF dimuat turun");
+return'muat-turun';
+}
 // ── State ──────────────────────────────────────────
 const S={
 view:"home",tripId:null,tripData:null,trips:[],orders:[],
@@ -1253,6 +1647,8 @@ priceApply:{active:false,loading:false,impacts:[],selected:[],priceMap:null,mode
 payCollect:{selected:[],sesiFilter:"all",searchQuery:""},
 payDialog:{active:false,total:0,received:"",personLines:[],ordersToSave:null},
 pesertaEdit:{active:false,tripId:null,senarai:[],asalSenarai:[],tambahan:0,asalPax:0,returnTab:"trips",err:"",input:"",saving:false,pdfStatus:"",pdfBanding:null},
+pdfTG:null, // v26: PDF untuk TG {status:'memuat'|'sedia', tid, nama, bait, ...}
+tulisPesanan:0, // v26: bilangan simpan/padam pesanan dari peranti ini
 };
 // ── Render helpers ──────────────────────────────────────────
 function rExpSec(){
@@ -1261,6 +1657,8 @@ return`<div class="expsec"><h4>📤 Eksport & Kongsi</h4>
 <button class="bcp" id="cp-fuji">🍱 Copy — Restoran Fuji</button>
 <button class="bcp" id="cp-nara">🍛 Copy — Restoran Nara</button>
 <button class="bcp" id="cp-namba">🍜 Copy — Restoran Namba</button>
+<div style="font-size:12px;color:#666;margin:10px 0 6px;font-weight:600">Untuk Tour Guide (TG):</div>
+${rPdfTG()}
 <div style="font-size:12px;color:#666;margin:10px 0 6px;font-weight:600">Lain-lain:</div>
 <button class="bcp" id="cp-leader">👥 Copy — Untuk Tour Leader</button>
 <button class="bcp" id="cp-ringkasan">📊 Copy — Ringkasan Keseluruhan</button>
@@ -2810,6 +3208,7 @@ const on=(id,ev,fn)=>{const el=$(id);if(el)el.addEventListener(ev,fn);};
 on("go-admin","click",()=>{S.view="admin";S.passErr="";loadTrips().then(()=>{if(S.trips.length>0)S.selTrip=S.trips[0].id;render();});});
 on("go-leader","click",()=>{S.view="leader";S.passErr="";loadTrips().then(async()=>{if(S.trips.length>0){S.selTrip=S.trips[0].id;await loadOrders(S.selTrip);}render();});});
 on("go-back","click",()=>{
+S.pdfTG=null; // v26: panel PDF TG tidak terbawa ke skrin lain / log masuk semula
 if(S.view==="admin"){S.adminOn=false;S.view="home";}
 else if(S.view==="leader"){S.leaderOn=false;S.view="home";}
 else if(S.view==="check"){S.view="order";S.step=1;}
@@ -3331,6 +3730,10 @@ on("cp-namba","click",()=>{const t=S.trips.find(t=>t.id===S.selTrip);if(t)cp(bNa
 on("cp-leader","click",()=>{const t=S.trips.find(t=>t.id===S.selTrip);if(t)cp(bLeader(t,S.orders));});
 on("cp-ringkasan","click",()=>{const t=S.trips.find(t=>t.id===S.selTrip);if(t)cp(bRingkasan(t,S.orders));});
 on("cp-namepermenu","click",()=>{const t=S.trips.find(t=>t.id===S.selTrip);if(t)cp(bNamePerMenu(t,S.orders));});
+// v26: PDF untuk Tour Guide — (1) sediakan dengan data terkini, (2) kongsi terus (WhatsApp) atau muat turun
+on("pdf-tg","click",()=>{sediaPdfTG();});
+on("pdf-tg-kongsi","click",()=>{kongsiPdfTG();});
+on("pdf-tg-muat","click",()=>{muatTurunPdfTG();});
 // Special menu
 on("sp-nama","input",e=>S.addSpecial=e.target.value);
 on("sp-harga","input",e=>S.addSpecialPrice=e.target.value);
