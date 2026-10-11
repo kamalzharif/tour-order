@@ -117,6 +117,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pitem input:focus{border-color:#1a6b3c}
 .tlsec{background:#e8f5e9;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#1a6b3c;border-left:3px solid #1a6b3c;line-height:1.5}
 .warnsec{background:#fff3e0;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#e65100;border-left:3px solid #ff9800;line-height:1.5}
+.kuncisec{background:#f5f5f5;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#444;border-left:3px solid #9e9e9e;line-height:1.5}
+.kuncisec.on{background:#eceff1;color:#263238;border-left-color:#37474f}
 /* Tracking dashboard */
 .trkbox{background:#f0f9f4;border-radius:12px;padding:14px;margin-bottom:14px;border-left:3px solid #1a6b3c}
 .trkbox h4{font-size:13px;font-weight:600;margin-bottom:8px;color:#1a6b3c}
@@ -152,12 +154,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v24 — 📄 kemas kini senarai peserta dari rooming list PDF terkini (banding dulu, simpan kemudian) + nama berapostrof (ASH'ARI) dipadankan betul -->
+<!-- BUILD: v25 — 🔒 kunci / buka kunci pesanan setiap trip oleh admin (peserta tak boleh order atau ubah, TL tak boleh ubah atau padam, bayaran masih boleh) -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v24 starting…");
+console.log("[Tour-Order] Build v25 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -592,6 +594,13 @@ try{const v=JSON.parse(localStorage.getItem(mineKey(tid))||"[]");return Array.is
 function rememberMine(tid,o){
 try{const l=loadMine(tid).filter(x=>x.id!==o.id);l.push({id:o.id,name:o.name});localStorage.setItem(mineKey(tid),JSON.stringify(l.slice(-10)));}catch(e){}
 }
+// ── Kunci pesanan (v25) ──────────────────────────────
+// Admin kunci trip selepas senarai dihantar kepada restoran. Bila dikunci:
+// peserta tak boleh order baharu atau ubah pesanan; TL tak boleh ubah atau
+// padam; admin masih boleh (dengan amaran). Tanda bayaran TIDAK disekat.
+function kunciAktif(trip){return!!(trip&&trip.kunci&&trip.kunci.aktif);}
+// Admin (order bagi pihak / edit dari panel admin) dikecualikan daripada kunci.
+function modAdmin(){return!!((S.onBehalf&&S.onBehalf.active)||(S.editing&&S.editing.active&&S.editing.origView==="admin"));}
 function getCanSkip(sesi){
 if(sesi.canSkip!==undefined)return sesi.canSkip;
 const gs=SESI.find(s=>s.id===sesi.id);
@@ -807,6 +816,35 @@ if(bz.ubah.length)baris.push(`Ejaan dikemas kini: ${bz.ubah.map(x=>`${x.dari} �
 if(bz.buang.length)baris.push(`Dibuang: ${bz.buang.join(", ")}`);
 if(bz.ubah.some(x=>x.agak))baris.push(`(?) = ejaan hampir sama — pastikan memang orang yang sama.`);
 return baris;
+}
+// ── Kunci pesanan: teks & paparan (v25) ──────────────
+// Masa kunci ikut jam telefon pengguna.
+function masaKunci(k){try{const d=k&&k.masa?new Date(k.masa):null;return d&&!isNaN(d.getTime())?d.toLocaleString('ms-MY',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';}catch(e){return'';}}
+// Pengesahan sebelum kunci / buka kunci. Sebut peserta yang BELUM order —
+// selepas dikunci mereka tidak dapat order lagi.
+function teksTukarKunci(trip,orders,aktif){
+const nama=(trip&&trip.nama)||'trip ini';
+if(!aktif)return`Buka kunci pesanan untuk "${nama}"?\n\nPeserta boleh order dan ubah pesanan semula; Tour Leader boleh ubah dan padam. Kalau senarai sudah dihantar kepada restoran, sebarang perubahan perlu dimaklumkan kepada restoran.`;
+const ps=(trip&&trip.peserta)||[];
+const ok=ps.length?getAllOrderedPesertaNames(orders||[],ps):new Set();
+const belum=ps.filter(p=>!ok.has(p.nama)).map(p=>p.nama);
+return`Kunci pesanan untuk "${nama}"?\n\nSelepas dikunci:\n• Peserta tidak boleh order baharu atau ubah pesanan\n• Tour Leader tidak boleh ubah atau padam pesanan\n• Admin masih boleh ubah (dengan amaran)\n• Tanda bayaran masih boleh${belum.length?`\n\n⚠️ ${belum.length} peserta BELUM order:\n${belum.map(n=>`• ${n}`).join('\n')}\nMereka tidak dapat order selepas dikunci.`:''}`;
+}
+// Amaran bila admin ubah pesanan trip yang dikunci.
+function teksAdminKunci(tindakan){return`🔒 Pesanan trip ini DIKUNCI — senarai mungkin sudah dihantar kepada restoran. Kalau diteruskan, maklumkan perubahan kepada restoran.\n\n${tindakan||''}`;}
+// Kotak kunci. siapa: 'admin' (kad + butang) | 'tl' | 'peserta' | 'borang'
+// (borang = peserta yang sedang isi / ubah pesanan bila kunci berlaku).
+function rKunci(trip,siapa){
+const on=kunciAktif(trip);
+const bila=on?masaKunci(trip.kunci):'';
+const sejak=bila?` sejak ${bila}`:'';
+if(siapa==='admin')return on
+?`<div class="kuncisec on">🔒 <b>Pesanan DIKUNCI</b>${sejak}<br><span style="font-size:12px">Peserta tak boleh order baharu atau ubah pesanan. Tour Leader tak boleh ubah atau padam. Tanda bayaran masih boleh.</span><button class="bcp" id="kunci-off" style="margin:10px 0 0;background:#fff">🔓 Buka Kunci</button></div>`
+:`<div class="kuncisec">🔓 <b>Pesanan dibuka</b> — peserta boleh order dan ubah pesanan.<br><span style="font-size:12px">Kunci selepas senarai dihantar kepada restoran.</span><button class="bcp" id="kunci-on" style="margin:10px 0 0;background:#fff">🔒 Kunci Pesanan</button></div>`;
+if(!on)return'';
+if(siapa==='tl')return`<div class="kuncisec on">🔒 <b>Pesanan dikunci oleh admin</b>${sejak}<br><span style="font-size:12px">Edit dan padam pesanan dimatikan. Tanda bayaran masih boleh.</span></div>`;
+if(siapa==='borang')return`<div class="kuncisec on">🔒 <b>Pesanan baru sahaja dikunci oleh admin.</b><br><span style="font-size:12px">Pesanan ini tidak boleh dihantar atau disimpan. Untuk sebarang perubahan, hubungi Tour Leader.</span></div>`;
+return`<div class="kuncisec on">🔒 <b>Pesanan sudah ditutup</b><br><span style="font-size:12px">Senarai makanan trip ini sudah dihantar kepada restoran. Pesanan baharu dan perubahan tidak dibenarkan lagi. Untuk pertanyaan, hubungi Tour Leader.</span></div>`;
 }
 function suggestTripNama(itin,room){
 const dt=room.tarikhTrip||'';
@@ -1028,7 +1066,30 @@ onSnapshot(collection(db,"trips",tid,"orders"),s=>{S.orders=s.docs.map(d=>d.data
 }
 async function saveOrder(tid,o){await setDoc(doc(db,"trips",tid,"orders",o.id),o);}
 async function delOrder(tid,oid){await deleteDoc(doc(db,"trips",tid,"orders",oid));}
-async function saveTrip(t){await setDoc(doc(db,"trips",t.id),t);}
+// v25: merge, dan JANGAN tulis `kunci` — kunci hanya ditukar oleh butang
+// Kunci / Buka Kunci. Tanpa ini, telefon atau laptop admin yang dibuka sebelum
+// dikunci akan membuang kunci secara senyap bila simpan harga atau menu.
+async function saveTrip(t){const{kunci,...data}=t;await setDoc(doc(db,"trips",t.id),data,{merge:true});}
+// v25: keadaan kunci TERKINI dari pelayan. {ok:true,kunci} | {ok:false} bila gagal.
+async function kunciTerkini(tid){
+try{const d=await getDoc(doc(db,"trips",tid));return{ok:true,kunci:d.exists()?(d.data().kunci||null):null};}
+catch(e){console.error("kunciTerkini:",e);return{ok:false};}
+}
+// v25: peserta yang sedang buka link nampak kunci serta-merta, tanpa refresh.
+function listenTrip(tid){
+onSnapshot(doc(db,"trips",tid),d=>{
+if(!d.exists()||!S.tripData||S.tripData.id!==tid)return;
+const k=d.data().kunci||null;
+if(JSON.stringify(k)===JSON.stringify(S.tripData.kunci||null))return;
+S.tripData.kunci=k;
+// Kunci dibuka: buang mesej ralat kunci yang tertinggal (butang dah hidup semula)
+if(!(k&&k.aktif)){
+if(S.form&&/^🔒/.test(S.form.saveErr||''))S.form.saveErr="";
+if(/^🔒/.test(S.formErr||''))S.formErr="";
+}
+render();
+},e=>console.error("listenTrip:",e));
+}
 async function delTrip(tid){
 const s=await getDocs(collection(db,"trips",tid,"orders"));
 for(const d of s.docs)await deleteDoc(d.ref);
@@ -1825,6 +1886,7 @@ render();return true;
 function startOrderOnBehalf(pesertaNama,preMenuId){
 const trip=S.trips.find(t=>t.id===S.selTrip);
 if(!trip){toast("Trip tidak ditemui.");return;}
+if(kunciAktif(trip)&&!confirm(teksAdminKunci("Buat pesanan baharu bagi pihak peserta ini juga?")))return;
 if(cariPendua(pesertaNama,trip.peserta,S.orders)){toast("Peserta ini sudah ada pesanan.");return;}
 const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
 if((trip.pax||22)-used<=0){toast("Slot pesanan sudah penuh.");return;}
@@ -1879,6 +1941,18 @@ render();return;
 const order={id:isEdit?S.editing.orderId:S.form.orderId,name:S.form.name,persons:S.form.persons};
 S.saving=true;S.slowSave=false;S.form.saveErr="";render();
 const slowT=setTimeout(()=>{if(S.saving){S.slowSave=true;render();}},SLOW_SAVE_MS);
+// v25: pesanan dikunci? Semak keadaan TERKINI di pelayan, bukan salinan lama
+// dalam telefon. Admin dikecualikan (sudah disahkan semasa mula). Kalau semakan
+// gagal (tiada internet), guna keadaan terakhir yang diketahui.
+if(!modAdmin()){
+const k=await kunciTerkini(S.tripId);
+if(k&&k.ok&&S.tripData)S.tripData.kunci=k.kunci;
+if(kunciAktif(S.tripData)){
+clearTimeout(slowT);S.saving=false;S.slowSave=false;
+S.form.saveErr="🔒 Pesanan trip ini sudah dikunci oleh admin — tidak boleh dihantar atau diubah. Hubungi Tour Leader.";
+render();return;
+}
+}
 try{await saveOrder(S.tripId,order);}
 catch(e){
 clearTimeout(slowT);S.saving=false;S.slowSave=false;
@@ -1993,6 +2067,63 @@ const pe=S.pesertaEdit;const b=pe.pdfBanding;
 if(!b||pe.saving)return false;
 pe.senarai=JSON.parse(JSON.stringify(b.senarai));pe.pdfBanding=null;pe.err="";
 return true;
+}
+// v25: kunci / buka kunci pesanan satu trip. Tulis medan `kunci` SAHAJA (merge) —
+// menu, harga, peserta dan pax tidak disentuh.
+async function tukarKunci(aktif){
+const trip=S.trips.find(t=>t.id===S.selTrip)||S.trips[0];
+if(!trip){toast("Trip tidak ditemui.");return;}
+// Muat semula pesanan dahulu — senarai "belum order" dalam pengesahan mesti
+// terkini (senarai admin tidak dikemas kini secara langsung).
+if(aktif){try{const sn=await getDocs(collection(db,"trips",trip.id,"orders"));S.orders=sn.docs.map(d=>d.data());}catch(e){console.error("tukarKunci:",e);}}
+if(!confirm(teksTukarKunci(trip,S.orders,aktif))){render();return;}
+const kunci={aktif:!!aktif,masa:new Date().toISOString()};
+try{await setDoc(doc(db,"trips",trip.id),{kunci},{merge:true});}
+catch(e){console.error("tukarKunci:",e);toast("❌ Gagal simpan. Semak internet dan cuba lagi.");return;}
+trip.kunci=kunci;
+toast(aktif?"🔒 Pesanan dikunci":"🔓 Kunci dibuka — peserta boleh order semula");
+render();
+}
+// v25: boleh padam pesanan? Bila dikunci: TL disekat (keadaan TERKINI disemak di
+// pelayan dahulu — senarai trip TL mungkin lama), admin diberi amaran.
+// Pengesahan sedia ada (v22) dikekalkan. Pulang true kalau boleh teruskan.
+async function bolehPadamPesanan(isLeader,tid){
+const tripK=S.trips.find(t=>t.id===tid);
+if(!isLeader)return confirm(kunciAktif(tripK)?teksAdminKunci("Padam pesanan ini juga?"):"Padam pesanan ini?");
+const semakTL=async()=>{
+if(tripK){const k=await kunciTerkini(tid);if(k.ok)tripK.kunci=k.kunci;}
+if(kunciAktif(tripK)){toast("🔒 Pesanan dikunci oleh admin — tidak boleh dipadam.");render();return false;}
+return true;
+};
+if(!(await semakTL()))return false;
+if(!confirm("⚠️ AMARAN\n\nPadam pesanan ini?\nTindakan TIDAK BOLEH dibatalkan.\nPastikan peserta telah membuat permintaan rasmi."))return false;
+if(!confirm("Pengesahan kedua: Padam sekarang?"))return false;
+// Semak sekali lagi — admin mungkin kunci semasa dialog terbuka
+return await semakTL();
+}
+// Aliran padam satu pesanan (butang ✕ admin / TL).
+async function padamPesanan(isLeader,tid,oid){
+if(!(await bolehPadamPesanan(isLeader,tid)))return false;
+await delOrder(tid,oid);
+S.orders=S.orders.filter(o=>o.id!==oid);
+toast("✓ Pesanan dipadam.");render();
+return true;
+}
+// v25: admin & TL nampak kunci TERKINI setiap trip tanpa log masuk semula.
+// Hanya medan `kunci` dikemas kini dari pelayan — data lain trip tidak disentuh.
+let _dengarKunci=false;
+function dengarKunciSemua(){
+if(_dengarKunci)return;_dengarKunci=true;
+onSnapshot(collection(db,"trips"),sn=>{
+let ubah=false;
+sn.docs.forEach(d=>{
+const t=S.trips.find(x=>x.id===d.id);if(!t)return;
+const k=d.data().kunci||null;
+if(JSON.stringify(k)===JSON.stringify(t.kunci||null))return;
+t.kunci=k;ubah=true;
+});
+if(ubah)render();
+},e=>console.error("dengarKunciSemua:",e));
 }
 // bolehUbah: admin sahaja nampak butang betulkan (TL nampak amaran sahaja)
 function rTracking(trip,orders,bolehUbah){
@@ -2135,7 +2266,9 @@ function rSummary(sl,orders){
     return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:#1a6b3c;margin-bottom:4px">${s.nama}</div><div class="lcard">${rows}</div></div>`;
   }).join("");
 }
-function rOrderList(sl,orders,canDel,isLeader){
+// v25: kunci = pesanan trip dikunci. TL tidak nampak butang edit / padam;
+// butang bayaran kekal. Admin masih nampak (diberi amaran bila ditekan).
+function rOrderList(sl,orders,canDel,isLeader,kunci){
   if(!orders.length)return`<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Tiada pesanan lagi.</div>`;
   return orders.map(o=>{
     // Kira berapa item Fuji+Nara belum dibayar dalam order ini
@@ -2147,7 +2280,7 @@ function rOrderList(sl,orders,canDel,isLeader){
     }));
     return`<div class="ocard">
     <div class="oname"><span>${o.name}${(o.persons||[]).length>1?` <span style="font-size:11px;color:#888;font-weight:400">(${o.persons.length} orang)</span>`:''} <span class="ref" style="font-size:10px;color:#999;font-weight:400">${refCode(o.id)}</span></span>
-    ${canDel?`<div style="display:flex;gap:4px;align-items:center">${orderUnpaid>0?`<button class="bsm g" data-payorder="${o.id}" style="padding:4px 10px;font-size:10px" title="Tandakan semua Fuji+Nara dibayar">✓ Bayar Semua</button>`:''}<button style="font-size:14px;color:#1a6b3c;background:none;border:none;cursor:pointer;padding:0 4px" data-edit="${o.id}" data-eview="${isLeader?'leader':'admin'}" title="Edit pesanan">✏️</button><button style="font-size:13px;color:#e53935;background:none;border:none;cursor:pointer;padding:0 4px" data-del="${o.id}" data-leader="${isLeader?1:0}" title="Padam">✕</button></div>`:''}</div>
+    ${canDel?`<div style="display:flex;gap:4px;align-items:center">${orderUnpaid>0?`<button class="bsm g" data-payorder="${o.id}" style="padding:4px 10px;font-size:10px" title="Tandakan semua Fuji+Nara dibayar">✓ Bayar Semua</button>`:''}${kunci&&isLeader?`<span style="font-size:13px;padding:0 4px" title="Dikunci oleh admin">🔒</span>`:`<button style="font-size:14px;color:#1a6b3c;background:none;border:none;cursor:pointer;padding:0 4px" data-edit="${o.id}" data-eview="${isLeader?'leader':'admin'}" title="Edit pesanan">✏️</button><button style="font-size:13px;color:#e53935;background:none;border:none;cursor:pointer;padding:0 4px" data-del="${o.id}" data-leader="${isLeader?1:0}" title="Padam">✕</button>`}</div>`:''}</div>
     ${(o.persons||[]).map((p,pi)=>`
       ${(o.persons||[]).length>1?`<div style="font-size:11px;font-weight:600;color:#1a6b3c;margin:6px 0 2px">👤 ${p.personName||`Orang ${pi+1}`}</div>`:''}
       ${sl.map(s=>{
@@ -2202,6 +2335,8 @@ const sl=trip.sesi||SESI;
 const pax=trip.pax||22;
 const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
 const rem=pax-used;
+// v25: pesanan dikunci (admin bagi pihak / edit dari panel admin dikecualikan)
+const tutup=kunciAktif(trip)&&!modAdmin();
 if(S.submitted){
 const o=S.form;
 const wasEdit=S.lastWasEdit;
@@ -2223,14 +2358,22 @@ const selectedCount=(S.form.selectedMembers||[]).length;
 // v22: telefon ini sudah hantar pesanan untuk trip ini? (bantuan sahaja)
 const mine=loadMine(S.tripId).map(x=>S.orders.find(o=>o.id===x.id)).filter(Boolean);
 const dup=S.form.dup;
+const mineBox=mine.length?`<div class="okbox">✅ <b>${mine.length===1?`Anda sudah order atas nama ${mine[0].name}`:'Telefon ini sudah hantar pesanan untuk:'}</b>${mine.length===1?` <span class="ref">${refCode(mine[0].id)}</span>${(mine[0].persons||[]).length>1?` (${mine[0].persons.length} orang)`:''}`:mine.map(o=>`<br>• ${o.name} <span class="ref">${refCode(o.id)}</span>`).join('')}
+<div style="margin-top:4px">Tak perlu order lagi. ${tutup?'Tekan untuk semak:':'Nak semak atau ubah?'}</div>
+<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${mine.map(o=>`<button class="bsm" data-mine-view="${o.id}" style="padding:9px 12px;font-size:12px;border-color:#1a6b3c;color:#1a6b3c;font-weight:600">🔍 Lihat pesanan${mine.length>1?' '+o.name:''}</button>`).join('')}</div>
+${tutup?'':'<div style="font-size:11px;margin-top:8px;color:#555">Nak order untuk orang lain? Teruskan di bawah.</div>'}
+</div>`:'';
+// v25: dikunci — tiada borang order; peserta masih boleh semak pesanan sendiri
+if(tutup)return`<div class="stk"><h2>${trip.nama}</h2><span style="font-size:11px;background:#f0f9f4;color:#1a6b3c;border-radius:20px;padding:3px 10px">${trip.tarikh||''}</span></div>
+<div class="body">
+${rKunci(trip,'peserta')}
+${mineBox}
+<button class="b2" id="go-check" style="margin-bottom:0">🔍 Semak Order Saya</button>
+</div>`;
 return`<div class="stk"><h2>${trip.nama}</h2><span style="font-size:11px;background:#f0f9f4;color:#1a6b3c;border-radius:20px;padding:3px 10px">${trip.tarikh||''}</span></div>
 <div class="body">
 <div class="pb">${Array.from({length:sl.length+1}).map((_,i)=>`<div class="ps ${i===0?'active':''}"></div>`).join("")}</div>
-${mine.length?`<div class="okbox">✅ <b>${mine.length===1?`Anda sudah order atas nama ${mine[0].name}`:'Telefon ini sudah hantar pesanan untuk:'}</b>${mine.length===1?` <span class="ref">${refCode(mine[0].id)}</span>${(mine[0].persons||[]).length>1?` (${mine[0].persons.length} orang)`:''}`:mine.map(o=>`<br>• ${o.name} <span class="ref">${refCode(o.id)}</span>`).join('')}
-<div style="margin-top:4px">Tak perlu order lagi. Nak semak atau ubah?</div>
-<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${mine.map(o=>`<button class="bsm" data-mine-view="${o.id}" style="padding:9px 12px;font-size:12px;border-color:#1a6b3c;color:#1a6b3c;font-weight:600">🔍 Lihat pesanan${mine.length>1?' '+o.name:''}</button>`).join('')}</div>
-<div style="font-size:11px;margin-top:8px;color:#555">Nak order untuk orang lain? Teruskan di bawah.</div>
-</div>`:''}
+${mineBox}
 <div class="ins">📋 <b>Panduan untuk peserta:</b><br>
 <b>Untuk buat pesanan baharu:</b><br>
 1. Isi <b>nama anda</b> dan <b>bilangan orang</b> yang anda wakili<br>
@@ -2311,6 +2454,7 @@ const showSkipDisplay=sel&&sel.skip&&canSkip;
 const onBhf=!!(S.onBehalf&&S.onBehalf.active);
 return`<div class="stk"><h2>${S.editing.active?'✏️ Edit Pesanan':onBhf?'👤 Order Bagi Pihak':trip.nama}</h2>${(S.editing.active||onBhf)?'<button class="bk" id="cancel-edit" title="Batal" style="font-size:18px">✕</button>':''}</div>
 <div class="body">
+    ${tutup?rKunci(trip,'borang'):''}
     ${S.editing.active?`<div class="warnsec">✏️ <b>Mod Edit:</b> Mengedit pesanan untuk <b>${S.form.name}</b>. Klik <b>"💾 Simpan Perubahan"</b> untuk menyimpan, atau <b>✕</b> untuk batal.</div>`:onBhf?`<div class="warnsec">👤 <b>Order bagi pihak:</b> <b>${S.form.name}</b>. Lengkapkan semua sesi, kemudian tekan <b>"✅ Hantar Pesanan"</b>. Tekan <b>✕</b> untuk batal.</div>`:''}
     <div class="pb">${Array.from({length:sl.length+1}).map((_,i)=>`<div class="ps ${i<S.sesiIdx+1?'done':i===S.sesiIdx+1?'active':''}"></div>`).join("")}</div>
     <div class="shdr"><h3>${sesi.nama}</h3>${sesi.note?`<p>${sesi.note}</p>`:''}</div>
@@ -2330,7 +2474,7 @@ return`<div class="stk"><h2>${S.editing.active?'✏️ Edit Pesanan':onBhf?'👤
   </div>
   <div class="fb">${S.saving&&S.slowSave?`<div class="warnsec" style="margin-bottom:8px">📶 Internet perlahan — ${S.editing.active?'perubahan sedang disimpan':'pesanan sedang dihantar'}. <b>Jangan tutup skrin ini.</b></div>`:''}${S.form.saveErr?`<div class="err" style="margin-bottom:8px">${S.form.saveErr}</div>`:''}<div style="display:flex;gap:8px">
     <button class="b2" id="prev-step" style="margin:0;flex:1;padding:14px 0"${S.saving?' disabled':''}>← Balik</button>
-    <button class="b1" id="next-step" style="margin:0;flex:2"${S.saving?' disabled':''}>${S.saving?(S.slowSave?'⏳ Masih menghantar...':'⏳ Menghantar...'):isLast?(S.editing.active?'💾 Simpan Perubahan':'✅ Hantar Pesanan'):'Seterusnya →'}</button>
+    <button class="b1" id="next-step" style="margin:0;flex:2"${S.saving||(tutup&&isLast)?' disabled':''}>${S.saving?(S.slowSave?'⏳ Masih menghantar...':'⏳ Menghantar...'):(tutup&&isLast)?'🔒 Dikunci':isLast?(S.editing.active?'💾 Simpan Perubahan':'✅ Hantar Pesanan'):'Seterusnya →'}</button>
   </div></div>`;
 }
 // v22: pesanan yang dipaparkan di skrin Semak Order — ikut ID bila dibuka
@@ -2437,8 +2581,8 @@ ${t.change>0?`<span style="color:#e65100">↩ Pulangan ¥${t.change.toLocaleStri
 <p style="font-size:10px;color:#888;margin-top:8px;text-align:center;font-style:italic">Simpan rekod ini untuk rujukan</p>
 </div>`;
 })()}
-      <button class="b1" id="check-edit" style="margin-top:14px;margin-bottom:0">✏️ Edit Pesanan Saya</button>
-      <p style="font-size:11px;color:#888;margin-top:10px;text-align:center">Atau hubungi Tour Leader untuk perubahan rasmi.</p>
+      ${kunciAktif(trip)?`<div class="kuncisec on" style="margin:14px 0 0">🔒 <b>Pesanan dikunci</b> — tidak boleh diubah lagi. Untuk sebarang perubahan, hubungi Tour Leader.</div>`:`<button class="b1" id="check-edit" style="margin-top:14px;margin-bottom:0">✏️ Edit Pesanan Saya</button>
+      <p style="font-size:11px;color:#888;margin-top:10px;text-align:center">Atau hubungi Tour Leader untuk perubahan rasmi.</p>`}
     </div>`;})():`
     <div style="background:#fdecea;border-radius:12px;padding:16px;margin-top:16px;text-align:center">
       <div style="font-size:32px;margin-bottom:8px">🔍</div>
@@ -2454,14 +2598,14 @@ const sl=trip?(trip.sesi||SESI):SESI;
 const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
 if(S.adminTab==="trips"){
-const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax &nbsp;🚌 ${t.mod||'tren'}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm" data-peserta-trip="${t.id}" style="border-color:#1a6b3c;color:#1a6b3c">👥 Peserta</button> <button class="bsm" data-priceedit-trip="${t.id}" style="border-color:#ff9800;color:#e65100">💴 Harga</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
+const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}${kunciAktif(t)?' <span style="font-size:11px;color:#37474f;font-weight:600;white-space:nowrap">🔒 Dikunci</span>':''}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax &nbsp;🚌 ${t.mod||'tren'}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm" data-peserta-trip="${t.id}" style="border-color:#1a6b3c;color:#1a6b3c">👥 Peserta</button> <button class="bsm" data-priceedit-trip="${t.id}" style="border-color:#ff9800;color:#e65100">💴 Harga</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn active" data-tab="trips">🗺️ Trip</button> <button class="tabbtn" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> <div class="stitle">Senarai Trip</div>${cards}
 ${rBookingSec()}
 <div class="stitle">Tambah Trip Baru</div> <button class="pdfbtn" id="open-pdf-import">📄 Cipta Trip dari PDF (Auto)</button> <div class="abox"> <input class="inp" id="nt-nama" placeholder="Nama trip" value="${S.newTrip.nama}"/> <input class="inp" id="nt-tarikh" placeholder="Tarikh (cth: 1-7 Nov 2025)" value="${S.newTrip.tarikh}"/> <label class="lbl">Tarikh mula di Osaka</label> <input class="inp" id="nt-mula" type="date" value="${S.newTrip.tarikhMula||''}"/> <label class="lbl">Mod pengangkutan</label> <select class="inp" id="nt-mod"> <option value="tren" ${(S.newTrip.mod||'tren')==='tren'?'selected':''}>🚃 Tren (Nara:11am | Namba:5pm)</option> <option value="bas" ${S.newTrip.mod==='bas'?'selected':''}>🚌 Bas (Nara:11:30am | Namba:5:30pm)</option> </select> <input class="inp" id="nt-pax" placeholder="Jumlah peserta" value="${S.newTrip.pax}" type="number"/> <button class="b1" id="add-trip" style="margin-bottom:0">+ Cipta Trip Baru (manual)</button> </div></div>`;
 }
 if(S.adminTab==="orders"){
 const sel=rTripSelect();
-return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Slot Kosong</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${rTracking(trip,orders,true)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div>
+return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn" data-tab="trips">🗺️ Trip</button> <button class="tabbtn active" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> ${sel} <div class="srow"> <div class="sc"><div class="sl">Wakil</div><div class="sv">${orders.length}</div></div> <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div> <div class="sc"><div class="sl">Slot Kosong</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div> </div> ${trip?rKunci(trip,'admin'):''} ${rTracking(trip,orders,true)} ${rPaymentDashboard(trip,orders)} ${rTxnHistory(trip,orders)} ${rExpSec()} <div class="stitle">Ringkasan Sesi</div>${rSummary(sl,orders)} <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)} <div class="abox"> <div style="font-size:13px;font-weight:600;margin-bottom:8px">➕ Tambah Menu Khas (Namba)</div>
 ${(()=>{const nb=sl.find(x=>x.id==="namba");const sp=nb?(nb.menus||[]).filter(m=>m.isSpecial):[];return sp.length?`<div style="background:#fff;border-radius:10px;padding:6px;margin-bottom:10px">${sp.map(m=>`<div style="display:flex;align-items:center;gap:6px;padding:8px 9px;border-bottom:1px solid #f5f5f5;font-size:12px;flex-wrap:wrap">
 <span style="flex:1;min-width:110px">${m.name}${m.isVegan?'<span class="vtag">Vegan</span>':''}</span>
 <span style="font-size:10px;color:#888;font-weight:600">¥</span>
@@ -2489,7 +2633,7 @@ return`<button class="bsm" data-sppreset="${v.name}" data-spval="${v.price}"${ex
 </label>
 </div>
 <p style="font-size:11px;color:#888;margin-bottom:10px;line-height:1.5">Menu bertanda Vegan akan dapat <b>lauk sampingan vegan</b> secara automatik, bukan Karaage.<br>Satu menu cukup untuk semua peserta vegan — guna <b>👤 Tetapkan</b> untuk pilih siapa.</p>
-<button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false)} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>${rAssignSpecialModal()}`;
+<button class="b1" id="add-special" style="margin-bottom:0">Tambah Menu</button> </div> <div class="stitle">Senarai Pesanan</div> ${rOrderList(sl,orders,true,false,kunciAktif(trip))} <button style="width:100%;padding:12px 0;font-size:13px;border-radius:12px;cursor:pointer;background:#fff;border:1px solid #e53935;color:#e53935;margin-top:8px" id="reset-trip">🗑 Reset Semua Pesanan</button> </div>${rAssignSpecialModal()}`;
 }
 if(S.adminTab==="imgs"){
 const pending=S.pendingImgs||{};
@@ -2631,6 +2775,7 @@ return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tou
       <div class="sc"><div class="sl">Jumlah Pax</div><div class="sv">${tp}/${trip?trip.pax:22}</div></div>
       <div class="sc"><div class="sl">Slot Kosong</div><div class="sv">${trip?(trip.pax||22)-tp:0}</div></div>
     </div>
+    ${rKunci(trip,'tl')}
     ${rTracking(trip,orders)}
     ${rPaymentDashboard(trip,orders)}
     ${rTxnHistory(trip,orders)}
@@ -2639,7 +2784,7 @@ return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tou
     <div class="stitle">📢 Senarai Nama per Menu (Untuk Panggil Satu-Satu)</div>${rNamePerMenu(sl,orders)}
     <div class="stitle">Senarai Pesanan</div>
     <div class="warn">⚠️ <b>Amaran:</b> Padam pesanan hanya apabila peserta membuat permintaan rasmi. Tindakan ini tidak boleh dibatalkan.</div>
-    ${rOrderList(sl,orders,true,true)}
+    ${rOrderList(sl,orders,true,true,kunciAktif(trip))}
   </div>`;
 }
 // ── Render ──────────────────────────────────────────
@@ -2675,12 +2820,12 @@ render();
 // Login
 on("admin-login","click",()=>{
 const v=$("pass-inp")?.value||"";
-if(v===APASS){S.adminOn=true;S.passErr="";loadTrips().then(()=>{if(S.trips.length>0)S.selTrip=S.trips[0].id;render();});}
+if(v===APASS){S.adminOn=true;S.passErr="";dengarKunciSemua();loadTrips().then(()=>{if(S.trips.length>0)S.selTrip=S.trips[0].id;render();});}
 else{S.passErr="Kata laluan salah.";render();}
 });
 on("leader-login","click",()=>{
 const v=$("pass-inp")?.value||"";
-if(v===LPASS){S.leaderOn=true;S.passErr="";loadTrips().then(async()=>{if(S.trips.length>0){S.selTrip=S.trips[0].id;await loadOrders(S.selTrip);}render();});}
+if(v===LPASS){S.leaderOn=true;S.passErr="";dengarKunciSemua();loadTrips().then(async()=>{if(S.trips.length>0){S.selTrip=S.trips[0].id;await loadOrders(S.selTrip);}render();});}
 else{S.passErr="Kata laluan salah.";render();}
 });
 on("pass-inp","keydown",e=>{if(e.key==="Enter"){$("admin-login")?$("admin-login").click():$("leader-login")?.click();}});
@@ -2771,6 +2916,12 @@ cancelPriceEdit();
 function startEdit(orderId,origView){
 const order=S.orders.find(o=>o.id===orderId);
 if(!order){toast("Order tidak ditemui.");return;}
+// v25: dikunci — peserta & TL disekat; admin diberi amaran
+const tripK=(origView==="leader"||origView==="admin")?S.trips.find(t=>t.id===S.selTrip):S.tripData;
+if(kunciAktif(tripK)){
+if(origView!=="admin"){toast("🔒 Pesanan dikunci oleh admin — tidak boleh diubah.");return;}
+if(!confirm(teksAdminKunci("Ubah pesanan ini juga?")))return;
+}
 if(origView==="leader"||origView==="admin"){
 const trip=S.trips.find(t=>t.id===S.selTrip);
 if(!trip){toast("Trip tidak ditemui.");return;}
@@ -2921,6 +3072,9 @@ pe.senarai=pe.senarai.filter((_,j)=>j!==i);pe.err="";render();
 on("pe-tb-minus","click",()=>{const pe=S.pesertaEdit;pe.tambahan=Math.max(0,pe.tambahan-1);pe.err="";render();});
 on("pe-tb-plus","click",()=>{const pe=S.pesertaEdit;pe.tambahan=pe.tambahan+1;pe.err="";render();});
 on("pe-simpan","click",()=>{simpanPesertaEdit();});
+// v25: kunci pesanan
+on("kunci-on","click",()=>{tukarKunci(true);});
+on("kunci-off","click",()=>{tukarKunci(false);});
 // v24: rooming list PDF terkini — baca, banding, tunjuk; TIADA apa disimpan di sini
 on("pe-pdf","change",e=>prosesPdfPeserta(e.target.files&&e.target.files[0],pdfToLines));
 on("pe-pdf-abai","click",()=>{if(S.pesertaEdit.saving)return;S.pesertaEdit.pdfBanding=null;render();});
@@ -2987,7 +3141,7 @@ if(e.target.closest("[data-paycollect-item]"))return;
 const personKey=row.dataset.paycollectPerson;
 if(!S.payCollect)S.payCollect={selected:[],sesiFilter:'all',searchQuery:''};
 // Cari semua item key untuk peserta ini
-const trip=S.trips.find(t=>t.id===(S.tripId||S.selTrip))||S.tripData;
+const trip=S.trips.find(t=>t.id===(S.selTrip||S.tripId))||S.tripData;
 if(!trip)return;
 const filter=S.payCollect.sesiFilter||'all';
 const sum=getPaymentSummary(trip,S.orders,filter);
@@ -3010,7 +3164,7 @@ S.payCollect.selected=[];render();
 });
 on("commit-paycollect","click",()=>{
 if(!S.payCollect||!S.payCollect.selected.length)return;
-const trip=S.trips.find(t=>t.id===(S.tripId||S.selTrip))||S.tripData;
+const trip=S.trips.find(t=>t.id===(S.selTrip||S.tripId))||S.tripData;
 if(!trip)return;
 // Group selected keys by orderId|personIdx untuk papar nama dalam dialog
 const byPerson={};
@@ -3085,7 +3239,7 @@ ordersToSave[orderId]=order;
 toast("⏳ Menyimpan...");
 try{
 for(const order of Object.values(ordersToSave)){
-await saveOrder(S.tripId||S.selTrip,order);
+await saveOrder(S.selTrip||S.tripId,order);
 }
 const msg=change>0?`✓ Dibayar! Pulangkan baki ¥${change.toLocaleString()} kepada peserta`:change<0?`✓ Dibayar (kurang ¥${Math.abs(change).toLocaleString()})`:`✓ Dibayar tepat ¥${total.toLocaleString()}`;
 toast(msg);
@@ -3130,7 +3284,7 @@ delete person[sid].paidReceived;
 delete person[sid].paidChange;
 delete person[sid].paidBundleTotal;
 }
-const tid=S.tripId||S.selTrip;
+const tid=S.selTrip||S.tripId;
 try{await saveOrder(tid,order);toast(person[sid].paid?"✓ Ditandakan sudah bayar":"↻ Dialihkan ke belum bayar");render();}
 catch(e){console.error(e);toast("❌ Gagal simpan. Cuba lagi.");person[sid].paid=!person[sid].paid;render();}
 }));
@@ -3140,7 +3294,7 @@ const order=S.orders.find(o=>o.id===oid);
 if(!order)return;
 let count=0;
 (order.persons||[]).forEach(p=>{
-const trip=S.trips.find(t=>t.id===(S.tripId||S.selTrip))||S.tripData;
+const trip=S.trips.find(t=>t.id===(S.selTrip||S.tripId))||S.tripData;
 const sl=trip?(trip.sesi||SESI):SESI;
 sl.forEach(s=>{
 if(getPayType(s)!=='pay')return;
@@ -3150,7 +3304,7 @@ if(it&&!it.skip&&!it.paid){it.paid=true;count++;}
 });
 if(count===0){toast("Tiada item belum bayar.");return;}
 if(!confirm(`Tandakan ${count} item Fuji+Nara untuk "${order.name}" sebagai dibayar?`))return;
-const tid=S.tripId||S.selTrip;
+const tid=S.selTrip||S.tripId;
 try{await saveOrder(tid,order);toast(`✓ ${count} item ditandakan dibayar.`);render();}
 catch(e){console.error(e);toast("❌ Gagal simpan.");render();}
 }));
@@ -3159,20 +3313,11 @@ on("cp-bk-fuji","click",()=>{if(S.trips.length===0){toast("⚠️ Tiada trip");r
 on("cp-bk-nara","click",()=>{if(S.trips.length===0){toast("⚠️ Tiada trip");return;}cp(bBookingNara(S.trips));});
 on("cp-bk-namba","click",()=>{if(S.trips.length===0){toast("⚠️ Tiada trip");return;}cp(bBookingNamba(S.trips));});
 // Delete order
-document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
-const isLeader=b.dataset.leader==="1";
-if(isLeader){
-if(!confirm("⚠️ AMARAN\n\nPadam pesanan ini?\nTindakan TIDAK BOLEH dibatalkan.\nPastikan peserta telah membuat permintaan rasmi."))return;
-if(!confirm("Pengesahan kedua: Padam sekarang?"))return;
-} else {
-if(!confirm("Padam pesanan ini?"))return;
-}
-const tid=S.selTrip||S.tripId;
-await delOrder(tid,b.dataset.del);
-S.orders=S.orders.filter(o=>o.id!==b.dataset.del);
-toast("✓ Pesanan dipadam.");render();
+document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{
+padamPesanan(b.dataset.leader==="1",S.selTrip||S.tripId,b.dataset.del);
 }));
 on("reset-trip","click",async()=>{
+if(kunciAktif(S.trips.find(t=>t.id===S.selTrip))){toast("🔒 Pesanan dikunci — buka kunci dahulu untuk reset semua pesanan.");return;}
 if(!confirm("Padam SEMUA pesanan trip ini?"))return;
 const tid=S.selTrip;
 const snap=await getDocs(collection(db,"trips",tid,"orders"));
@@ -3306,7 +3451,7 @@ const person=order.persons[pi];
 if(person.namba&&!person.namba.skip&&person.namba.id===menu.id)return;
 const nama=person.personName||(pi===0?order.name:`${order.name} (Orang ${pi+1})`);
 const before=person.namba?(person.namba.skip?'🚫 Tidak order':person.namba.name):'—';
-if(!confirm(`Tukar menu Namba untuk "${nama}"?\n\n${before}\n→ ${menu.name}`))return;
+if(!confirm(`${kunciAktif(trip)?teksAdminKunci(''):''}Tukar menu Namba untuk "${nama}"?\n\n${before}\n→ ${menu.name}`))return;
 person.namba=JSON.parse(JSON.stringify(menu));
 try{
 await saveOrder(S.selTrip,order);
@@ -3538,6 +3683,8 @@ const trip=S.tripData;const sl=trip.sesi||SESI;
 const pax=trip?trip.pax:22;
 const used=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);const rem=pax-used;
 if(S.step===1){
+// v25: dikunci — tiada pesanan baharu (butang ini disorok; ini benteng kedua)
+if(kunciAktif(trip)){S.formErr="🔒 Pesanan sudah ditutup — tidak boleh order baharu.";render();return;}
 const name=$("order-name")?.value?.trim()||S.form.name.trim();
 S.form.name=name;S.form.dup=null;S.form.disambiguating=null;
 // Kenal pasti wakil + sudah ada pesanan? Semak ikut NAMA RASMI dalam senarai,
@@ -3678,7 +3825,7 @@ const d=await getDoc(doc(db,"trips",tid));
 if(d.exists()){
 S.tripId=tid;S.tripData={id:tid,...d.data()};
 await loadOrders(tid);await loadImgs();
-listenOrders(tid);S.view="order";
+listenOrders(tid);listenTrip(tid);S.view="order";
 } else {
 S.view="notfound";
 }
