@@ -159,12 +159,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v27 — 📄 PDF Tour Guide lebih padat: muka surat lebih sedikit, semua data kekal (menu & nama dalam satu jadual, bab mengalir, Kandungan bernombor muka) -->
+<!-- BUILD: v29 — 📅 Tarikh & Mod: ubah Tarikh Day 1 & mod Day 2 trip sedia ada (updateDoc medan yang berubah SAHAJA; order tidak disentuh; LAMA → BAHARU dipapar & disahkan) · simpan harga/menu tulis `sesi` SAHAJA (peranti lama tidak tulis semula tarikh/mod/peserta) · peranti lain diselaraskan · PDF TG lapuk bila tarikh/mod berubah · v28: Cipta Trip dari PDF tanpa invois Crystal -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v27 starting…");
+console.log("[Tour-Order] Build v29 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -202,7 +202,7 @@ document.head.appendChild(s);
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getFirestore,doc,getDoc,setDoc,deleteDoc,collection,onSnapshot,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import{getFirestore,doc,getDoc,setDoc,updateDoc,deleteDoc,collection,onSnapshot,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 const db=getFirestore(initializeApp({apiKey:"AIzaSyBdfyI1IHccekotNNRYwlr3U9JTkVc2uWI",authDomain:"tour-order.firebaseapp.com",projectId:"tour-order",storageBucket:"tour-order.firebasestorage.app",messagingSenderId:"411616788552",appId:"1:411616788552:web:fd0a63dbe84c64334d987d"}));
 const APASS="admin123",LPASS="leader123";
 const SESI=[
@@ -870,6 +870,107 @@ if(dt)return dt;
 if(itin.bookingRef)return itin.bookingRef;
 return'';
 }
+// ── Cipta trip dari PDF (v28) ────────────────────────
+// Kes sebenar 3 Nov 2026: Kembara Sufi hantar rooming list, tetapi invois Crystal
+// (Seishin) belum keluar — dan slot restoran perlu ditempah segera. v27 wajibkan
+// kedua-dua PDF. Kini rooming list WAJIB, invois PILIHAN.
+// Tanpa invois: Tarikh Day 1 & mod Day 2 diisi sendiri di pratonton. Mod TIADA
+// lalai — lalai 'tren' yang senyap boleh salah masa booking Nara/Namba tanpa
+// amaran (kelas pepijat format tarikh Seishin, v21). Invois yang dipilih tetapi
+// tidak dapat dibaca = ralat, bukan diabaikan senyap.
+// baca = pdfToLines (diganti dalam ujian).
+function itinKosong(){return{tarikhMula:null,bookingRef:null,mod:null,pax:null,groupName:null,dayModes:{}};}
+// Tarikh "YYYY-MM-DD" yang WUJUD dalam kalendar (kotak tarikh telefon sentiasa beri format ini).
+// Hari/bulan/tahun disemak semula — Chrome terima "2026-02-30" sebagai 2 Mac, senyap.
+function tarikhSah(s){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');if(!m)return false;const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3]));return d.getUTCFullYear()===+m[1]&&d.getUTCMonth()===m[2]-1&&d.getUTCDate()===+m[3];}
+async function bacaPdfTrip(f,baca){
+if(!f||!f.roomFile)throw new Error("Sila pilih PDF rooming list (senarai peserta) dahulu.");
+const room=parseRoomingList(await baca(f.roomFile));
+if(!room.peserta.length)throw new Error("Tidak dapat ekstrak senarai peserta dari rooming list. Sila semak format PDF.");
+const adaInvois=!!f.itinFile;
+const itin=adaInvois?parseItinerary(await baca(f.itinFile)):itinKosong();
+if(adaInvois&&!itin.tarikhMula)throw new Error("Tidak dapat ekstrak tarikh dari invois Crystal. Sila pastikan format Seishin International, atau tekan \"✕ Buang invois\" untuk teruskan dengan rooming list sahaja.");
+return{parsed:{itin,room,adaInvois},editing:{
+nama:suggestTripNama(itin,room),
+tarikh:room.tarikhTrip||'',
+tarikhMula:itin.tarikhMula||'',
+mod:adaInvois?(itin.mod||'tren'):'',
+peserta:[...room.peserta],
+includeGuide:true,
+dayModes:itin.dayModes||{},
+}};
+}
+// Tarikh restoran ikut Tarikh Day 1, supaya tarikh yang diisi sendiri boleh disemak
+// terus. Dikira sama seperti mesej booking: Nara & Namba = Day 1 + 1, Fuji = Day 1 + 3.
+function teksHariRestoran(tarikhMula){
+if(!tarikhSah(tarikhMula))return"📅 Restoran: Nara & Namba = Day 1 + 1 hari · Fuji = Day 1 + 3 hari";
+const t={tarikhMula};
+return`📅 Nara & Namba: <b>${getTarikhLoc(t,"namba","ms-MY")}</b><br>📅 Fuji: <b>${getTarikhLoc(t,"fuji","ms-MY")}</b>`;
+}
+// Semakan sebelum cipta trip. Pulang mesej ralat, atau "" kalau lengkap.
+function semakPratontonTrip(ed){
+if(!ed)return"Tiada data trip.";
+if(!String(ed.nama||'').trim())return"Sila masukkan nama trip.";
+if(!tarikhSah(ed.tarikhMula))return"Sila masukkan Tarikh Mula di Osaka (Day 1).";
+if(ed.mod!=="tren"&&ed.mod!=="bas")return"Sila pilih mod pengangkutan Day 2 (tren atau bas).";
+if(!ed.peserta||!ed.peserta.length)return"Senarai peserta kosong.";
+return"";
+}
+// Objek trip yang ditulis ke Firebase — medan sama seperti v27. sesi & peserta ialah
+// SALINAN (SEMAKAN-KOD 8): trip baharu tidak berkongsi rujukan dengan SESI global.
+function binaTripPdf(ed,id){
+const peserta=JSON.parse(JSON.stringify(ed.peserta||[]));
+return{id,nama:String(ed.nama||'').trim(),tarikh:String(ed.tarikh||'').trim(),tarikhMula:ed.tarikhMula,mod:ed.mod,pax:peserta.length+(ed.includeGuide?1:0),sesi:JSON.parse(JSON.stringify(SESI)),peserta};
+}
+// Butang "Proses & Pratonton". Tekan dua kali = PDF dibaca sekali; skrin ditutup
+// semasa membaca = keputusan dibuang.
+async function prosesPdfTrip(baca){
+const f=S.pdfFlow;
+if(!f||!f.roomFile||f.step!=="upload")return;
+f.step="processing";f.err="";render();
+let r=null,ralat="";
+try{r=await bacaPdfTrip(f,baca);}
+catch(e){console.error("prosesPdfTrip:",e);ralat=(e&&e.message)||"Ralat semasa proses PDF.";}
+if(S.pdfFlow!==f)return;
+if(r){f.parsed=r.parsed;f.editing=r.editing;f.step="preview";}
+else{f.step="upload";f.err=ralat;}
+render();
+}
+// Butang ← di pratonton. DIKUNCI semasa simpan: kembali & proses semula dengan fail lain
+// sementara simpanan lama berjalan akan menyimpan nilai LAMA tanpa amaran (semakan bebas v28).
+function kembaliPdf(){
+const f=S.pdfFlow;
+if(!f||f.saving)return;
+f.step="upload";f.err="";render();
+}
+// Nilai yang DILIHAT dalam kotak ialah yang disimpan — dibaca semasa Sahkan, kerana pemilih
+// tarikh iPhone mungkin belum hantar event input/change bila butang ditekan. el = $.
+function ambilBorangPdf(ed,el){
+[["nama","pf-nama"],["tarikh","pf-tarikh"],["tarikhMula","pf-mula"],["mod","pf-mod"]].forEach(([k,id])=>{const x=el(id);if(x)ed[k]=x.value;});
+}
+// Butang "Sahkan & Cipta Trip". Dikunci semasa simpan (tekan dua kali = SATU trip; ← & semua
+// kotak juga dikunci). Nombor trip tetap untuk borang ini: cuba semula selepas gagal menulis
+// atas trip SAMA. Internet perlahan: corak sama seperti borang order (SLOW_SAVE_MS).
+async function sahkanTripPdf(el){
+const f=S.pdfFlow;const ed=f&&f.editing;
+if(!ed||f.saving)return;
+if(el)ambilBorangPdf(ed,el);
+const ralat=semakPratontonTrip(ed);
+if(ralat){alert(ralat);return;}
+if(!f.tripId)f.tripId=genId();
+const t=binaTripPdf(ed,f.tripId);
+const tanpaInvois=!(f.parsed&&f.parsed.adaInvois);
+f.saving=true;f.slowSave=false;render();
+const lambat=setTimeout(()=>{f.slowSave=true;render();},SLOW_SAVE_MS);
+try{await saveTrip(t);}
+catch(e){clearTimeout(lambat);console.error("sahkanTripPdf:",e);f.saving=false;f.slowSave=false;render();alert("❌ Gagal simpan trip. Semak internet dan cuba lagi.");return;}
+clearTimeout(lambat);
+S.trips.push(t);
+S.pdfFlow={step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""};
+S.view="admin";S.adminTab="trips";S.selTrip=t.id;
+alert(`✅ Trip "${t.nama}" berjaya dicipta!\n\n📅 Day 1: ${fmtDateLocale(t.tarikhMula,0,"ms-MY")} · ${t.mod==="bas"?"🚌 Bas":"🚃 Tren"}\n👥 ${t.peserta.length} peserta + ${t.pax-t.peserta.length} guide = ${t.pax} pax${tanpaInvois?"\n\n⚠️ Dicipta tanpa invois Crystal — bila invois sampai, semak tarikh & masa dalam mesej Booking Nara/Namba/Fuji sama dengan invois; kalau lain, betulkan di 📅 Tarikh & Mod.":""}\n\n🔗 Link:\n${tLink(t.id)}`);
+render();
+}
 // ── Firebase ──────────────────────────────────────────
 async function loadTrips(){
 try{const s=await getDocs(collection(db,"trips"));S.trips=s.docs.map(d=>({id:d.id,...d.data()}));}catch(e){}
@@ -1048,8 +1149,8 @@ for(const tid of tripIds){
 const trip=S.trips.find(t=>t.id===tid);
 if(!trip)continue;
 const mc=applyPriceMapToTripSesi(trip,priceMap);
-try{await saveTrip(trip);}
-catch(e){console.error("saveTrip:",tid,e);failed++;continue;}
+try{await simpanSesi(trip);}
+catch(e){console.error("simpanSesi:",tid,e);failed++;continue;}
 menus+=mc;
 let orders=[];
 try{
@@ -1076,6 +1177,12 @@ async function delOrder(tid,oid){S.tulisPesanan++;await deleteDoc(doc(db,"trips"
 // Kunci / Buka Kunci. Tanpa ini, telefon atau laptop admin yang dibuka sebelum
 // dikunci akan membuang kunci secara senyap bila simpan harga atau menu.
 async function saveTrip(t){const{kunci,...data}=t;await setDoc(doc(db,"trips",t.id),data,{merge:true});}
+// v29: saveTrip kini untuk CIPTA trip sahaja. Simpan harga/menu tulis `sesi` SAHAJA —
+// saveTrip tulis SELURUH trip dari salinan peranti ini, jadi telefon/laptop admin yang dibuka
+// lebih awal menulis semula tarikh & mod LAMA (📅 Tarikh & Mod) dan peserta/pax LAMA
+// (👥 Peserta) secara senyap — kelas pepijat sama seperti kunci (v25). updateDoc: trip yang
+// sudah dipadam di peranti lain TIDAK dicipta semula (ralat not-found).
+async function simpanSesi(trip){await updateDoc(doc(db,"trips",trip.id),{sesi:trip.sesi});}
 // v25: keadaan kunci TERKINI dari pelayan. {ok:true,kunci} | {ok:false} bila gagal.
 async function kunciTerkini(tid){
 try{const d=await getDoc(doc(db,"trips",tid));return{ok:true,kunci:d.exists()?(d.data().kunci||null):null};}
@@ -1630,7 +1737,8 @@ return{nama:fail,tajuk:`Pesanan makan untuk Tour Guide — ${namaTrip}`,bait:pdf
 // kalau tunggu internet dahulu, kongsi boleh ditolak. Skrin admin/TL tidak dikemas kini secara
 // langsung, jadi tanpa muat semula PDF boleh guna pesanan lama.
 // Cap jari pesanan + kunci: kalau berubah selepas PDF disediakan, minta sediakan semula.
-function capPdfTG(tid){const t=S.trips.find(x=>x.id===tid);return JSON.stringify([S.orders,(t&&t.kunci)||null]);}
+// v29: tarikh & mod masuk dalam cap — PDF yang disediakan sebelum 📅 Tarikh & Mod diubah dikira lapuk
+function capPdfTG(tid){const t=S.trips.find(x=>x.id===tid);return JSON.stringify([S.orders,(t&&t.kunci)||null,(t&&t.tarikhMula)||null,(t&&t.mod)||null]);}
 async function sediaPdfTG(){
 const tid=S.selTrip;
 if(!tid||(S.pdfTG&&S.pdfTG.status==='memuat'&&S.pdfTG.tid===tid))return;
@@ -1667,7 +1775,7 @@ function rPdfTG(){
 const p=S.pdfTG;
 if(!p||p.tid!==S.selTrip)return`<button class="bcp" id="pdf-tg">📄 PDF Pesanan untuk TG</button>`;
 if(p.status==='memuat')return`<button class="bcp" id="pdf-tg" disabled>⏳ Menyediakan PDF (muat pesanan terkini)…</button>`;
-if(p.cap!==capPdfTG(p.tid))return`<div class="pdftg"><div class="nota lama">⚠️ Pesanan atau kunci berubah selepas PDF disediakan.</div><button class="bcp" id="pdf-tg">🔄 Sediakan semula PDF</button></div>`;
+if(p.cap!==capPdfTG(p.tid))return`<div class="pdftg"><div class="nota lama">⚠️ Pesanan, kunci, tarikh atau mod berubah selepas PDF disediakan.</div><button class="bcp" id="pdf-tg">🔄 Sediakan semula PDF</button></div>`;
 return`<div class="pdftg"><div class="nota${p.lama?' lama':''}">${p.lama?'⚠️ Tiada internet — PDF guna data dalam skrin (mungkin lama).':`✅ PDF sedia — data pelayan ${p.masa.toLocaleTimeString('ms-MY',{hour:'2-digit',minute:'2-digit'})}.`} ${p.orang} orang · ${p.kunci?'🔒 dikunci':'🔓 belum dikunci'}</div>
 ${p.bolehKongsi?`<button class="bcp utama" id="pdf-tg-kongsi">📤 Kongsi PDF (WhatsApp dll.)</button>`:''}
 <button class="bcp" id="pdf-tg-muat">⬇️ Muat turun PDF</button>
@@ -1714,6 +1822,7 @@ priceApply:{active:false,loading:false,impacts:[],selected:[],priceMap:null,mode
 payCollect:{selected:[],sesiFilter:"all",searchQuery:""},
 payDialog:{active:false,total:0,received:"",personLines:[],ordersToSave:null},
 pesertaEdit:{active:false,tripId:null,senarai:[],asalSenarai:[],tambahan:0,asalPax:0,returnTab:"trips",err:"",input:"",saving:false,pdfStatus:"",pdfBanding:null},
+tarikhEdit:tarikhEditKosong(), // v29: 📅 Tarikh & Mod
 pdfTG:null, // v26: PDF untuk TG {status:'memuat'|'sedia', tid, nama, bait, ...}
 tulisPesanan:0, // v26: bilangan simpan/padam pesanan dari peranti ini
 };
@@ -1745,32 +1854,35 @@ ${n===0?`<p style="font-size:11px;color:#c62828;text-align:center;padding:8px">�
 }
 function rPdfImport(){
 const f=S.pdfFlow;
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 if(f.step==="upload"){
 const itinOK=!!f.itinFile;
 const roomOK=!!f.roomFile;
-const ready=itinOK&&roomOK;
+// v28: rooming list sahaja sudah cukup — invois Crystal pilihan
+const ready=roomOK;
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>📄 Cipta Trip dari PDF</h2></div>
 <div class="body" style="padding-bottom:120px">
 <div class="tlsec">📌 <b>Format yang disokong:</b><br>
-• Itinerari: PDF Confirmation & Invoice dari Seishin International (Crystal)<br>
-• Senarai Peserta: PDF Rooming List (Google Sheets export)<br>
-Sistem akan ekstrak nama, tarikh, mod, & senarai peserta secara automatik.</div>
+• Senarai Peserta (<b>wajib</b>): PDF Rooming List (Google Sheets export)<br>
+• Invois (<b>pilihan</b>): PDF Confirmation & Invoice dari Seishin International (Crystal)<br>
+Sistem akan ekstrak nama, tarikh, mod, & senarai peserta secara automatik. Belum ada invois? Teruskan dengan rooming list sahaja — Tarikh Day 1 & mod diisi sendiri di skrin seterusnya.</div>
 
-<div class="stitle">Langkah 1 — Upload PDF Itinerari</div>
-<label class="pdfdrop ${itinOK?'has-file':''}">
-${itinOK?`✅ ${f.itinFile.name}<br><span style="font-size:11px;color:#666">Klik untuk tukar</span>`:`📋 Klik untuk pilih PDF Itinerari<br><span style="font-size:11px;color:#888">(Confirmation & Invoice dari Seishin)</span>`}
-<input type="file" accept="application/pdf" id="pdf-itin"/>
-</label>
-
-<div class="stitle">Langkah 2 — Upload PDF Senarai Peserta</div>
+<div class="stitle">Langkah 1 — Upload PDF Senarai Peserta</div>
 <label class="pdfdrop ${roomOK?'has-file':''}">
-${roomOK?`✅ ${f.roomFile.name}<br><span style="font-size:11px;color:#666">Klik untuk tukar</span>`:`👥 Klik untuk pilih PDF Rooming List<br><span style="font-size:11px;color:#888">(senarai nama peserta + Tour Leader)</span>`}
+${roomOK?`✅ ${esc(f.roomFile.name)}<br><span style="font-size:11px;color:#666">Klik untuk tukar</span>`:`👥 Klik untuk pilih PDF Rooming List<br><span style="font-size:11px;color:#888">(senarai nama peserta + Tour Leader)</span>`}
 <input type="file" accept="application/pdf" id="pdf-room"/>
 </label>
 
-${f.err?`<div class="err">${f.err}</div>`:''}
+<div class="stitle">Langkah 2 — Upload PDF Invois Crystal <span style="font-size:12px;font-weight:400;color:#888">(pilihan)</span></div>
+<label class="pdfdrop ${itinOK?'has-file':''}">
+${itinOK?`✅ ${esc(f.itinFile.name)}<br><span style="font-size:11px;color:#666">Klik untuk tukar</span>`:`📋 Klik untuk pilih PDF Invois (Itinerari)<br><span style="font-size:11px;color:#888">(Confirmation & Invoice dari Seishin — langkau kalau belum ada)</span>`}
+<input type="file" accept="application/pdf" id="pdf-itin"/>
+</label>
+${itinOK?`<button class="bsm r" id="pdf-itin-buang" style="width:100%;padding:10px 0;margin-bottom:10px">✕ Buang invois — teruskan dengan rooming list sahaja</button>`:''}
+
+${f.err?`<div class="err">${esc(f.err)}</div>`:''}
 </div>
-<div class="fb"><button class="b1" id="pdf-process" ${!ready?'disabled':''}>🔍 Proses & Pratonton</button></div>`;
+<div class="fb"><button class="b1" id="pdf-process" ${!ready?'disabled':''}>🔍 Proses & Pratonton${roomOK&&!itinOK?' (tanpa invois)':''}</button></div>`;
 }
 if(f.step==="processing"){
 return`<div class="stk"><h2>📄 Cipta Trip dari PDF</h2></div>
@@ -1784,18 +1896,25 @@ if(f.step==="preview"){
 const p=f.parsed;
 const ed=f.editing;
 const tlCount=ed.peserta.filter(x=>x.isTL).length;
-return`<div class="stk"><button class="bk" id="pdf-back">←</button><h2>📄 Pratonton Trip</h2></div>
+// v28: tanpa invois — Tarikh Day 1 & mod diisi sendiri; tiada pax rujukan invois
+const adaInvois=!!(p&&p.adaInvois);
+const itinPax=p&&p.itin?p.itin.pax:null;
+// v28: semasa simpan, ← & semua kotak dikunci — ubahan selepas Sahkan tidak hilang senyap
+const kunci=f.saving?' disabled':'';
+return`<div class="stk"><button class="bk" id="pdf-back"${kunci}>←</button><h2>📄 Pratonton Trip</h2></div>
 <div class="body" style="padding-bottom:120px">
 <div class="tlsec">✅ <b>Berjaya proses!</b> Sila semak dan edit jika perlu, kemudian sahkan.</div>
+${adaInvois?'':`<div class="warnsec">⚠️ <b>Tanpa invois Crystal.</b> Isi sendiri <b>Tarikh Day 1</b> (hari sampai Kansai — bukan hari bertolak dari KL) dan pilih <b>mod Day 2</b> (hari Nara/Namba). Semak tarikh restoran di bawah kotak tarikh. Kalau invois nanti tunjuk lain, tarikh & mod boleh dibetulkan kemudian di <b>📅 Tarikh & Mod</b> (kad trip).</div>`}
 
 <div class="stitle">Butiran Trip</div>
 <div class="abox">
 <label class="lbl">Nama Trip</label>
-<input class="inp" id="pf-nama" value="${(ed.nama||'').replace(/"/g,'&quot;')}"/>
+<input class="inp" id="pf-nama" value="${(ed.nama||'').replace(/"/g,'&quot;')}"${kunci}/>
 <label class="lbl">Tarikh (display)</label>
-<input class="inp" id="pf-tarikh" value="${(ed.tarikh||'').replace(/"/g,'&quot;')}"/>
-<label class="lbl">Tarikh Mula di Osaka</label>
-<input class="inp" id="pf-mula" type="date" value="${ed.tarikhMula||''}"/>
+<input class="inp" id="pf-tarikh" value="${(ed.tarikh||'').replace(/"/g,'&quot;')}"${kunci}/>
+<label class="lbl">Tarikh Mula di Osaka (Day 1)</label>
+<input class="inp" id="pf-mula" type="date" value="${ed.tarikhMula||''}" style="margin-bottom:6px"${kunci}/>
+<p id="pf-mula-hari" style="font-size:11px;color:#666;margin-bottom:12px;line-height:1.6">${teksHariRestoran(ed.tarikhMula)}</p>
 ${Object.keys(ed.dayModes||{}).length>0?`
 <label class="lbl">Mod Pengangkutan Per Hari (Auto-detect)</label>
 <div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:10px 12px;margin-bottom:10px">
@@ -1815,31 +1934,32 @@ return `<div style="font-size:11px;color:#666;margin-top:6px;padding-top:6px;bor
 })()}
 </div>` : ''}
 <label class="lbl">Mod Sistem (untuk masa booking Nara/Namba)</label>
-<select class="inp" id="pf-mod">
+<select class="inp" id="pf-mod"${kunci}>
+${ed.mod?'':`<option value="" selected>— Pilih mod Day 2 (wajib) —</option>`}
 <option value="tren" ${ed.mod==="tren"?'selected':''}>🚃 Tren — Nara 11:00am, Namba 5:00pm</option>
 <option value="bas" ${ed.mod==="bas"?'selected':''}>🚌 Bas — Nara 11:30am, Namba 5:30pm</option>
 </select>
 ${ed.dayModes&&ed.dayModes[2]?`<p style="font-size:11px;color:#666;margin-top:-6px;margin-bottom:10px">💡 Auto-set ikut Day 2 (hari Nara/Namba). Boleh ubah jika perlu.</p>`:''}
 </div>
 
-${p.itin.pax&&p.itin.pax!==ed.peserta.length?`<div class="warnsec">⚠️ <b>Nota:</b> Itinerari menyatakan <b>${p.itin.pax} PAX</b>, tetapi senarai peserta hanya ada <b>${ed.peserta.length} nama</b>. Sistem akan guna senarai peserta sebagai sumber rasmi.</div>`:''}
+${itinPax&&itinPax!==ed.peserta.length?`<div class="warnsec">⚠️ <b>Nota:</b> Itinerari menyatakan <b>${itinPax} PAX</b>, tetapi senarai peserta hanya ada <b>${ed.peserta.length} nama</b>. Sistem akan guna senarai peserta sebagai sumber rasmi.</div>`:''}
 
 <div class="stitle">Senarai Peserta (${ed.peserta.length})${tlCount>0?` <span style="font-size:11px;color:#e65100;font-weight:400">⭐ ${tlCount} Tour Leader</span>`:''}</div>
 <div class="plist" id="pl">
 ${ed.peserta.map((px,i)=>`<div class="pitem ${px.isTL?'tl':''}">
 <span class="pn">${i+1}.</span>
 <span class="pname">${px.nama}</span>
-<button class="px" data-rmp="${i}">✕</button>
+<button class="px" data-rmp="${i}"${kunci}>✕</button>
 </div>`).join('')}
 </div>
 <div style="display:flex;gap:6px;margin-bottom:14px">
-<input class="inp" id="add-name" placeholder="Tambah nama (manual)" style="margin:0;flex:1"/>
-<button class="bsm g" id="add-name-btn" style="padding:13px 14px">+ Tambah</button>
+<input class="inp" id="add-name" placeholder="Tambah nama (manual)" style="margin:0;flex:1"${kunci}/>
+<button class="bsm g" id="add-name-btn" style="padding:13px 14px"${kunci}>+ Tambah</button>
 </div>
 
 <div class="abox" style="margin-bottom:14px">
 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#1a6b3c">
-<input type="checkbox" id="incl-guide" ${ed.includeGuide?'checked':''} style="width:18px;height:18px"/>
+<input type="checkbox" id="incl-guide" ${ed.includeGuide?'checked':''} style="width:18px;height:18px"${kunci}/>
 + 1 untuk Tour Guide (Crystal/Seishin)
 </label>
 <p style="font-size:11px;color:#666;margin-top:6px;margin-left:26px">Guide tidak masuk dalam senarai peserta tetapi dikira dalam jumlah pax untuk booking restoran.</p>
@@ -1851,7 +1971,7 @@ ${ed.peserta.map((px,i)=>`<div class="pitem ${px.isTL?'tl':''}">
 </div>
 
 </div>
-<div class="fb"><button class="b1" id="pdf-confirm">✅ Sahkan & Cipta Trip</button></div>`;
+<div class="fb">${f.saving&&f.slowSave?`<div class="warnsec" style="margin-bottom:8px">📶 Internet perlahan — trip sedang disimpan. <b>Jangan tutup skrin ini.</b></div>`:''}<button class="b1" id="pdf-confirm"${f.saving?' disabled':''}>${f.saving?(f.slowSave?'⏳ Masih menyimpan...':'⏳ Menyimpan...'):'✅ Sahkan & Cipta Trip'}</button></div>`;
 }
 return'';
 }
@@ -2340,7 +2460,7 @@ const it=p.namba;
 if(it&&!it.skip&&it.id===mid&&it.price!==val){it.price=val;n++;dirty[o.id]=o;}
 }));
 try{
-await saveTrip(trip);
+await simpanSesi(trip);
 for(const o of Object.values(dirty))await saveOrder(tid,o);
 await loadOrders(tid);
 toast(n>0?`✓ ¥${val.toLocaleString()} · ${n} pesanan disegerak`:`✓ Harga → ¥${val.toLocaleString()}`);
@@ -2467,6 +2587,131 @@ function cancelPriceEdit(){
 S.priceEditor={active:false,tripId:null,sesiCopy:null,originalSesi:null};
 S.view="admin";S.adminTab="trips";render();
 }
+// ── 📅 Tarikh & Mod (v29) ─────────────────────────────
+// Ubah Tarikh Day 1 & mod Day 2 trip SEDIA ADA — contohnya trip dicipta tanpa invois
+// Crystal (v28), kemudian invois tunjuk tarikh/mod lain. Sebelum v29 satu-satunya jalan
+// ialah padam trip, dan order peserta hilang sekali. Order TIDAK disentuh: tarikh & masa
+// restoran dikira dari tarikhMula & mod setiap kali mesej Booking / PDF dijana.
+function tarikhEditKosong(){return{active:false,tripId:null,tarikhMula:"",mod:"",asalTarikh:"",asalMod:"",saving:false,slowSave:false,err:""};}
+// Mod yang SEBENARNYA dipakai sistem: tiada / "tren" = tren, lain-lain = bas (sama seperti getWaktu).
+function modBerkesan(m){return(m||"tren")==="tren"?"tren":"bas";}
+const RALAT_TARIKH_EDIT="Sila pilih Tarikh Day 1 yang sah.";
+const AMARAN_TARIKH_EDIT="⚠️ Kalau mesej Booking, mesej restoran atau PDF TG sudah dihantar, maklumkan restoran & TG dan hantar semula yang baharu.";
+// Day 1 untuk paparan. Tarikh tersimpan yang rosak DITANDA (bukan disorok, bukan ditukar).
+function hariDay1(tm){return tarikhSah(tm)?fmtDateLocale(tm,0,"ms-MY"):(tm?"— (tarikh tersimpan tidak sah)":"—");}
+// Baris Day 1 & mod pada kad trip — mod SEBENAR yang dipakai mesej Booking (bukan nilai mentah).
+function teksKadTarikh(t){return`🛬 Day 1: ${hariDay1(t.tarikhMula)} · ${modBerkesan(t.mod)==="bas"?"🚌 Bas":"🚃 Tren"}`;}
+function bukaTarikhEdit(tripId){
+const trip=S.trips.find(t=>t.id===tripId);
+if(!trip){toast("Trip tidak ditemui.");return;}
+const tm=trip.tarikhMula||"",mod=modBerkesan(trip.mod);
+S.tarikhEdit={...tarikhEditKosong(),active:true,tripId,tarikhMula:tm,mod,asalTarikh:tm,asalMod:mod};
+S.view="tarikh-edit";render();
+}
+function tutupTarikhEdit(){
+S.tarikhEdit=tarikhEditKosong();
+S.view="admin";S.adminTab="trips";render();
+}
+// Butang ← / Batal. Dikunci semasa simpan; ada perubahan → minta pengesahan dahulu.
+function batalTarikhEdit(){
+const te=S.tarikhEdit;
+if(te.saving)return;
+if((te.tarikhMula!==te.asalTarikh||te.mod!==te.asalMod)&&!confirm("Batal? Perubahan tarikh & mod tidak akan disimpan."))return;
+tutupTarikhEdit();
+}
+// Apa yang BERUBAH dalam mesej Booking, LAMA → BAHARU. Tarikh restoran guna getTarikhLoc &
+// masa guna getWaktu — fungsi yang sama dengan mesej Booking. [] = tiada perubahan.
+function barisUbahTarikh(asal,baru){
+const res=(tm,sid)=>tarikhSah(tm)?getTarikhLoc({tarikhMula:tm},sid,"ms-MY"):"—";
+const label=m=>m==="bas"?"Bas":"Tren";
+const out=[];
+if(asal.tarikhMula!==baru.tarikhMula){
+out.push(`📅 Day 1: ${hariDay1(asal.tarikhMula)} → ${hariDay1(baru.tarikhMula)}`);
+out.push(`🍛🍜 Nara & Namba: ${res(asal.tarikhMula,"namba")} → ${res(baru.tarikhMula,"namba")}`);
+out.push(`🍱 Fuji: ${res(asal.tarikhMula,"fuji")} → ${res(baru.tarikhMula,"fuji")}`);
+}
+if(asal.mod!==baru.mod){
+out.push(`${baru.mod==="bas"?"🚌":"🚃"} Mod Day 2: ${label(asal.mod)} → ${label(baru.mod)}`);
+out.push(`⏰ Nara: ${getWaktu({mod:asal.mod},"nara")} → ${getWaktu({mod:baru.mod},"nara")}`);
+out.push(`⏰ Namba: ${getWaktu({mod:asal.mod},"namba")} → ${getWaktu({mod:baru.mod},"namba")}`);
+}
+return out;
+}
+// Kotak "Sekarang / Akan berubah" di bawah borang (tiada input pengguna di dalamnya).
+function teksBezaTarikh(te){
+const kini=`Sekarang: <b>Day 1 ${hariDay1(te.asalTarikh)} · ${te.asalMod==="bas"?"🚌 Bas":"🚃 Tren"}</b>`;
+if(!tarikhSah(te.tarikhMula))return`<div class="abox" style="font-size:12px;line-height:1.7">${kini}<br>⚠️ ${RALAT_TARIKH_EDIT}</div>`;
+const baris=barisUbahTarikh({tarikhMula:te.asalTarikh,mod:te.asalMod},{tarikhMula:te.tarikhMula,mod:te.mod});
+if(!baris.length)return`<div class="abox" style="font-size:12px;line-height:1.7">${kini}<br>Tiada perubahan.</div>`;
+return`<div class="warnsec" style="line-height:1.7">${kini}<br><b>Akan berubah:</b><br>${baris.join("<br>")}<br><br>${AMARAN_TARIKH_EDIT}</div>`;
+}
+// Kemas kini tarikh restoran & kotak perubahan TANPA papar semula (pemilih tarikh iPhone tidak
+// tertutup). Ralat lama dibuang — pengguna sudah memilih semula. el = $.
+function segarTarikhEdit(el){
+const te=S.tarikhEdit;
+te.err="";const r=el("te-ralat");if(r)r.innerHTML="";
+const h=el("te-mula-hari");if(h)h.innerHTML=teksHariRestoran(te.tarikhMula);
+const z=el("te-beza");if(z)z.innerHTML=teksBezaTarikh(te);
+}
+// Butang Simpan. Nilai dibaca dari kotak (el = $) — yang DILIHAT ialah yang disimpan.
+// updateDoc medan yang BERUBAH sahaja — peserta, pax, menu, harga, kunci & order tidak disentuh;
+// trip yang sudah dipadam di peranti lain TIDAK dicipta semula.
+async function simpanTarikhEdit(el){
+const te=S.tarikhEdit;
+if(te.saving)return;
+if(el){const a=el("te-mula"),b=el("te-mod");if(a)te.tarikhMula=a.value;if(b)te.mod=b.value;}
+const trip=S.trips.find(t=>t.id===te.tripId);
+if(!trip){toast("Trip tidak ditemui.");return;}
+// Peranti lain ubah trip ini selepas skrin dibuka (dikemas kini oleh dengarKunciSemua):
+// "Sekarang" di skrin ini sudah lapuk — jangan tulis atasnya.
+if((trip.tarikhMula||"")!==te.asalTarikh||modBerkesan(trip.mod)!==te.asalMod){te.err=`Tarikh/mod trip ini baru diubah di peranti lain (sekarang: Day 1 ${hariDay1(trip.tarikhMula)} · ${modBerkesan(trip.mod)==="bas"?"🚌 Bas":"🚃 Tren"}). Tekan ← dan buka semula.`;render();return;}
+if(!tarikhSah(te.tarikhMula)){te.err=RALAT_TARIKH_EDIT;render();return;}
+if(te.mod!=="tren"&&te.mod!=="bas"){te.err="Sila pilih mod Day 2 (tren atau bas).";render();return;}
+const baris=barisUbahTarikh({tarikhMula:te.asalTarikh,mod:te.asalMod},{tarikhMula:te.tarikhMula,mod:te.mod});
+if(!baris.length){toast("Tiada perubahan.");return;}
+if(!confirm(`Tukar tarikh & mod "${trip.nama}"?\n\n${baris.join("\n")}\n\n${AMARAN_TARIKH_EDIT}`))return;
+const tarikhMula=te.tarikhMula,mod=te.mod;
+const data={};
+if(tarikhMula!==te.asalTarikh)data.tarikhMula=tarikhMula;
+if(mod!==te.asalMod)data.mod=mod;
+te.saving=true;te.slowSave=false;te.err="";render();
+// Internet perlahan: corak sama seperti borang order (SLOW_SAVE_MS)
+const lambat=setTimeout(()=>{te.slowSave=true;render();},SLOW_SAVE_MS);
+try{await updateDoc(doc(db,"trips",trip.id),data);}
+catch(e){clearTimeout(lambat);console.error("simpanTarikhEdit:",e);te.saving=false;te.slowSave=false;te.err=e&&e.code==="not-found"?"❌ Trip ini sudah dipadam di peranti lain — tiada apa disimpan.":"❌ Gagal simpan. Semak internet dan cuba lagi.";render();return;}
+clearTimeout(lambat);
+Object.assign(trip,data);
+tutupTarikhEdit();
+toast("✓ Tarikh & mod disimpan");
+}
+function rTarikhEdit(){
+const te=S.tarikhEdit;
+const trip=S.trips.find(t=>t.id===te.tripId);
+if(!trip)return`<div class="loading">Trip tidak ditemui.</div>`;
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// Semasa simpan, ← & semua kotak dikunci — ubahan selepas Simpan tidak hilang senyap (pengajaran v28)
+const kunci=te.saving?' disabled':'';
+return`<div class="stk"><button class="bk" id="te-batal" title="Batal"${kunci}>←</button><h2>📅 Tarikh & Mod</h2></div>
+<div class="body" style="padding-bottom:120px">
+<div class="tlsec"><b>${esc(trip.nama)}</b><br>Betulkan Tarikh Day 1 & mod Day 2 — contohnya bila invois Crystal sampai. Senarai peserta & order tidak disentuh.</div>
+<div class="abox">
+<label class="lbl">Tarikh Mula di Osaka (Day 1 — hari sampai Kansai, bukan hari bertolak dari KL)</label>
+<input class="inp" id="te-mula" type="date" value="${esc(te.tarikhMula)}" style="margin-bottom:6px"${kunci}/>
+<p id="te-mula-hari" style="font-size:11px;color:#666;margin-bottom:12px;line-height:1.6">${teksHariRestoran(te.tarikhMula)}</p>
+<label class="lbl">Mod Day 2 (untuk masa booking Nara/Namba)</label>
+<select class="inp" id="te-mod"${kunci}>
+<option value="tren" ${te.mod==="tren"?'selected':''}>🚃 Tren — Nara 11:00am, Namba 5:00pm</option>
+<option value="bas" ${te.mod==="bas"?'selected':''}>🚌 Bas — Nara 11:30am, Namba 5:30pm</option>
+</select>
+</div>
+<div id="te-beza">${teksBezaTarikh(te)}</div>
+<div id="te-ralat">${te.err?`<div class="err">${esc(te.err)}</div>`:''}</div>
+</div>
+<div class="fb">${te.saving&&te.slowSave?`<div class="warnsec" style="margin-bottom:8px">📶 Internet perlahan — perubahan sedang disimpan. <b>Jangan tutup skrin ini.</b></div>`:''}<div style="display:flex;gap:8px">
+<button class="b2" id="te-batal2" style="margin:0;flex:1;padding:14px 0"${kunci}>Batal</button>
+<button class="b1" id="te-simpan" style="margin:0;flex:2"${kunci}>${te.saving?(te.slowSave?'⏳ Masih menyimpan...':'⏳ Menyimpan...'):'💾 Simpan'}</button>
+</div></div>`;
+}
 // ── 👥 Peserta & Pax (v23) ───────────────────────────
 async function bukaPesertaEdit(tripId,returnTab){
 const trip=S.trips.find(t=>t.id===tripId);
@@ -2575,7 +2820,9 @@ toast("✓ Pesanan dipadam.");render();
 return true;
 }
 // v25: admin & TL nampak kunci TERKINI setiap trip tanpa log masuk semula.
-// Hanya medan `kunci` dikemas kini dari pelayan — data lain trip tidak disentuh.
+// v29: juga Tarikh Day 1 & mod — boleh diubah di peranti lain (📅 Tarikh & Mod), dan mesej
+// Booking, mesej restoran & PDF TG di peranti ini mesti ikut nilai TERKINI, bukan nilai masa
+// log masuk. Hanya `kunci`, `tarikhMula` & `mod` dikemas kini — data lain trip tidak disentuh.
 let _dengarKunci=false;
 function dengarKunciSemua(){
 if(_dengarKunci)return;_dengarKunci=true;
@@ -2583,9 +2830,11 @@ onSnapshot(collection(db,"trips"),sn=>{
 let ubah=false;
 sn.docs.forEach(d=>{
 const t=S.trips.find(x=>x.id===d.id);if(!t)return;
-const k=d.data().kunci||null;
-if(JSON.stringify(k)===JSON.stringify(t.kunci||null))return;
-t.kunci=k;ubah=true;
+const v=d.data();
+const k=v.kunci||null;
+if(JSON.stringify(k)!==JSON.stringify(t.kunci||null)){t.kunci=k;ubah=true;}
+if(v.tarikhMula!==undefined&&v.tarikhMula!==t.tarikhMula){t.tarikhMula=v.tarikhMula;ubah=true;}
+if(v.mod!==undefined&&v.mod!==t.mod){t.mod=v.mod;ubah=true;}
 });
 if(ubah)render();
 },e=>console.error("dengarKunciSemua:",e));
@@ -3063,7 +3312,7 @@ const sl=trip?(trip.sesi||SESI):SESI;
 const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
 if(S.adminTab==="trips"){
-const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}${kunciAktif(t)?' <span style="font-size:11px;color:#37474f;font-weight:600;white-space:nowrap">🔒 Dikunci</span>':''}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax &nbsp;🚌 ${t.mod||'tren'}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm" data-peserta-trip="${t.id}" style="border-color:#1a6b3c;color:#1a6b3c">👥 Peserta</button> <button class="bsm" data-priceedit-trip="${t.id}" style="border-color:#ff9800;color:#e65100">💴 Harga</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
+const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}${kunciAktif(t)?' <span style="font-size:11px;color:#37474f;font-weight:600;white-space:nowrap">🔒 Dikunci</span>':''}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax<br>${teksKadTarikh(t)}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm" data-peserta-trip="${t.id}" style="border-color:#1a6b3c;color:#1a6b3c">👥 Peserta</button> <button class="bsm" data-tarikh-trip="${t.id}" style="border-color:#1565c0;color:#1565c0">📅 Tarikh & Mod</button><button class="bsm" data-priceedit-trip="${t.id}" style="border-color:#ff9800;color:#e65100">💴 Harga</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn active" data-tab="trips">🗺️ Trip</button> <button class="tabbtn" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> <div class="stitle">Senarai Trip</div>${cards}
 ${rBookingSec()}
 <div class="stitle">Tambah Trip Baru</div> <button class="pdfbtn" id="open-pdf-import">📄 Cipta Trip dari PDF (Auto)</button> <div class="abox"> <input class="inp" id="nt-nama" placeholder="Nama trip" value="${S.newTrip.nama}"/> <input class="inp" id="nt-tarikh" placeholder="Tarikh (cth: 1-7 Nov 2025)" value="${S.newTrip.tarikh}"/> <label class="lbl">Tarikh mula di Osaka</label> <input class="inp" id="nt-mula" type="date" value="${S.newTrip.tarikhMula||''}"/> <label class="lbl">Mod pengangkutan</label> <select class="inp" id="nt-mod"> <option value="tren" ${(S.newTrip.mod||'tren')==='tren'?'selected':''}>🚃 Tren (Nara:11am | Namba:5pm)</option> <option value="bas" ${S.newTrip.mod==='bas'?'selected':''}>🚌 Bas (Nara:11:30am | Namba:5:30pm)</option> </select> <input class="inp" id="nt-pax" placeholder="Jumlah peserta" value="${S.newTrip.pax}" type="number"/> <button class="b1" id="add-trip" style="margin-bottom:0">+ Cipta Trip Baru (manual)</button> </div></div>`;
@@ -3265,6 +3514,7 @@ else if(S.view==="leader")el.innerHTML=rLeader();
 else if(S.view==="pdf")el.innerHTML=rPdfImport();
 else if(S.view==="price-edit")el.innerHTML=rPriceEditor();
 else if(S.view==="peserta-edit")el.innerHTML=rPesertaEdit();
+else if(S.view==="tarikh-edit")el.innerHTML=rTarikhEdit();
 attachEvents();
 }
 // ── Events ──────────────────────────────────────────
@@ -3359,7 +3609,7 @@ if(om&&om.price!==m.price)changed++;
 if(changed===0){toast("Tiada perubahan harga.");return;}
 if(!confirm(`Simpan ${changed} perubahan harga untuk "${trip.nama}"?\n\nPesanan sedia ada tidak terjejas.`))return;
 trip.sesi=S.priceEditor.sesiCopy;
-try{await saveTrip(trip);
+try{await simpanSesi(trip);
 toast(`✓ ${changed} harga dikemas kini!`);
 S.priceEditor={active:false,tripId:null,sesiCopy:null,originalSesi:null};
 S.view="admin";S.adminTab="trips";render();
@@ -3438,39 +3688,17 @@ startEdit(oid,ev);
 on("open-pdf-import","click",()=>{S.view="pdf";S.pdfFlow={step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""};render();});
 on("pdf-itin","change",e=>{const f=e.target.files[0];if(f)S.pdfFlow.itinFile=f;S.pdfFlow.err="";render();});
 on("pdf-room","change",e=>{const f=e.target.files[0];if(f)S.pdfFlow.roomFile=f;S.pdfFlow.err="";render();});
-on("pdf-back","click",()=>{S.pdfFlow.step="upload";S.pdfFlow.err="";render();});
-on("pdf-process","click",async()=>{
-const f=S.pdfFlow;if(!f.itinFile||!f.roomFile)return;
-S.pdfFlow.step="processing";render();
-try{
-const itinLines=await pdfToLines(f.itinFile);
-const roomLines=await pdfToLines(f.roomFile);
-const itin=parseItinerary(itinLines);
-const room=parseRoomingList(roomLines);
-if(!itin.tarikhMula){throw new Error("Tidak dapat ekstrak tarikh dari itinerari. Sila pastikan format Seishin International.");}
-if(!room.peserta.length){throw new Error("Tidak dapat ekstrak senarai peserta dari rooming list. Sila semak format PDF.");}
-S.pdfFlow.parsed={itin,room};
-S.pdfFlow.editing={
-nama:suggestTripNama(itin,room),
-tarikh:room.tarikhTrip||'',
-tarikhMula:itin.tarikhMula,
-mod:itin.mod||'tren',
-peserta:[...room.peserta],
-includeGuide:true,
-dayModes:itin.dayModes||{},
-};
-S.pdfFlow.step="preview";
-render();
-}catch(e){
-console.error(e);
-S.pdfFlow.step="upload";
-S.pdfFlow.err=e.message||"Ralat semasa proses PDF.";
-render();
-}
-});
+on("pdf-back","click",()=>{kembaliPdf();});
+// v28: invois pilihan — boleh dibuang selepas dipilih
+on("pdf-itin-buang","click",()=>{S.pdfFlow.itinFile=null;S.pdfFlow.err="";render();});
+// v28: rooming list wajib, invois pilihan (lihat prosesPdfTrip / bacaPdfTrip)
+on("pdf-process","click",()=>{prosesPdfTrip(pdfToLines);});
 on("pf-nama","input",e=>S.pdfFlow.editing.nama=e.target.value);
 on("pf-tarikh","input",e=>S.pdfFlow.editing.tarikh=e.target.value);
-on("pf-mula","input",e=>S.pdfFlow.editing.tarikhMula=e.target.value);
+// v28: tarikh restoran dikemas kini terus, tanpa papar semula (pemilih tarikh iPhone tidak tertutup)
+const pfMula=e=>{S.pdfFlow.editing.tarikhMula=e.target.value;const h=$("pf-mula-hari");if(h)h.innerHTML=teksHariRestoran(e.target.value);};
+on("pf-mula","input",pfMula);
+on("pf-mula","change",pfMula);
 on("pf-mod","change",e=>S.pdfFlow.editing.mod=e.target.value);
 on("incl-guide","change",e=>{S.pdfFlow.editing.includeGuide=e.target.checked;render();});
 document.querySelectorAll("[data-rmp]").forEach(b=>b.addEventListener("click",()=>{
@@ -3486,22 +3714,19 @@ const nama=v.replace(/\(TL\)|\(TOUR\s*LEADER\)/gi,'').trim();
 S.pdfFlow.editing.peserta.push({nama,isTL});render();
 });
 on("add-name","keydown",e=>{if(e.key==="Enter")$("add-name-btn")?.click();});
-on("pdf-confirm","click",async()=>{
-const ed=S.pdfFlow.editing;
-if(!ed.nama.trim()){alert("Sila masukkan nama trip.");return;}
-if(!ed.tarikhMula){alert("Sila masukkan tarikh mula.");return;}
-if(ed.peserta.length===0){alert("Senarai peserta kosong.");return;}
-const id=genId();
-const guideCount=ed.includeGuide?1:0;
-const t={id,nama:ed.nama.trim(),tarikh:ed.tarikh.trim(),tarikhMula:ed.tarikhMula,mod:ed.mod,pax:ed.peserta.length+guideCount,sesi:SESI,peserta:ed.peserta};
-await saveTrip(t);S.trips.push(t);
-S.pdfFlow={step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""};
-S.view="admin";S.adminTab="trips";S.selTrip=id;
-alert(`✅ Trip "${t.nama}" berjaya dicipta!\n\n👥 ${t.peserta.length} peserta + ${guideCount} guide = ${t.pax} pax\n\n🔗 Link:\n${tLink(id)}`);
-render();
-});
+// v28: nilai dibaca dari kotak ($), semakan (termasuk mod wajib dipilih), kunci semasa simpan & nombor trip tetap — lihat sahkanTripPdf
+on("pdf-confirm","click",()=>{sahkanTripPdf($);});
 // Tracking - copy senarai belum order
 on("cp-pending","click",()=>{const t=S.trips.find(x=>x.id===S.selTrip);if(t)cp(bPendingList(t,S.orders));});
+// 📅 Tarikh & Mod (v29) — lihat bukaTarikhEdit / simpanTarikhEdit
+document.querySelectorAll("[data-tarikh-trip]").forEach(b=>b.addEventListener("click",()=>{bukaTarikhEdit(b.dataset.tarikhTrip);}));
+on("te-batal","click",()=>{batalTarikhEdit();});
+on("te-batal2","click",()=>{batalTarikhEdit();});
+const teMula=e=>{S.tarikhEdit.tarikhMula=e.target.value;segarTarikhEdit($);};
+on("te-mula","input",teMula);
+on("te-mula","change",teMula);
+on("te-mod","change",e=>{S.tarikhEdit.mod=e.target.value;segarTarikhEdit($);});
+on("te-simpan","click",()=>{simpanTarikhEdit($);});
 // 👥 Peserta & Pax (v23)
 document.querySelectorAll("[data-peserta-trip]").forEach(b=>b.addEventListener("click",()=>{bukaPesertaEdit(b.dataset.pesertaTrip,"trips");}));
 on("pe-buka","click",()=>{if(S.selTrip)bukaPesertaEdit(S.selTrip,"orders");});
@@ -3856,7 +4081,7 @@ const isVegan=!!S.addSpecialVegan;
 const newId=Date.now();
 namba.menus.push({id:newId,name:nama,price:harga,desc:isVegan?"Pilihan vegan":"Menu khas",isSpecial:true,isVegan});
 try{
-await saveTrip(trip);
+await simpanSesi(trip);
 S.addSpecial="";S.addSpecialPrice="";S.addSpecialVegan=false;
 toast(`✓ "${nama}" ditambah${isVegan?' (vegan)':''}!`);
 // Terus buka pemilih peserta — menu baharu tiada guna sehingga ditetapkan
@@ -3939,7 +4164,7 @@ const dipakai=S.orders.some(o=>(o.persons||[]).some(p=>p.namba&&!p.namba.skip&&p
 if(dipakai){toast("Tidak boleh buang — sudah ada peserta pilih menu ini.");return;}
 if(!confirm(`Buang menu khas "${menu.name}"?`))return;
 namba.menus=namba.menus.filter(m=>m.id!==mid);
-try{await saveTrip(trip);toast("✓ Menu dibuang.");render();}
+try{await simpanSesi(trip);toast("✓ Menu dibuang.");render();}
 catch(e){console.error(e);toast("❌ Gagal simpan.");}
 }));
 // Images
