@@ -159,12 +159,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v29 — 📅 Tarikh & Mod: ubah Tarikh Day 1 & mod Day 2 trip sedia ada (updateDoc medan yang berubah SAHAJA; order tidak disentuh; LAMA → BAHARU dipapar & disahkan) · simpan harga/menu tulis `sesi` SAHAJA (peranti lama tidak tulis semula tarikh/mod/peserta) · peranti lain diselaraskan · PDF TG lapuk bila tarikh/mod berubah · v28: Cipta Trip dari PDF tanpa invois Crystal -->
+<!-- BUILD: v30 — 🧑‍✈️ TG ikut sesi (Fuji/Nara/Namba): pax booking setiap restoran ikut TG sesi itu, slot order = nama + TG paling ramai · ⭐ tukar TL & ✏️ betulkan nama (Pratonton & 👥 Peserta) · 👥 Peserta tulis medan yang berubah SAHAJA, dalam transaksi (trip di pelayan dibanding dahulu) · TG tersimpan lebih daripada pax → booking ikut pax + amaran · v29: 📅 Tarikh & Mod · v28: Cipta Trip dari PDF tanpa invois Crystal -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v29 starting…");
+console.log("[Tour-Order] Build v30 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -202,7 +202,7 @@ document.head.appendChild(s);
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getFirestore,doc,getDoc,setDoc,updateDoc,deleteDoc,collection,onSnapshot,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import{getFirestore,doc,getDoc,setDoc,updateDoc,deleteDoc,collection,onSnapshot,getDocs,runTransaction}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 const db=getFirestore(initializeApp({apiKey:"AIzaSyBdfyI1IHccekotNNRYwlr3U9JTkVc2uWI",authDomain:"tour-order.firebaseapp.com",projectId:"tour-order",storageBucket:"tour-order.firebasestorage.app",messagingSenderId:"411616788552",appId:"1:411616788552:web:fd0a63dbe84c64334d987d"}));
 const APASS="admin123",LPASS="leader123";
 const SESI=[
@@ -778,6 +778,103 @@ function tambahanAsal(trip){
 const n=((trip&&trip.peserta)||[]).length;
 return Math.max(0,(parseInt(trip&&trip.pax)||22)-n);
 }
+// ── 🧑‍✈️ TG & pax ikut sesi (v30) ─────────────────────
+// Kes sebenar 4 Nov 2026: trip perlukan 2 Tour Guide (Crystal/Seishin) di Nara & Namba tetapi
+// 1 sahaja di Fuji. Sebelum v30 pax SATU nombor untuk semua restoran.
+// trip.tg = {fuji,nara,namba}. trip.pax kekal = KAPASITI slot order (nama + tambahan), dan
+// tambahan termasuk TG paling ramai. Pax booking sesi = pax − TG yang TIDAK hadir sesi itu.
+// Trip lama tanpa `tg` → setiap sesi guna pax trip, sama seperti sebelum v30.
+// (Tiada `const` di blok ini: ujian menggabung julat kod ini dengan julat lain.)
+function sesiTG(){return[["fuji","🍱 Fuji"],["nara","🍛 Nara"],["namba","🍜 Namba"]];}
+function tgBersih(tg){const o={};sesiTG().forEach(([s])=>{o[s]=Math.min(9,Math.max(0,parseInt(tg&&tg[s])||0));});return o;}
+// tg SEPERTI TERSIMPAN (dikemas) — untuk semakan peranti lain & keputusan tulis. null = trip lama.
+function tgMentah(trip){return trip&&trip.tg&&typeof trip.tg==="object"?tgBersih(trip.tg):null;}
+// TG BERKESAN: tiada sesi boleh ada TG lebih daripada tambahan sebenar (pax − nama). Dapatan saksi
+// bebas v30: tab lama v29 / Firebase console ubah pax TANPA tg → dahulu guide Fuji "hilang" (Fuji 30
+// walaupun TG Fuji 1). Kini percaya pax: 30 nama, pax 31 → paling ramai 1 guide setiap sesi.
+function tgTrip(trip){const tg=tgMentah(trip);if(!tg)return null;const e=Math.max(0,(parseInt(trip.pax)||22)-(Array.isArray(trip.peserta)?trip.peserta.length:0));const o={};sesiTG().forEach(([s])=>{o[s]=Math.min(tg[s],e);});return o;}
+// TG tersimpan lebih daripada pax? (amaran di kad trip & 👥 Peserta)
+function tgTerpotong(trip){const m=tgMentah(trip);return!!m&&JSON.stringify(m)!==JSON.stringify(tgTrip(trip));}
+function teksTg(tg){const t=tgBersih(tg);return sesiTG().map(([s,l])=>`${l} ${t[s]}`).join(" · ");}
+// Trip tanpa `tg`: andaian lama app = 1 guide (kalau ada tambahan).
+function tgLalai(tambahan){const g=(parseInt(tambahan)||0)>0?1:0;return{fuji:g,nara:g,namba:g};}
+function tgMaks(tg){return Math.max(0,...sesiTG().map(([s])=>(tg&&tg[s])||0));}
+function ubahTg(tg,sid,d){const o=tgBersih(tg);if(sid in o)o[sid]=Math.min(9,Math.max(0,o[sid]+d));return o;}
+function paxSesi(trip,sid){const pax=parseInt(trip&&trip.pax)||22;const tg=tgTrip(trip);if(!tg||!(sid in tg))return pax;return Math.max(0,pax-(tgMaks(tg)-tg[sid]));}
+// "33" bila semua sesi sama; "🍱 Fuji 32 · 🍛 Nara 33 · 🍜 Namba 33" bila berbeza.
+function teksPaxSesi(trip){const v=sesiTG().map(([s,l])=>[l,paxSesi(trip,s)]);return v.every(x=>x[1]===v[0][1])?String(v[0][1]):v.map(([l,n])=>`${l} ${n}`).join(" · ");}
+// Baris pax booking ikut sesi (Pratonton & 👥 Peserta): nama + lain + TG sesi itu.
+function rPaxSesi(n,lain,tg){const t=tgBersih(tg);return sesiTG().map(([s,l])=>`<div style="font-size:12px;color:#333;line-height:1.7">${l}: ${n} peserta${lain?` + ${lain} lain`:""} + ${t[s]} TG = <b>${n+lain+t[s]} pax</b></div>`).join("");}
+// Kotak TG ikut sesi (Pratonton & 👥 Peserta). kunci = ' disabled' semasa simpan.
+function rTgSesi(tg,kunci){const t=tgBersih(tg);return`<div class="abox" style="margin-bottom:14px">
+<div style="font-size:13px;font-weight:600;color:#1a6b3c;margin-bottom:4px">🧑‍✈️ Tour Guide (Crystal/Seishin) ikut sesi</div>
+<p style="font-size:11px;color:#666;margin-bottom:8px;line-height:1.5">Guide tidak masuk dalam senarai peserta, tetapi dikira dalam pax booking restoran. Contoh: 2 guide di Nara & Namba, 1 di Fuji.</p>
+${sesiTG().map(([s,l])=>`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px">${l}</span><div class="cntrow" style="margin:0"><button class="cntbtn" data-tg-kurang="${s}"${kunci||""}>−</button><div class="cntval">${t[s]}</div><button class="cntbtn" data-tg-tambah="${s}"${kunci||""}>+</button></div></div>`).join("")}
+</div>`;}
+// 👥 Peserta: `tambahan` (pax − nama) kekal JUMLAH semua tambahan, termasuk TG paling ramai —
+// formula pax & semakan slot tidak berubah. "Lain" = tambahan yang bukan TG.
+function tgEditor(pe){return pe.tg?tgBersih(pe.tg):tgLalai(pe.tambahan);}
+function lainEditor(pe){return Math.max(0,(parseInt(pe.tambahan)||0)-tgMaks(tgEditor(pe)));}
+// TG berubah → tambahan ikut beza TG paling ramai; "lain" kekal.
+function ubahTgEditor(pe,sid,d){const lama=tgEditor(pe),baru=ubahTg(lama,sid,d);pe.tambahan=Math.max(0,(parseInt(pe.tambahan)||0)+tgMaks(baru)-tgMaks(lama));pe.tg=baru;}
+// Tambahan lain tidak bawah 0, iaitu tambahan tidak kurang dari TG paling ramai.
+function ubahLainEditor(pe,d){pe.tambahan=Math.max(tgMaks(tgEditor(pe)),(parseInt(pe.tambahan)||0)+d);}
+// Ada perubahan untuk disimpan? Nama, TL, pax & TG — butang Simpan, Batal & simpanPesertaEdit.
+function kunciSenarai(s){return JSON.stringify((s||[]).map(p=>[p.nama,!!p.isTL]));}
+function tgAsalEditor(pe){return pe.asalTg?tgBersih(pe.asalTg):tgLalai((parseInt(pe.asalPax)||0)-(pe.asalSenarai||[]).length);}
+// Suntingan PENGGUNA (nama, TL, pax, TG) — Batal hanya bertanya bila ada (susulan saksi bebas 3).
+function adaUbahPengguna(pe){return pe.senarai.length+pe.tambahan!==pe.asalPax||kunciSenarai(pe.senarai)!==kunciSenarai(pe.asalSenarai)||JSON.stringify(tgEditor(pe))!==JSON.stringify(tgAsalEditor(pe));}
+// Ada sesuatu untuk disimpan? Suntingan pengguna, ATAU TG tersimpan lebih daripada pax (asalTgTrip ≠ TG
+// di skrin) — Simpan menetapkan TG ikut pax, supaya amaran boleh diselesaikan tanpa ubah TG di skrin.
+function adaUbahPeserta(pe){return adaUbahPengguna(pe)||(!!pe.asalTgTrip&&JSON.stringify(tgEditor(pe))!==JSON.stringify(tgBersih(pe.asalTgTrip)));}
+// Trip (di skrin atau di pelayan) masih sama seperti ketika 👥 Peserta dibuka? Senarai, pax & tg tersimpan.
+function samaAsalPeserta(trip,pe){return kunciSenarai(trip&&trip.peserta)===kunciSenarai(pe.asalSenarai)&&(parseInt(trip&&trip.pax)||22)===pe.asalPax&&JSON.stringify(tgMentah(trip))===JSON.stringify(pe.asalTgTrip||null);}
+// Nama Tour Leader dalam senarai — pengesahan sebut TL sebelum → selepas (termasuk nama dibetulkan).
+function senaraiTL(s){return(s||[]).filter(p=>p.isTL).map(p=>p.nama);}
+// ⭐ Tukar status TL satu peserta. Pulang SALINAN; senarai asal tidak disentuh.
+function tukarTL(senarai,i){return(senarai||[]).map((p,j)=>j===i?{...p,isTL:!p.isTL}:p);}
+// ✏️ Betulkan nama peserta ke-i — dikemas sama seperti tambah nama; "(TL)" = jadikan Tour Leader.
+// {ok:false,sebab:'tiada'|'kosong'|'sama'|'ada',sama} | {ok:true,senarai,nama,isTL,hampir}
+function cubaUbahNama(senarai,i,input){
+const list=senarai||[],asal=list[i];
+if(!asal)return{ok:false,sebab:'tiada'};
+const raw=String(input||'');
+const tl=/\(\s*TL\s*\)|\(\s*TOUR\s*LEADER\s*\)/i.test(raw);
+const nama=namaBersih(raw.replace(/\(\s*TL\s*\)|\(\s*TOUR\s*LEADER\s*\)/gi,' '));
+if(nama.length<3)return{ok:false,sebab:'kosong'};
+const isTL=tl||!!asal.isTL;
+if(nama===asal.nama&&isTL===!!asal.isTL)return{ok:false,sebab:'sama'};
+const m=fuzzyMatchPeserta(nama,list.filter((_,j)=>j!==i));
+if(m&&m.confidence==='exact')return{ok:false,sebab:'ada',sama:m.match.nama};
+return{ok:true,senarai:list.map((p,j)=>j===i?{...p,nama,isTL}:p),nama,isTL,hampir:m?m.match.nama:null};
+}
+// Dialog ✏️: prompt → semak → (hampir sama? sudah order?) → senarai baharu, atau null.
+// Pesanan TIDAK ditukar — kalau orang itu sudah order, beritahu sama ada nama baharu masih
+// dipadankan dengan pesanannya (getAllOrderedPesertaNames, peraturan sama seperti "Sudah order").
+function mintaUbahNama(senarai,i,orders){
+const p=(senarai||[])[i];if(!p)return null;
+const v=prompt("Betulkan nama peserta (taip (TL) di hujung untuk jadikan Tour Leader):",p.nama);
+if(v===null)return null;
+const r=cubaUbahNama(senarai,i,v);
+if(!r.ok){if(r.sebab==="ada")alert(`Nama ini sudah ada dalam senarai: ${r.sama}`);else if(r.sebab==="kosong")alert("Sila taip nama peserta.");return null;}
+if(r.hampir&&!confirm(`"${r.nama}" hampir sama dengan "${r.hampir}" yang sudah ada dalam senarai.\n\nTeruskan juga?`))return null;
+if(r.nama!==p.nama&&(orders||[]).length&&getAllOrderedPesertaNames(orders,senarai).has(p.nama)){
+const kekal=getAllOrderedPesertaNames(orders,r.senarai).has(r.nama);
+if(!confirm(`"${p.nama}" sudah order. Pesanan TIDAK ditukar — ia kekal atas nama asal.\n\n${kekal?"Nama baharu masih dipadankan dengan pesanan itu ✅.":"Nama baharu TIDAK dipadankan dengan pesanan itu — pesanan lama akan muncul di \"Sudah order, tetapi tiada dalam senarai\"."}\n\nTukar nama ke "${r.nama}"?`))return null;
+}
+return r.senarai;
+}
+// Senarai yang sedang diedit: Pratonton (editing.peserta) atau 👥 Peserta (senarai). Dikunci semasa simpan.
+function senaraiAktif(){
+if(S.view==="pdf"){const f=S.pdfFlow;return f&&f.step==="preview"&&f.editing&&!f.saving?{o:f.editing,k:"peserta",orders:[]}:null;}
+if(S.view==="peserta-edit"){const pe=S.pesertaEdit;return pe&&pe.active&&!pe.saving?{o:pe,k:"senarai",orders:S.orders||[]}:null;}
+return null;
+}
+function klikTL(i){const a=senaraiAktif();if(!a||!a.o[a.k][i])return;a.o[a.k]=tukarTL(a.o[a.k],i);if(a.k==="senarai")a.o.err="";render();}
+function klikUbahNama(i){const a=senaraiAktif();if(!a)return;const baru=mintaUbahNama(a.o[a.k],i,a.orders);if(!baru)return;a.o[a.k]=baru;if(a.k==="senarai")a.o.err="";render();}
+function klikTg(sid,d){const a=senaraiAktif();if(!a)return;if(a.k==="peserta")a.o.tg=ubahTg(a.o.tg,sid,d);else{ubahTgEditor(a.o,sid,d);a.o.err="";}render();}
+// Butang ⭐ (tukar TL) & ✏️ (betulkan nama) pada setiap baris senarai peserta.
+function butangPeserta(i,isTL,kunci){return`<button class="px" data-tl-peserta="${i}" title="${isTL?"Buang status TL":"Jadikan Tour Leader"}" style="font-size:14px;opacity:${isTL?1:0.35}"${kunci||""}>⭐</button><button class="px" data-ubah-peserta="${i}" title="Betulkan nama" style="font-size:14px"${kunci||""}>✏️</button>`;}
 // Nama yang ditambah / dibuang berbanding senarai asal — untuk pengesahan.
 function bezaSenarai(asal,baru){
 const a=(asal||[]).map(p=>p.nama),b=(baru||[]).map(p=>p.nama);
@@ -819,6 +916,16 @@ const baris=[`Pax: ${pe.asalPax} → ${pax}`];
 if(bz.tambah.length)baris.push(`Ditambah: ${bz.tambah.join(", ")}`);
 if(bz.ubah.length)baris.push(`Ejaan dikemas kini: ${bz.ubah.map(x=>`${x.dari} → ${x.ke}${x.agak?' (?)':''}`).join(", ")}`);
 if(bz.buang.length)baris.push(`Dibuang: ${bz.buang.join(", ")}`);
+// v30: TL sebelum → selepas, TG ikut sesi & pax booking — skrin lama tanpa tg tidak terjejas.
+// TL disebut sebagai senarai penuh: nama dibetulkan + "(TL)" pada baris sama tetap kelihatan.
+const tlA=senaraiTL(pe.asalSenarai),tlB=senaraiTL(pe.senarai);
+if(JSON.stringify([...tlA].sort())!==JSON.stringify([...tlB].sort()))baris.push(`⭐ TL: ${tlA.join(", ")||"tiada"} → ${tlB.join(", ")||"tiada"}`);
+if(pe.tg){
+// TG "sebelum" = seperti TERSIMPAN (TG tersimpan lebih daripada pax → "Nara 2 → 1" disebut)
+const a=pe.asalTgTrip?tgBersih(pe.asalTgTrip):tgAsalEditor(pe),b=tgEditor(pe),n=pe.senarai.length+lainEditor(pe);
+if(JSON.stringify(a)!==JSON.stringify(b))baris.push(`🧑‍✈️ TG: ${sesiTG().map(([s,l])=>`${l} ${a[s]} → ${b[s]}`).join(" · ")}`);
+baris.push(`📊 Pax booking: ${sesiTG().map(([s,l])=>`${l} ${n+b[s]}`).join(" · ")}`);
+}
 if(bz.ubah.some(x=>x.agak))baris.push(`(?) = ejaan hampir sama — pastikan memang orang yang sama.`);
 return baris;
 }
@@ -896,7 +1003,7 @@ tarikh:room.tarikhTrip||'',
 tarikhMula:itin.tarikhMula||'',
 mod:adaInvois?(itin.mod||'tren'):'',
 peserta:[...room.peserta],
-includeGuide:true,
+tg:{fuji:1,nara:1,namba:1}, // v30: TG ikut sesi (dahulu "+1 guide")
 dayModes:itin.dayModes||{},
 }};
 }
@@ -916,11 +1023,13 @@ if(ed.mod!=="tren"&&ed.mod!=="bas")return"Sila pilih mod pengangkutan Day 2 (tre
 if(!ed.peserta||!ed.peserta.length)return"Senarai peserta kosong.";
 return"";
 }
-// Objek trip yang ditulis ke Firebase — medan sama seperti v27. sesi & peserta ialah
+// Objek trip yang ditulis ke Firebase — medan v27 + tg (v30). sesi & peserta ialah
 // SALINAN (SEMAKAN-KOD 8): trip baharu tidak berkongsi rujukan dengan SESI global.
+// pax = KAPASITI slot order = nama + TG paling ramai; pax booking ikut sesi → paxSesi.
 function binaTripPdf(ed,id){
 const peserta=JSON.parse(JSON.stringify(ed.peserta||[]));
-return{id,nama:String(ed.nama||'').trim(),tarikh:String(ed.tarikh||'').trim(),tarikhMula:ed.tarikhMula,mod:ed.mod,pax:peserta.length+(ed.includeGuide?1:0),sesi:JSON.parse(JSON.stringify(SESI)),peserta};
+const tg=tgBersih(ed.tg);
+return{id,nama:String(ed.nama||'').trim(),tarikh:String(ed.tarikh||'').trim(),tarikhMula:ed.tarikhMula,mod:ed.mod,pax:peserta.length+tgMaks(tg),tg,sesi:JSON.parse(JSON.stringify(SESI)),peserta};
 }
 // Butang "Proses & Pratonton". Tekan dua kali = PDF dibaca sekali; skrin ditutup
 // semasa membaca = keputusan dibuang.
@@ -968,7 +1077,7 @@ clearTimeout(lambat);
 S.trips.push(t);
 S.pdfFlow={step:"upload",itinFile:null,roomFile:null,parsed:null,editing:null,err:""};
 S.view="admin";S.adminTab="trips";S.selTrip=t.id;
-alert(`✅ Trip "${t.nama}" berjaya dicipta!\n\n📅 Day 1: ${fmtDateLocale(t.tarikhMula,0,"ms-MY")} · ${t.mod==="bas"?"🚌 Bas":"🚃 Tren"}\n👥 ${t.peserta.length} peserta + ${t.pax-t.peserta.length} guide = ${t.pax} pax${tanpaInvois?"\n\n⚠️ Dicipta tanpa invois Crystal — bila invois sampai, semak tarikh & masa dalam mesej Booking Nara/Namba/Fuji sama dengan invois; kalau lain, betulkan di 📅 Tarikh & Mod.":""}\n\n🔗 Link:\n${tLink(t.id)}`);
+alert(`✅ Trip "${t.nama}" berjaya dicipta!\n\n📅 Day 1: ${fmtDateLocale(t.tarikhMula,0,"ms-MY")} · ${t.mod==="bas"?"🚌 Bas":"🚃 Tren"}\n👥 ${t.peserta.length} peserta · 🧑‍✈️ TG: Fuji ${t.tg.fuji} · Nara ${t.tg.nara} · Namba ${t.tg.namba}\n📊 Pax booking: ${teksPaxSesi(t)} pax${tanpaInvois?"\n\n⚠️ Dicipta tanpa invois Crystal — bila invois sampai, semak tarikh & masa dalam mesej Booking Nara/Namba/Fuji sama dengan invois; kalau lain, betulkan di 📅 Tarikh & Mod.":""}\n\n🔗 Link:\n${tLink(t.id)}`);
 render();
 }
 // ── Firebase ──────────────────────────────────────────
@@ -1303,7 +1412,7 @@ const sorted=sortTrips(trips);
 let txt=`🍱 *ご予約のお願い — Masjid Fujikawaguchiko Cafe（お弁当）*\n\nAssalamualaikum 🙏\n\nこんにちは。お世話になっております。\n\nツアーグループ用のお弁当を、下記の日程でご予約させていただきたく存じます：\n\n${'─'.repeat(28)}\n\n`;
 let totalPax=0;
 sorted.forEach((t,i)=>{
-const pax=parseInt(t.pax)||22;
+const pax=paxSesi(t,"fuji");
 totalPax+=pax;
 txt+=`*${i+1}. ${t.nama}*\n`;
 txt+=`  📅 ${getTarikhLoc(t,"fuji","ja-JP")}\n`;
@@ -1317,7 +1426,7 @@ const sorted=sortTrips(trips);
 let txt=`🍛 *TABLE BOOKING REQUEST — NARA RESTAURANT (LUNCH)*\n\nAssalamualaikum 🙏\n\nHello, hope you are doing well.\n\nWe would like to book tables for our tour groups as follows:\n\n${'─'.repeat(28)}\n\n`;
 let totalPax=0;
 sorted.forEach((t,i)=>{
-const pax=parseInt(t.pax)||22;
+const pax=paxSesi(t,"nara");
 totalPax+=pax;
 const mod=t.mod||"tren";
 txt+=`*${i+1}. ${t.nama}*\n`;
@@ -1333,7 +1442,7 @@ const sorted=sortTrips(trips);
 let txt=`🍜 *BOOKING TEMPAT — NANIWAYA RAMEN (DINNER)*\n\nAssalamualaikum / Salam sejahtera 🙏\n\nKami ingin menempah tempat untuk grup tour seperti berikut:\n\n${'─'.repeat(28)}\n\n`;
 let totalPax=0;
 sorted.forEach((t,i)=>{
-const pax=parseInt(t.pax)||22;
+const pax=paxSesi(t,"namba");
 totalPax+=pax;
 const mod=t.mod||"tren";
 txt+=`*${i+1}. ${t.nama}*\n`;
@@ -1585,7 +1694,6 @@ const sl=trip.sesi||SESI;
 const orang=orangPesananTG(orders);
 const masa=bila.toLocaleString('ms-MY',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 const namaTrip=pdfTeks(trip.nama)||'Trip';
-const pax=parseInt(trip.pax)||22;
 const sesiBayar=sl.filter(s=>getPayType(s)==='pay');
 const noMuka=k=>`muka ${muka&&muka[k]?muka[k]:'-'}`;
 // ── Muka 1: ringkasan ──
@@ -1597,7 +1705,7 @@ pdfTulis(d,d.M,d.H-30,'PESANAN MAKAN UNTUK TOUR GUIDE',16,true,[1,1,1]);
 barisTrip.forEach((b,j)=>pdfTulis(d,d.M,d.H-49-12*j,b,10,false,[1,1,1]));
 d.y=d.H-jalur-10;
 pdfPerenggan(d,`Tarikh trip: ${trip.tarikh||'-'} · Dicetak: ${masa}`,{saiz:10,selepas:1});
-pdfPerenggan(d,`Jumlah pax: ${pax} orang · Dalam pesanan: ${orang.length} orang (${(orders||[]).length} wakil)`,{saiz:10,selepas:6});
+pdfPerenggan(d,`Jumlah pax: ${teksPaxSesi(trip)} orang · Dalam pesanan: ${orang.length} orang (${(orders||[]).length} wakil)`,{saiz:10,selepas:6});
 if(lama)pdfJadual(d,[{t:'',w:1}],[{span:'AMARAN: tiada sambungan internet semasa PDF ini dibuat — pesanan mungkin BUKAN yang terkini. Cetak semula bila ada internet.',latar:[1,0.92,0.92],warna:PDF_MERAH}],{tanpaKepala:true,saiz:9.5,selepas:4});
 const k=kunciAktif(trip);
 const notaKunci=k?`PESANAN DIKUNCI${masaKunci(trip.kunci)?` sejak ${masaKunci(trip.kunci)}`:''}${lama?'.':' — senarai ini muktamad.'}`:'Pesanan masih DIBUKA — senarai mungkin berubah. Minta admin cetak semula selepas pesanan dikunci.';
@@ -1738,7 +1846,9 @@ return{nama:fail,tajuk:`Pesanan makan untuk Tour Guide — ${namaTrip}`,bait:pdf
 // langsung, jadi tanpa muat semula PDF boleh guna pesanan lama.
 // Cap jari pesanan + kunci: kalau berubah selepas PDF disediakan, minta sediakan semula.
 // v29: tarikh & mod masuk dalam cap — PDF yang disediakan sebelum 📅 Tarikh & Mod diubah dikira lapuk
-function capPdfTG(tid){const t=S.trips.find(x=>x.id===tid);return JSON.stringify([S.orders,(t&&t.kunci)||null,(t&&t.tarikhMula)||null,(t&&t.mod)||null]);}
+// v30: peserta (nama & TL), pax & tg juga — PDF cetak pax ikut sesi & nama "Belum order" (dapatan saksi
+// bebas 2). Dibanding dalam bentuk kemas (kunciSenarai, tgMentah): susunan kunci dari pelayan ≠ "berubah".
+function capPdfTG(tid){const t=S.trips.find(x=>x.id===tid);return JSON.stringify([S.orders,(t&&t.kunci)||null,(t&&t.tarikhMula)||null,(t&&t.mod)||null,kunciSenarai(t&&t.peserta),(t&&t.pax)||null,tgMentah(t)]);}
 async function sediaPdfTG(){
 const tid=S.selTrip;
 if(!tid||(S.pdfTG&&S.pdfTG.status==='memuat'&&S.pdfTG.tid===tid))return;
@@ -1775,7 +1885,7 @@ function rPdfTG(){
 const p=S.pdfTG;
 if(!p||p.tid!==S.selTrip)return`<button class="bcp" id="pdf-tg">📄 PDF Pesanan untuk TG</button>`;
 if(p.status==='memuat')return`<button class="bcp" id="pdf-tg" disabled>⏳ Menyediakan PDF (muat pesanan terkini)…</button>`;
-if(p.cap!==capPdfTG(p.tid))return`<div class="pdftg"><div class="nota lama">⚠️ Pesanan, kunci, tarikh atau mod berubah selepas PDF disediakan.</div><button class="bcp" id="pdf-tg">🔄 Sediakan semula PDF</button></div>`;
+if(p.cap!==capPdfTG(p.tid))return`<div class="pdftg"><div class="nota lama">⚠️ Pesanan, peserta, pax/TG, kunci, tarikh atau mod berubah selepas PDF disediakan.</div><button class="bcp" id="pdf-tg">🔄 Sediakan semula PDF</button></div>`;
 return`<div class="pdftg"><div class="nota${p.lama?' lama':''}">${p.lama?'⚠️ Tiada internet — PDF guna data dalam skrin (mungkin lama).':`✅ PDF sedia — data pelayan ${p.masa.toLocaleTimeString('ms-MY',{hour:'2-digit',minute:'2-digit'})}.`} ${p.orang} orang · ${p.kunci?'🔒 dikunci':'🔓 belum dikunci'}</div>
 ${p.bolehKongsi?`<button class="bcp utama" id="pdf-tg-kongsi">📤 Kongsi PDF (WhatsApp dll.)</button>`:''}
 <button class="bcp" id="pdf-tg-muat">⬇️ Muat turun PDF</button>
@@ -1948,26 +2058,23 @@ ${itinPax&&itinPax!==ed.peserta.length?`<div class="warnsec">⚠️ <b>Nota:</b>
 <div class="plist" id="pl">
 ${ed.peserta.map((px,i)=>`<div class="pitem ${px.isTL?'tl':''}">
 <span class="pn">${i+1}.</span>
-<span class="pname">${px.nama}</span>
+<span class="pname">${esc(px.nama)}</span>
+${butangPeserta(i,px.isTL,kunci)}
 <button class="px" data-rmp="${i}"${kunci}>✕</button>
 </div>`).join('')}
 </div>
-<div style="display:flex;gap:6px;margin-bottom:14px">
+<div style="display:flex;gap:6px;margin-bottom:4px">
 <input class="inp" id="add-name" placeholder="Tambah nama (manual)" style="margin:0;flex:1"${kunci}/>
 <button class="bsm g" id="add-name-btn" style="padding:13px 14px"${kunci}>+ Tambah</button>
 </div>
+<p style="font-size:11px;color:#888;margin-bottom:14px">⭐ = tukar Tour Leader · ✏️ = betulkan nama · ✕ = buang</p>
 
-<div class="abox" style="margin-bottom:14px">
-<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#1a6b3c">
-<input type="checkbox" id="incl-guide" ${ed.includeGuide?'checked':''} style="width:18px;height:18px"${kunci}/>
-+ 1 untuk Tour Guide (Crystal/Seishin)
-</label>
-<p style="font-size:11px;color:#666;margin-top:6px;margin-left:26px">Guide tidak masuk dalam senarai peserta tetapi dikira dalam jumlah pax untuk booking restoran.</p>
-</div>
+${rTgSesi(ed.tg,kunci)}
 
 <div class="abox" style="background:#f0f9f4;border-left:3px solid #1a6b3c">
 <div style="font-size:13px;font-weight:600;color:#1a6b3c;margin-bottom:6px">📊 Jumlah Pax untuk Booking</div>
-<div style="font-size:12px;color:#333">${ed.peserta.length} peserta${ed.includeGuide?' + 1 guide':''} = <b style="font-size:16px;color:#1a6b3c">${ed.peserta.length+(ed.includeGuide?1:0)} pax</b></div>
+${rPaxSesi(ed.peserta.length,0,ed.tg)}
+<div style="font-size:11px;color:#666;margin-top:6px">Slot order: <b>${ed.peserta.length+tgMaks(tgBersih(ed.tg))}</b> (${ed.peserta.length} peserta + ${tgMaks(tgBersih(ed.tg))} TG paling ramai)</div>
 </div>
 
 </div>
@@ -2237,8 +2344,11 @@ const pax=pe.senarai.length+pe.tambahan;
 const kosong=pax-guna;
 const orderedNames=getAllOrderedPesertaNames(S.orders,pe.senarai);
 const cadangan=[...new Set(semakPadanan({peserta:pe.senarai,pax},S.orders).luar.map(namaBersih))];
-const beza=bezaSenarai(pe.asalSenarai,pe.senarai);
-const berubah=pax!==pe.asalPax||beza.tambah.length>0||beza.buang.length>0;
+// v30: perubahan termasuk TL & TG (dahulu tukar TL sahaja → "Tiada perubahan")
+const berubah=adaUbahPeserta(pe);
+// v30: semasa simpan, butang senarai, TG & tambahan dikunci — ubahan selepas Simpan tidak hilang senyap
+const kunci=pe.saving?' disabled':'';
+const tg=tgEditor(pe),lain=lainEditor(pe);
 // v24: label BARU / EJAAN ikut pengelasan yang sama dengan semakan rooming list
 const bz=bandingRoomingList(pe.asalSenarai,pe.senarai);
 const ejaanBaru=new Set(bz.ubah.map(x=>x.ke));
@@ -2271,7 +2381,7 @@ ${tiada?`<p style="font-size:12px;color:#1a6b3c;font-weight:600;margin-top:8px">
 ${cadangan.length?`<div class="abox" style="background:#fff8e1;border-left:3px solid #ff9800">
 <div style="font-size:13px;font-weight:600;color:#e65100;margin-bottom:4px">⚠️ Sudah order, tetapi tiada dalam senarai (${cadangan.length})</div>
 <p style="font-size:11px;color:#856404;margin-bottom:8px;line-height:1.5">Kalau mereka memang ahli trip ini (contoh: tambahan dari ejen), tekan nama untuk masukkan ke senarai.</p>
-<div style="display:flex;flex-direction:column;gap:6px">${cadangan.map(n=>`<button class="bsm" data-pe-cadang="${esc(n)}" style="text-align:left;padding:10px 12px;font-size:12px;border-color:#ff9800;color:#e65100;background:#fff">+ ${esc(n)}</button>`).join('')}</div>
+<div style="display:flex;flex-direction:column;gap:6px">${cadangan.map(n=>`<button class="bsm" data-pe-cadang="${esc(n)}" style="text-align:left;padding:10px 12px;font-size:12px;border-color:#ff9800;color:#e65100;background:#fff"${kunci}>+ ${esc(n)}</button>`).join('')}</div>
 </div>`:''}
 <div class="stitle">Senarai Peserta (${pe.senarai.length})</div>
 <div class="plist">
@@ -2279,30 +2389,35 @@ ${pe.senarai.length?pe.senarai.map((p,i)=>`<div class="pitem ${p.isTL?'tl':''}">
 <span class="pn">${i+1}.</span>
 <span class="pname">${esc(p.nama)}${bz.tambah.includes(p.nama)?' <span style="font-size:10px;color:#1a6b3c;font-weight:700">BARU</span>':ejaanBaru.has(p.nama)?' <span style="font-size:10px;color:#1565c0;font-weight:700">EJAAN</span>':''}</span>
 ${orderedNames.has(p.nama)?'<span style="font-size:11px" title="Sudah order">✅</span>':''}
-<button class="px" data-pe-buang="${i}" title="Buang">✕</button>
+${butangPeserta(i,p.isTL,kunci)}
+<button class="px" data-pe-buang="${i}" title="Buang"${kunci}>✕</button>
 </div>`).join(''):`<div style="padding:14px;text-align:center;color:#aaa;font-size:12px">Tiada nama dalam senarai.</div>`}
 </div>
 <div style="display:flex;gap:6px;margin-bottom:4px">
-<input class="inp" id="pe-nama" placeholder="Tambah nama peserta" value="${esc(pe.input||'')}" style="margin:0;flex:1"/>
-<button class="bsm g" id="pe-tambah" style="padding:13px 14px">+ Tambah</button>
+<input class="inp" id="pe-nama" placeholder="Tambah nama peserta" value="${esc(pe.input||'')}" style="margin:0;flex:1"${kunci}/>
+<button class="bsm g" id="pe-tambah" style="padding:13px 14px"${kunci}>+ Tambah</button>
 </div>
-<p style="font-size:11px;color:#888;margin-bottom:14px">Taip (TL) di hujung nama untuk Tour Leader.</p>
+<p style="font-size:11px;color:#888;margin-bottom:14px">Taip (TL) di hujung nama untuk Tour Leader · ⭐ = tukar TL · ✏️ = betulkan nama</p>
+${tgTerpotong(trip)?`<div class="warnsec">⚠️ TG tersimpan (${teksTg(tgMentah(trip))}) lebih daripada tambahan pax (${tambahanAsal(trip)}) — pax mungkin diubah di tab lama atau di Firebase. Sehingga disimpan, booking dikira dengan TG ${teksTg(tgTrip(trip))}. Betulkan TG di bawah jika guide memang lebih, kemudian tekan Simpan.</div>`:''}
+${rTgSesi(tg,kunci)}
 <div class="abox">
-<label class="lbl">Tambahan yang tiada nama dalam senarai (guide, dll.)</label>
+<label class="lbl">Tambahan lain yang tiada nama (bukan TG)</label>
 <div class="cntrow" style="margin-bottom:0">
-<button class="cntbtn" id="pe-tb-minus">−</button>
-<div class="cntval">${pe.tambahan}</div>
-<button class="cntbtn" id="pe-tb-plus">+</button>
+<button class="cntbtn" id="pe-tb-minus"${kunci}>−</button>
+<div class="cntval">${lain}</div>
+<button class="cntbtn" id="pe-tb-plus"${kunci}>+</button>
 </div>
-${pe.asalSenarai.length>0&&pe.tambahan>1?`<p style="font-size:11px;color:#e65100;margin-top:8px;line-height:1.5">ℹ️ Tambahan biasanya 1 (guide). Kalau pax pernah diubah terus di Firebase, kurangkan di sini supaya pax tidak terlebih.</p>`:''}
+${pe.asalSenarai.length>0&&lain>0?`<p style="font-size:11px;color:#e65100;margin-top:8px;line-height:1.5">ℹ️ Tambahan lain biasanya 0 — guide dikira dalam TG di atas. Kalau pax pernah diubah terus di Firebase, kurangkan di sini supaya pax tidak terlebih.</p>`:''}
 </div>
 <div class="abox" style="background:#f0f9f4;border-left:3px solid #1a6b3c">
 <div style="font-size:13px;font-weight:600;color:#1a6b3c;margin-bottom:6px">📊 Jumlah Pax</div>
 <div style="font-size:12px;color:#333">${pe.senarai.length} nama + ${pe.tambahan} tambahan = <b style="font-size:16px;color:#1a6b3c">${pax} pax</b>${pax!==pe.asalPax?` <span style="color:#e65100;font-weight:600">(sebelum ini ${pe.asalPax})</span>`:''}</div>
+<div style="font-size:11px;color:#666;margin:2px 0 6px">(tambahan = ${tgMaks(tg)} TG paling ramai + ${lain} lain)</div>
+${rPaxSesi(pe.senarai.length,lain,tg)}
 <div style="font-size:11px;color:#666;margin-top:6px">Sudah ada ${guna} orang dalam pesanan · slot kosong selepas simpan: <b style="color:${kosong<0?'#c62828':'#1a6b3c'}">${kosong}</b></div>
 </div>
 ${pe.err?`<div class="err">${esc(pe.err)}</div>`:''}
-<div class="warnsec">📅 Booking restoran ikut jumlah pax ini. Kalau booking dah dihantar, maklumkan perubahan kepada restoran.<br>📱 Peserta yang sedang buka link perlu refresh untuk nampak slot baharu.</div>
+<div class="warnsec">📅 Booking restoran ikut pax setiap sesi di atas. Kalau booking dah dihantar, maklumkan perubahan kepada restoran.<br>📱 Peserta yang sedang buka link perlu refresh untuk nampak slot baharu.</div>
 </div>
 <div class="fb"><div style="display:flex;gap:8px">
 <button class="b2" id="pe-batal2" style="margin:0;flex:1;padding:14px 0"${pe.saving?' disabled':''}>Batal</button>
@@ -2724,12 +2839,15 @@ try{const s=await getDocs(collection(db,"trips",tripId,"orders"));orders=s.docs.
 catch(e){console.error("bukaPesertaEdit:",e);toast("❌ Gagal muat pesanan. Semak internet dan cuba lagi.");return;}
 S.selTrip=tripId;S.orders=orders;
 const senarai=JSON.parse(JSON.stringify(trip.peserta||[]));
-S.pesertaEdit={active:true,tripId,senarai,asalSenarai:JSON.parse(JSON.stringify(senarai)),tambahan:tambahanAsal(trip),asalPax:parseInt(trip.pax)||22,returnTab:returnTab||"trips",err:"",input:"",saving:false,pdfStatus:"",pdfBanding:null};
+// v30: TG ikut sesi. Trip lama tanpa tg → andaian lama (1 guide jika ada tambahan). Skrin guna TG
+// BERKESAN (dihadkan kepada pax). asalTgTrip = tg SEPERTI TERSIMPAN (null = tiada) — semakan peranti lain.
+const tambahan=tambahanAsal(trip),tgA=tgTrip(trip),tgE=tgA||tgLalai(tambahan);
+S.pesertaEdit={active:true,tripId,senarai,asalSenarai:JSON.parse(JSON.stringify(senarai)),tambahan,asalPax:parseInt(trip.pax)||22,returnTab:returnTab||"trips",err:"",input:"",saving:false,pdfStatus:"",pdfBanding:null,tg:tgE,asalTg:{...tgE},asalTgTrip:tgMentah(trip)};
 S.view="peserta-edit";render();
 }
 function tutupPesertaEdit(){
 const tb=S.pesertaEdit.returnTab||"trips";
-S.pesertaEdit={active:false,tripId:null,senarai:[],asalSenarai:[],tambahan:0,asalPax:0,returnTab:"trips",err:"",input:"",saving:false,pdfStatus:"",pdfBanding:null};
+S.pesertaEdit={active:false,tripId:null,senarai:[],asalSenarai:[],tambahan:0,asalPax:0,returnTab:"trips",err:"",input:"",saving:false,pdfStatus:"",pdfBanding:null,tg:null,asalTg:null,asalTgTrip:null};
 S.view="admin";S.adminTab=tb;render();
 }
 async function simpanPesertaEdit(){
@@ -2737,21 +2855,44 @@ const pe=S.pesertaEdit;
 if(!pe.active||pe.saving)return;
 const trip=S.trips.find(t=>t.id===pe.tripId);
 if(!trip){toast("Trip tidak ditemui.");return;}
+// v30: peranti lain ubah senarai/pax/TG trip ini selepas skrin dibuka (dikemas kini oleh
+// dengarKunciSemua) → "asal" di skrin ini sudah lapuk; jangan tulis atasnya.
+if(!samaAsalPeserta(trip,pe)){pe.err="Senarai, pax atau TG trip ini baru diubah di peranti lain. Tekan ← dan buka semula.";render();return;}
 const guna=S.orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
 const r=semakPesertaPax(pe.senarai,pe.tambahan,guna);
 if(!r.ok){pe.err=r.ralat;render();return;}
-const beza=bezaSenarai(pe.asalSenarai,pe.senarai);
-if(r.pax===pe.asalPax&&!beza.tambah.length&&!beza.buang.length){toast("Tiada perubahan.");return;}
+if(!adaUbahPeserta(pe)){toast("Tiada perubahan.");return;}
 const baris=barisSimpanPeserta(pe,r.pax);
 if(!confirm(`Simpan perubahan untuk "${trip.nama}"?\n\n${baris.join("\n")}`))return;
+// v30: tulis medan yang BERUBAH sahaja (pengajaran v29) — menu, harga, tarikh, kunci & order tidak
+// disentuh; tx.update (bukan set): trip yang sudah dipadam di peranti lain TIDAK dicipta semula.
+const data={};
+if(kunciSenarai(pe.senarai)!==kunciSenarai(pe.asalSenarai))data.peserta=JSON.parse(JSON.stringify(pe.senarai));
+if(r.pax!==pe.asalPax)data.pax=r.pax;
+// tg ditulis bila tg TERSIMPAN (atau andaian trip lama bila dibuka semula) berbeza daripada TG yang
+// disahkan — pecahan TG/"lain" kekal (dapatan saksi bebas 6); TG lebih daripada pax dibetulkan (1).
+const tgB=tgEditor(pe);
+const tgKekal=pe.asalTgTrip?tgBersih(pe.asalTgTrip):tgLalai(r.pax-pe.senarai.length);
+if(JSON.stringify(tgB)!==JSON.stringify(tgKekal))data.tg=tgB;
 pe.saving=true;pe.err="";render();
-const peserta=JSON.parse(JSON.stringify(pe.senarai));
-// merge: tulis peserta & pax SAHAJA — menu, harga dan medan lain trip tidak disentuh
-try{await setDoc(doc(db,"trips",trip.id),{peserta,pax:r.pax},{merge:true});}
-catch(e){console.error("simpanPesertaEdit:",e);pe.saving=false;pe.err="❌ Gagal simpan. Semak internet dan cuba lagi.";render();return;}
-trip.peserta=peserta;trip.pax=r.pax;
+// Transaksi (dapatan saksi bebas 4): baca trip di PELAYAN, banding dengan keadaan ketika skrin dibuka,
+// baru tulis — perubahan peranti lain yang belum sampai ke sini (pengesahan masih terbuka, tab baru
+// disambung semula) tidak ditulis ganti. Trip dipadam → tiada apa ditulis (tidak dicipta semula).
+const ref=doc(db,"trips",trip.id);let pelayan=null;
+try{await runTransaction(db,async tx=>{
+const d=await tx.get(ref);
+if(!d.exists())throw Object.assign(new Error("Trip tiada"),{code:"not-found"});
+const v=d.data();
+if(!samaAsalPeserta(v,pe)){pelayan=v;throw Object.assign(new Error("Trip berubah"),{code:"berubah"});}
+tx.update(ref,data);
+});}
+catch(e){console.error("simpanPesertaEdit:",e);pe.saving=false;
+// Ditolak kerana pelayan lain: salinan di skrin ikut bacaan pelayan (dokumen penuh = rujukan), supaya
+// "← dan buka semula" guna data terkini walaupun pendengar belum sampai / sudah putus (susulan saksi bebas 1).
+if(e&&e.code==="berubah"&&pelayan)["peserta","pax","tg"].forEach(m=>{if(pelayan[m]!==undefined)trip[m]=pelayan[m];else delete trip[m];});pe.err=e&&e.code==="not-found"?"❌ Trip ini sudah dipadam di peranti lain — tiada apa disimpan.":e&&e.code==="berubah"?"Senarai, pax atau TG trip ini baru diubah di peranti lain. Tekan ← dan buka semula.":"❌ Gagal simpan. Semak internet dan cuba lagi.";render();return;}
+Object.assign(trip,data);
 tutupPesertaEdit();
-toast(`✓ Disimpan — ${r.pax} pax`);
+toast(`✓ Disimpan — ${teksPaxSesi(trip)} pax`);
 }
 // v24: rooming list PDF terkini — baca dan simpan PDF dalam keadaan skrin
 // SAHAJA (nama fail + senarai). Perbandingan dikira semula setiap render ikut
@@ -2833,8 +2974,8 @@ const t=S.trips.find(x=>x.id===d.id);if(!t)return;
 const v=d.data();
 const k=v.kunci||null;
 if(JSON.stringify(k)!==JSON.stringify(t.kunci||null)){t.kunci=k;ubah=true;}
-if(v.tarikhMula!==undefined&&v.tarikhMula!==t.tarikhMula){t.tarikhMula=v.tarikhMula;ubah=true;}
-if(v.mod!==undefined&&v.mod!==t.mod){t.mod=v.mod;ubah=true;}
+// v29: tarikh & mod (📅 Tarikh & Mod) · v30: senarai, TL, pax & TG (👥 Peserta) — medan tiada di pelayan tidak dipadam
+["tarikhMula","mod","peserta","pax","tg"].forEach(m=>{if(v[m]!==undefined&&JSON.stringify(v[m])!==JSON.stringify(t[m])){t[m]=v[m];ubah=true;}});
 });
 if(ubah)render();
 },e=>console.error("dengarKunciSemua:",e));
@@ -3312,7 +3453,7 @@ const sl=trip?(trip.sesi||SESI):SESI;
 const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
 if(S.adminTab==="trips"){
-const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}${kunciAktif(t)?' <span style="font-size:11px;color:#37474f;font-weight:600;white-space:nowrap">🔒 Dikunci</span>':''}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${t.pax||22} pax<br>${teksKadTarikh(t)}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm" data-peserta-trip="${t.id}" style="border-color:#1a6b3c;color:#1a6b3c">👥 Peserta</button> <button class="bsm" data-tarikh-trip="${t.id}" style="border-color:#1565c0;color:#1565c0">📅 Tarikh & Mod</button><button class="bsm" data-priceedit-trip="${t.id}" style="border-color:#ff9800;color:#e65100">💴 Harga</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
+const cards=S.trips.map(t=>`<div class="tcard"> <div style="font-size:14px;font-weight:600;margin-bottom:3px">${t.nama}${kunciAktif(t)?' <span style="font-size:11px;color:#37474f;font-weight:600;white-space:nowrap">🔒 Dikunci</span>':''}</div> <div style="font-size:11px;color:#888;margin-bottom:8px">📅 ${t.tarikh||'—'} &nbsp;👥 ${teksPaxSesi(t)} pax<br>${teksKadTarikh(t)}${tgTerpotong(t)?'<br><span style="color:#e65100;font-weight:600">⚠️ TG lebih daripada pax — semak 👥 Peserta</span>':''}</div> <span class="tlink">${tLink(t.id)}</span> <div style="display:flex;gap:6px;flex-wrap:wrap"> <button class="bsm" data-copy="${tLink(t.id)}">📋 Copy Link</button> <button class="bsm g" data-vtrip="${t.id}">📊 Order</button> <button class="bsm" data-peserta-trip="${t.id}" style="border-color:#1a6b3c;color:#1a6b3c">👥 Peserta</button> <button class="bsm" data-tarikh-trip="${t.id}" style="border-color:#1565c0;color:#1565c0">📅 Tarikh & Mod</button><button class="bsm" data-priceedit-trip="${t.id}" style="border-color:#ff9800;color:#e65100">💴 Harga</button> <button class="bsm r" data-dtrip="${t.id}">🗑 Padam</button> </div></div>`).join("")||`<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Tiada trip.</p>`;
 return`<div class="stk"><button class="bk" id="go-back">←</button><h2>Admin Panel</h2></div> <div class="body" style="padding-bottom:40px"> <div class="tabrow"> <button class="tabbtn active" data-tab="trips">🗺️ Trip</button> <button class="tabbtn" data-tab="orders">📋 Order</button> <button class="tabbtn" data-tab="imgs">🖼️ Menu</button> </div> <div class="stitle">Senarai Trip</div>${cards}
 ${rBookingSec()}
 <div class="stitle">Tambah Trip Baru</div> <button class="pdfbtn" id="open-pdf-import">📄 Cipta Trip dari PDF (Auto)</button> <div class="abox"> <input class="inp" id="nt-nama" placeholder="Nama trip" value="${S.newTrip.nama}"/> <input class="inp" id="nt-tarikh" placeholder="Tarikh (cth: 1-7 Nov 2025)" value="${S.newTrip.tarikh}"/> <label class="lbl">Tarikh mula di Osaka</label> <input class="inp" id="nt-mula" type="date" value="${S.newTrip.tarikhMula||''}"/> <label class="lbl">Mod pengangkutan</label> <select class="inp" id="nt-mod"> <option value="tren" ${(S.newTrip.mod||'tren')==='tren'?'selected':''}>🚃 Tren (Nara:11am | Namba:5pm)</option> <option value="bas" ${S.newTrip.mod==='bas'?'selected':''}>🚌 Bas (Nara:11:30am | Namba:5:30pm)</option> </select> <input class="inp" id="nt-pax" placeholder="Jumlah peserta" value="${S.newTrip.pax}" type="number"/> <button class="b1" id="add-trip" style="margin-bottom:0">+ Cipta Trip Baru (manual)</button> </div></div>`;
@@ -3504,6 +3645,9 @@ return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tou
 // ── Render ──────────────────────────────────────────
 function render(){
 const el=document.getElementById("app");
+// v30 (dapatan saksi bebas 7): skrin SAMA dilukis semula (⭐ ✏️ ✕ TG, tanda ahli, pesanan baharu) →
+// setiap senarai .plist kekal di kedudukan skrolnya (dahulu lompat ke atas selepas setiap klik).
+const skrol=el.dataset.view===S.view?[...el.querySelectorAll(".plist")].map(x=>x.scrollTop):[];
 if(S.loading){el.innerHTML=`<div class="loading">🍱<br><br>Memuatkan...</div>`;return;}
 if(S.view==="notfound"){el.innerHTML=`<div class="loading">❌<br><br>Link trip tidak sah.</div>`;return;}
 if(S.view==="home")el.innerHTML=rHome();
@@ -3516,6 +3660,8 @@ else if(S.view==="price-edit")el.innerHTML=rPriceEditor();
 else if(S.view==="peserta-edit")el.innerHTML=rPesertaEdit();
 else if(S.view==="tarikh-edit")el.innerHTML=rTarikhEdit();
 attachEvents();
+el.querySelectorAll(".plist").forEach((x,i)=>{if(skrol[i])x.scrollTop=skrol[i];});
+el.dataset.view=S.view;
 }
 // ── Events ──────────────────────────────────────────
 function attachEvents(){
@@ -3700,7 +3846,6 @@ const pfMula=e=>{S.pdfFlow.editing.tarikhMula=e.target.value;const h=$("pf-mula-
 on("pf-mula","input",pfMula);
 on("pf-mula","change",pfMula);
 on("pf-mod","change",e=>S.pdfFlow.editing.mod=e.target.value);
-on("incl-guide","change",e=>{S.pdfFlow.editing.includeGuide=e.target.checked;render();});
 document.querySelectorAll("[data-rmp]").forEach(b=>b.addEventListener("click",()=>{
 const i=parseInt(b.dataset.rmp);
 if(confirm(`Buang "${S.pdfFlow.editing.peserta[i].nama}" dari senarai?`)){
@@ -3716,6 +3861,11 @@ S.pdfFlow.editing.peserta.push({nama,isTL});render();
 on("add-name","keydown",e=>{if(e.key==="Enter")$("add-name-btn")?.click();});
 // v28: nilai dibaca dari kotak ($), semakan (termasuk mod wajib dipilih), kunci semasa simpan & nombor trip tetap — lihat sahkanTripPdf
 on("pdf-confirm","click",()=>{sahkanTripPdf($);});
+// v30: 🧑‍✈️ TG ikut sesi, ⭐ tukar TL & ✏️ betulkan nama — Pratonton & 👥 Peserta (lihat senaraiAktif)
+document.querySelectorAll("[data-tg-tambah]").forEach(b=>b.addEventListener("click",()=>{klikTg(b.dataset.tgTambah,1);}));
+document.querySelectorAll("[data-tg-kurang]").forEach(b=>b.addEventListener("click",()=>{klikTg(b.dataset.tgKurang,-1);}));
+document.querySelectorAll("[data-tl-peserta]").forEach(b=>b.addEventListener("click",()=>{klikTL(parseInt(b.dataset.tlPeserta));}));
+document.querySelectorAll("[data-ubah-peserta]").forEach(b=>b.addEventListener("click",()=>{klikUbahNama(parseInt(b.dataset.ubahPeserta));}));
 // Tracking - copy senarai belum order
 on("cp-pending","click",()=>{const t=S.trips.find(x=>x.id===S.selTrip);if(t)cp(bPendingList(t,S.orders));});
 // 📅 Tarikh & Mod (v29) — lihat bukaTarikhEdit / simpanTarikhEdit
@@ -3732,36 +3882,36 @@ document.querySelectorAll("[data-peserta-trip]").forEach(b=>b.addEventListener("
 on("pe-buka","click",()=>{if(S.selTrip)bukaPesertaEdit(S.selTrip,"orders");});
 const peBatal=()=>{
 const pe=S.pesertaEdit;if(pe.saving)return;
-const beza=bezaSenarai(pe.asalSenarai,pe.senarai);
-const berubah=(pe.senarai.length+pe.tambahan)!==pe.asalPax||beza.tambah.length>0||beza.buang.length>0;
-if(berubah&&!confirm("Batal? Perubahan senarai dan pax tidak akan disimpan."))return;
+if(adaUbahPengguna(pe)&&!confirm("Batal? Perubahan senarai dan pax tidak akan disimpan."))return;
 tutupPesertaEdit();
 };
 on("pe-batal","click",peBatal);
 on("pe-batal2","click",peBatal);
 on("pe-nama","input",e=>{S.pesertaEdit.input=e.target.value;});
 on("pe-nama","keydown",e=>{if(e.key==="Enter")$("pe-tambah")?.click();});
+// v30 (dapatan saksi bebas 3): semua butang yang ubah senarai abaikan klik semasa ⏳ Menyimpan
 on("pe-tambah","click",()=>{
-const pe=S.pesertaEdit;
+const pe=S.pesertaEdit;if(pe.saving)return;
 const r=cubaTambahNama(pe.senarai,$("pe-nama")?.value||pe.input||"");
 if(!r.ok){pe.err=r.sebab==="ada"?`Nama ini sudah ada dalam senarai: ${r.sama}`:"Sila taip nama peserta.";render();return;}
 if(r.hampir&&!confirm(`"${r.nama}" hampir sama dengan "${r.hampir}" yang sudah ada dalam senarai.\n\nTambah juga sebagai orang lain?`))return;
 pe.senarai=r.senarai;pe.input="";pe.err="";render();
 });
 document.querySelectorAll("[data-pe-cadang]").forEach(b=>b.addEventListener("click",()=>{
-const pe=S.pesertaEdit;
+const pe=S.pesertaEdit;if(pe.saving)return;
 const r=cubaTambahNama(pe.senarai,b.dataset.peCadang);
 if(!r.ok){pe.err=r.sebab==="ada"?`Nama ini sudah ada dalam senarai: ${r.sama}`:"Nama tidak sah.";render();return;}
 pe.senarai=r.senarai;pe.err="";render();
 }));
 document.querySelectorAll("[data-pe-buang]").forEach(b=>b.addEventListener("click",()=>{
-const pe=S.pesertaEdit;const i=parseInt(b.dataset.peBuang);const p=pe.senarai[i];if(!p)return;
+const pe=S.pesertaEdit;if(pe.saving)return;const i=parseInt(b.dataset.peBuang);const p=pe.senarai[i];if(!p)return;
 const adaPesanan=getAllOrderedPesertaNames(S.orders,pe.senarai).has(p.nama);
 if(!confirm(adaPesanan?`"${p.nama}" sudah ada pesanan.\n\nBuang dari senarai? Pesanannya TIDAK dipadam — cuma nama ini tidak lagi dijejak dalam senarai.`:`Buang "${p.nama}" dari senarai?`))return;
 pe.senarai=pe.senarai.filter((_,j)=>j!==i);pe.err="";render();
 }));
-on("pe-tb-minus","click",()=>{const pe=S.pesertaEdit;pe.tambahan=Math.max(0,pe.tambahan-1);pe.err="";render();});
-on("pe-tb-plus","click",()=>{const pe=S.pesertaEdit;pe.tambahan=pe.tambahan+1;pe.err="";render();});
+// v30: butang ini kini ubah tambahan LAIN (bukan TG) — TG diubah di kotak TG ikut sesi
+on("pe-tb-minus","click",()=>{const pe=S.pesertaEdit;if(pe.saving)return;ubahLainEditor(pe,-1);pe.err="";render();});
+on("pe-tb-plus","click",()=>{const pe=S.pesertaEdit;if(pe.saving)return;ubahLainEditor(pe,1);pe.err="";render();});
 on("pe-simpan","click",()=>{simpanPesertaEdit();});
 // v25: kunci pesanan
 on("kunci-on","click",()=>{tukarKunci(true);});
