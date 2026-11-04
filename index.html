@@ -159,12 +159,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
-<!-- BUILD: v30 — 🧑‍✈️ TG ikut sesi (Fuji/Nara/Namba): pax booking setiap restoran ikut TG sesi itu, slot order = nama + TG paling ramai · ⭐ tukar TL & ✏️ betulkan nama (Pratonton & 👥 Peserta) · 👥 Peserta tulis medan yang berubah SAHAJA, dalam transaksi (trip di pelayan dibanding dahulu) · TG tersimpan lebih daripada pax → booking ikut pax + amaran · v29: 📅 Tarikh & Mod · v28: Cipta Trip dari PDF tanpa invois Crystal -->
+<!-- BUILD: v31 — 📄 Rooming list dibaca ikut kedudukan kiri→kanan (Google Sheets letak sel jenis bilik ~0.45 lebih tinggi & sel BIL ~0.45 lebih rendah → "SINGLE 24 NAMA", nama bercampur tarikh) · pasport berakhir huruf (Singapura K1234567E) diterima — dahulu peserta tercicir senyap · tanda TUNDA, jenis bilik, BIL & telefon tidak lagi masuk ke nama · kotak "Semak rooming list": baris ber-BIL yang tidak dapat dibaca (termasuk pertama/terakhir), tanda TUNDA, baris tanpa BIL · nama mengandungi "KUL" (cth. KULSUM) tidak lagi ditolak · invois Crystal tidak berubah · v30: 🧑‍✈️ TG ikut sesi (Fuji/Nara/Namba): pax booking setiap restoran ikut TG sesi itu, slot order = nama + TG paling ramai · ⭐ tukar TL & ✏️ betulkan nama (Pratonton & 👥 Peserta) · 👥 Peserta tulis medan yang berubah SAHAJA, dalam transaksi (trip di pelayan dibanding dahulu) · TG tersimpan lebih daripada pax → booking ikut pax + amaran · v29: 📅 Tarikh & Mod · v28: Cipta Trip dari PDF tanpa invois Crystal -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v30 starting…");
+console.log("[Tour-Order] Build v31 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -328,7 +328,12 @@ console.error("pdf.js load failed:",e);
 throw new Error("Tidak dapat muat library PDF. Sila semak sambungan internet, refresh halaman, dan cuba lagi.");
 }
 }
-async function pdfToLines(file){
+// v31: opt.ikutX — teks dalam SETIAP baris disusun kiri→kanan. Google Sheets letak sesetengah sel
+// ~0.45 unit lebih tinggi (jenis bilik) atau lebih rendah (nombor BIL); susunan ikut y semata-mata jadi "SINGLE 24
+// NAMA…" atau pasport selepas tarikh (rooming list 15–22 Nov 2026: 24 peserta dibaca 23). Rooming list
+// SAHAJA — invois Crystal kekal susunan lama (tiada PDF invois sebenar untuk menguji perubahan).
+async function pdfToLines(file,opt){
+const ikutX=!!(opt&&opt.ikutX);
 const pdfjsLib=await loadPdfLib();
 const data=await file.arrayBuffer();
 const pdf=await pdfjsLib.getDocument({data}).promise;
@@ -344,13 +349,14 @@ for(const it of items){
 if(!it.str.trim())continue;
 if(curY===null){curY=it.y;curLine=[it];}
 else if(Math.abs(it.y-curY)<3){curLine.push(it);}
-else{lines.push(curLine.map(c=>c.str).join(' ').replace(/\s+/g,' ').trim());curLine=[it];curY=it.y;}
+else{lines.push(sertaiBaris(curLine,ikutX));curLine=[it];curY=it.y;}
 }
-if(curLine.length)lines.push(curLine.map(c=>c.str).join(' ').replace(/\s+/g,' ').trim());
+if(curLine.length)lines.push(sertaiBaris(curLine,ikutX));
 allLines.push(...lines.filter(l=>l));
 }
 return allLines;
 }
+function sertaiBaris(items,ikutX){return(ikutX?[...items].sort((a,b)=>a.x-b.x):items).map(c=>c.str).join(' ').replace(/\s+/g,' ').trim();}
 const MONTH_MAP={jan:'01',feb:'02',mac:'03',mar:'03',apr:'04',may:'05',mei:'05',jun:'06',jul:'07',jul:'07',aug:'08',ogo:'08',sep:'09',oct:'10',okt:'10',nov:'11',dec:'12',dis:'12'};
 function parseItinerary(lines){
 const text=lines.join('\n');
@@ -407,30 +413,78 @@ else if(/big\s*bus/i.test(text))out.mod='bas';
 return out;
 }
 function parseRoomingList(lines){
-const out={peserta:[],tarikhTrip:null};
+// v31 (kes sebenar rooming list 15–22 Nov 2026: 24 peserta dibaca 23). Baris peserta yang tidak dapat
+// dibaca, tanda kolum TUNDA & baris tanpa BIL DILAPOR dalam out.semak (Pratonton & 👥 PDF terkini).
+const out={peserta:[],tarikhTrip:null,bilTiada:[],namaTiada:{},bertanda:[],tanpaBil:[],adaNombor:[],semak:[]};
+const baris=[],calon=new Map(); // baris diterima {nama,isTL,bil,tanda}; calon = BIL baris TIDAK dapat dibaca → nama (calon pertama dikekalkan)
+let lepas=0; // BIL baris peserta sebelum ini — bila satu baris ada lebih satu "nombor + nama", pilih BIL = lepas + 1
 for(const line of lines){
 const t=line.match(/TARIKH\s*TRIP\s*:?\s*(.+)/i);
 if(t)out.tarikhTrip=t[1].trim();
-// Cari passport: letter + 7-9 digit (handle 'X6851600' which has 7 digits)
-const pm=line.match(/\b([A-Z])(\d{7,9})\b/);
-if(!pm)continue;
-let before=line.substring(0,pm.index).trim();
-// Strip leading number (1-3 digit)
-before=before.replace(/^\d{1,3}\s+/,'');
-// Strip phone number at end (e.g., '019-2933445', '60-12-3456789')
-before=before.replace(/\s+\d{2,4}-\d{2,4}-?\d{0,7}\s*$/,'');
+// Cari passport: letter + 7-9 digit (handle 'X6851600' which has 7 digits). v31: + huruf di hujung
+// (pasport Singapura "K1234567E") — dahulu baris itu TERCICIR senyap.
+const pm=line.match(/\b([A-Z])(\d{7,9})[A-Z]?\b/);
+const before=(pm?line.substring(0,pm.index):line).trim();
+const b=bacaNama(before.split(/\s+/).filter(Boolean),lepas+1);
+if(!pm){ // tiada pasport: baris peserta tidak dapat dibaca? BIL + nama + tarikh SELEPAS nama (tamat / lahir)
+if(b.bil!==null&&b.nama&&!bising(b.nama)&&!calon.has(b.bil)&&/\b\d{1,2}\s+[A-Za-z]{3,}\s+\d{4}\b|\b\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}\b/.test(before.slice(before.indexOf(b.nama)+b.nama.length))){calon.set(b.bil,b.nama);lepas=b.bil;}
+continue;}
 // Detect TL: (TL) atau (TOUR LEADER) atau plain 'TOUR LEADER'
 const isTL=/\(\s*TL\s*\)|\(\s*TOUR\s*LEADER\s*\)|tour\s*leader/i.test(before);
-let nama=before.replace(/\(\s*TL\s*\)|\(\s*TOUR\s*LEADER\s*\)/gi,'').replace(/\s+/g,' ').trim();
-// Validate looks like name
-if(nama.length<4)continue;
-if(!/^[A-Z]/.test(nama))continue;
-if(!/[A-Z]\s+[A-Z]/.test(nama))continue;
-// Skip flight/hotel/airline noise that may have caps + passport-like
-if(/AIRASIA|AIRPORT|HOTEL|FLIGHT|KUL|KIX|HND|\bD7\s/i.test(nama))continue;
-out.peserta.push({nama,isTL});
+const nama=b.nama.replace(/\(\s*TL\s*\)|\(\s*TOUR\s*LEADER\s*\)/gi,'').replace(/\s+/g,' ').trim();
+// Validate looks like name; skip flight/hotel/airline noise that may have caps + passport-like
+if(b.bil!==null)lepas=b.bil;
+if(!(nama.length>=4&&/^[A-Z]/.test(nama)&&/[A-Z]\s+[A-Z]/.test(nama)&&!bising(nama))){if(b.bil!==null&&!calon.has(b.bil))calon.set(b.bil,b.nama);continue;}
+baris.push({nama,isTL,bil:b.bil,tanda:b.tanda});
 }
+// Baris tanpa BIL bila sekurang-kurangnya separuh baris ada BIL (cth. tajuk "REF NO K1234567X") —
+// tetap dimasukkan (seperti dahulu) tetapi dilapor untuk disemak.
+const adaBil=baris.filter(x=>x.bil!==null).length,wajibBil=adaBil>0&&adaBil*2>=baris.length;
+for(const x of baris){
+out.peserta.push({nama:x.nama,isTL:x.isTL});
+if(x.tanda)out.bertanda.push({bil:x.bil,tanda:x.tanda,nama:x.nama});
+if(wajibBil&&x.bil===null)out.tanpaBil.push(x.nama);
+if(/\d/.test(x.nama))out.adaNombor.push(x.nama);
+}
+// BIL tidak dapat dibaca = (1) calon (termasuk baris PERTAMA & TERAKHIR) + (2) lompong di tengah BIL yang
+// diterima — hanya bila BIL majoriti & padat (julat ≤ 3 × bilangan): nombor bilik "101, 102, 215" bukan
+// BIL. Dikira dari BIL terkecil: senarai sambungan "31…40" ≠ hilang 1–30.
+const bil=new Set(baris.filter(x=>x.bil!==null).map(x=>x.bil));
+const tiada=new Set([...calon.keys()].filter(n=>!bil.has(n)));
+if(wajibBil){const lo=Math.min(...bil),hi=Math.max(...bil);if(hi-lo+1<=3*bil.size)for(let i=lo+1;i<hi;i++)if(!bil.has(i))tiada.add(i);}
+out.bilTiada=[...tiada].sort((x,y)=>x-y);
+out.bilTiada.forEach(n=>{const nm=calon.get(n);if(nm)out.namaTiada[n]=nm;});
+out.semak=[...out.bilTiada.map(n=>`BIL ${n}${out.namaTiada[n]?` (${out.namaTiada[n]})`:''} tidak dapat dibaca dari PDF — tambah nama secara manual jika baris itu ada.`),
+...out.bertanda.map(x=>`BIL ${x.bil} ${x.nama}: ada teks «${x.tanda}» di depan nama (kolum TUNDA?) — semak sama ada masih ikut trip.`),
+...out.tanpaBil.map(n=>`«${n}» tiada nombor BIL — pastikan ini peserta; buang (✕) jika bukan.`),
+...out.adaNombor.map(n=>`«${n}» ada nombor dalam nama — semak ejaan (✏️).`)];
 return out;
+}
+// v31: token "nombor" (telefon, tarikh, BIL) — digit sekurang-kurangnya sama banyak dengan huruf.
+function angka(t){const d=(t.match(/\d/g)||[]).length;return d>0&&d>=(t.match(/[A-Za-z]/g)||[]).length;}
+// v31: jenis bilik — bukan sebahagian nama, bukan tanda.
+function bilik(t){return/^(?:SINGLE|DOUBLE|TWIN|TRIPLE|QUAD(?:RUPLE)?)$/i.test(t||'');}
+// Penapis bukan-nama (penerbangan/hotel). v31: sempadan perkataan — dahulu "KUL" menolak nama "UMMI KULSUM".
+function bising(s){return/\b(?:AIRASIA|AIRPORT|HOTEL|FLIGHT|KUL|KIX|HND)\b|\bD7\s/i.test(s);}
+// v31: baca {bil, tanda, nama} dari token sebelum pasport. Larian = token berturut-turut yang BUKAN
+// nombor (token "nombor" = digit sekurang-kurangnya sama banyak dengan huruf: telefon, tarikh, BIL;
+// salah taip "AL1", "Z0LKIFLI" kekal sebahagian nama).
+// Nama = larian (≥2 perkataan bukan jenis bilik) yang didahului nombor BIL 1–3 digit — yang BIL-nya =
+// jangka (baris sebelum + 1) jika ada, jika tidak yang pertama. Token sebelum BIL = tanda (kolum TUNDA:
+// "YA", "15 Dec 2026", "TUNDA KE 15 MAC 2027", "1 KELUARGA ALI").
+// Tiada BIL → larian pertama (≥2 perkataan). Telefon & tarikh (ada digit) tidak pernah masuk ke nama;
+// gelaran "Hj." "Dr." "Dato'", "(TL)", "@" kekal dalam larian.
+function bacaNama(tk,jangka){
+const larian=[];let cur=null;
+tk.forEach((x,i)=>{if(angka(x)){cur=null;return;}if(!cur){cur={mula:i,tk:[]};larian.push(cur);}cur.tk.push(x);});
+const cukup=r=>r.tk.filter(x=>!bilik(x)).length>=2;
+const pilihan=larian.filter(x=>cukup(x)&&/^\d{1,3}$/.test(tk[x.mula-1]||''));
+let r=pilihan.find(x=>+tk[x.mula-1]===jangka)||pilihan[0],bil=null,tanda='';
+if(r){bil=+tk[r.mula-1];tanda=tk.slice(0,r.mula-1).filter(x=>!bilik(x)).join(' ');}
+else r=larian.find(cukup);
+if(!r)return{bil:/^\d{1,3}$/.test(tk[0]||'')?+tk[0]:null,tanda:'',nama:''}; // tiada nama sah — BIL tetap dibaca (baris dilapor)
+let i=0;while(bilik(r.tk[i]))i++;
+return{bil,tanda,nama:r.tk.slice(i).join(' ')};
 }
 function fuzzyMatchPeserta(input,peserta){
 if(!input||!peserta||!peserta.length)return null;
@@ -992,7 +1046,7 @@ function itinKosong(){return{tarikhMula:null,bookingRef:null,mod:null,pax:null,g
 function tarikhSah(s){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');if(!m)return false;const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3]));return d.getUTCFullYear()===+m[1]&&d.getUTCMonth()===m[2]-1&&d.getUTCDate()===+m[3];}
 async function bacaPdfTrip(f,baca){
 if(!f||!f.roomFile)throw new Error("Sila pilih PDF rooming list (senarai peserta) dahulu.");
-const room=parseRoomingList(await baca(f.roomFile));
+const room=parseRoomingList(await baca(f.roomFile,{ikutX:true})); // v31: baris kiri→kanan (rooming list sahaja)
 if(!room.peserta.length)throw new Error("Tidak dapat ekstrak senarai peserta dari rooming list. Sila semak format PDF.");
 const adaInvois=!!f.itinFile;
 const itin=adaInvois?parseItinerary(await baca(f.itinFile)):itinKosong();
@@ -2053,6 +2107,7 @@ ${ed.dayModes&&ed.dayModes[2]?`<p style="font-size:11px;color:#666;margin-top:-6
 </div>
 
 ${itinPax&&itinPax!==ed.peserta.length?`<div class="warnsec">⚠️ <b>Nota:</b> Itinerari menyatakan <b>${itinPax} PAX</b>, tetapi senarai peserta hanya ada <b>${ed.peserta.length} nama</b>. Sistem akan guna senarai peserta sebagai sumber rasmi.</div>`:''}
+${p&&p.room&&(p.room.semak||[]).length?`<div class="warnsec">⚠️ <b>Semak rooming list:</b>${p.room.semak.map(l=>`<br>• ${esc(l)}`).join('')}</div>`:''}
 
 <div class="stitle">Senarai Peserta (${ed.peserta.length})${tlCount>0?` <span style="font-size:11px;color:#e65100;font-weight:400">⭐ ${tlCount} Tour Leader</span>`:''}</div>
 <div class="plist" id="pl">
@@ -2366,6 +2421,7 @@ const silap=nLama>0&&(b.sama.length+b.ubah.length)*2<nLama;
 return`<div class="abox" style="background:#f0f9f4;border-left:3px solid #1a6b3c">
 <div style="font-size:13px;font-weight:600;color:#1a6b3c;margin-bottom:6px">📄 ${esc(b.fail)} — ${b.senarai.length} nama</div>
 ${silap?`<div style="font-size:12px;font-weight:600;color:#c62828;margin-bottom:6px;line-height:1.5">⚠️ Hanya ${b.sama.length+b.ubah.length} daripada ${nLama} nama dalam senarai sekarang ada dalam PDF ini. Pastikan ini rooming list untuk trip ini.</div>`:''}
+${(b.semak||[]).length?`<div style="font-size:12px;font-weight:600;color:#e65100;margin-bottom:6px;line-height:1.5">⚠️ Semak rooming list:${b.semak.map(l=>`<br>• ${esc(l)}`).join('')}</div>`:''}
 <div style="font-size:12px;line-height:1.7;color:#333">✅ Sama: <b>${b.sama.length}</b>
 ${b.tambah.length?`<br>➕ <b>Baharu (${b.tambah.length}):</b>${b.tambah.map(n=>`<br>• ${esc(n)}`).join('')}`:''}
 ${b.ubah.length?`<br>✏️ <b>Ejaan berubah (${b.ubah.length}):</b>${b.ubah.map(x=>`<br>• ${esc(x.dari)} → ${esc(x.ke)}${x.agak?' (?)':''}`).join('')}`:''}
@@ -2905,8 +2961,8 @@ if(!f||!pe.active||pe.saving)return;
 pe.pdfStatus="proses";pe.err="";pe.pdfBanding=null;render();
 let banding=null,ralat="";
 try{
-const room=parseRoomingList(await baca(f));
-if(room.peserta.length)banding={fail:f.name||"rooming list.pdf",senarai:room.peserta};
+const room=parseRoomingList(await baca(f,{ikutX:true})); // v31: baris kiri→kanan (rooming list)
+if(room.peserta.length)banding={fail:f.name||"rooming list.pdf",senarai:room.peserta,semak:room.semak||[]};
 else ralat=RALAT_PDF_TIADA_NAMA;
 }catch(err){console.error("pe-pdf:",err);ralat="❌ Gagal baca PDF ini. Cuba lagi, atau pastikan ia fail PDF rooming list.";}
 if(S.pesertaEdit!==pe||!pe.active)return; // skrin sudah ditutup semasa membaca
