@@ -156,15 +156,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .priceedit-row .priceinp{width:100px;font-size:14px;text-align:right;padding:8px 10px;border:1.5px solid #ddd;border-radius:8px;outline:none;background:#fff}
 .priceedit-row .priceinp:focus{border-color:#1a6b3c;background:#f0f9f4}
 .priceedit-row .priceinp.changed{border-color:#ff9800;background:#fff8e1}
+.pandu{display:block;text-align:center;padding:14px 0;font-size:14px;border-radius:14px;background:#fff;border:1px solid #1a6b3c;color:#1a6b3c;text-decoration:none;font-weight:600;margin-bottom:10px}
+.pandu.kecil{display:inline-block;flex-shrink:0;padding:6px 12px;border-radius:20px;font-size:12px;margin-bottom:0;background:#f0f9f4;white-space:nowrap}
 </style>
 </head>
 <body>
-<!-- BUILD: v31 — 📄 Rooming list dibaca ikut kedudukan kiri→kanan (Google Sheets letak sel jenis bilik ~0.45 lebih tinggi & sel BIL ~0.45 lebih rendah → "SINGLE 24 NAMA", nama bercampur tarikh) · pasport berakhir huruf (Singapura K1234567E) diterima — dahulu peserta tercicir senyap · tanda TUNDA, jenis bilik, BIL & telefon tidak lagi masuk ke nama · kotak "Semak rooming list": baris ber-BIL yang tidak dapat dibaca (termasuk pertama/terakhir), tanda TUNDA, baris tanpa BIL · nama mengandungi "KUL" (cth. KULSUM) tidak lagi ditolak · invois Crystal tidak berubah · v30: 🧑‍✈️ TG ikut sesi (Fuji/Nara/Namba): pax booking setiap restoran ikut TG sesi itu, slot order = nama + TG paling ramai · ⭐ tukar TL & ✏️ betulkan nama (Pratonton & 👥 Peserta) · 👥 Peserta tulis medan yang berubah SAHAJA, dalam transaksi (trip di pelayan dibanding dahulu) · TG tersimpan lebih daripada pax → booking ikut pax + amaran · v29: 📅 Tarikh & Mod · v28: Cipta Trip dari PDF tanpa invois Crystal -->
+<!-- BUILD: v32 — 📖 Link Panduan Tour Leader (panduan-tour-order.netlify.app) di laman utama & page Tour Leader — dibuka di tab baru, log masuk TL tidak hilang · v31: 📄 Rooming list dibaca ikut kedudukan kiri→kanan (Google Sheets letak sel jenis bilik ~0.45 lebih tinggi & sel BIL ~0.45 lebih rendah → "SINGLE 24 NAMA", nama bercampur tarikh) · pasport berakhir huruf (Singapura K1234567E) diterima — dahulu peserta tercicir senyap · tanda TUNDA, jenis bilik, BIL & telefon tidak lagi masuk ke nama · kotak "Semak rooming list": baris ber-BIL yang tidak dapat dibaca (termasuk pertama/terakhir), tanda TUNDA, baris tanpa BIL · nama mengandungi "KUL" (cth. KULSUM) tidak lagi ditolak · invois Crystal tidak berubah · v30: 🧑‍✈️ TG ikut sesi (Fuji/Nara/Namba): pax booking setiap restoran ikut TG sesi itu, slot order = nama + TG paling ramai · ⭐ tukar TL & ✏️ betulkan nama (Pratonton & 👥 Peserta) · 👥 Peserta tulis medan yang berubah SAHAJA, dalam transaksi (trip di pelayan dibanding dahulu) · TG tersimpan lebih daripada pax → booking ikut pax + amaran · v29: 📅 Tarikh & Mod · v28: Cipta Trip dari PDF tanpa invois Crystal -->
 <div class="page" id="app"><div class="loading" id="initial-load">🍱<br><br>Memuatkan...<div id="load-fallback" style="display:none;color:#c62828;margin-top:30px;font-size:13px;line-height:1.6;text-align:left;padding:0 20px">⚠️ <b>Halaman tak load lagi?</b><br>Sila cuba:<br>1. Refresh halaman<br>2. Settings &gt; Safari &gt; Clear History<br>3. Cuba dalam Private Browsing<br>4. Hubungi admin jika berterusan</div><div id="error-display" style="display:none;margin-top:20px;padding:14px;background:#fdecea;border-radius:10px;text-align:left;font-size:11px;color:#c62828;font-family:monospace;white-space:pre-wrap;word-break:break-word;max-width:90%"></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 // Plain script (bukan module) — fallback jika module gagal load
-console.log("[Tour-Order] Build v31 starting…");
+console.log("[Tour-Order] Build v32 starting…");
 
 // Tangkap dan papar SEBARANG ralat secara visual
 function showError(label, details){
@@ -205,6 +207,8 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,doc,getDoc,setDoc,updateDoc,deleteDoc,collection,onSnapshot,getDocs,runTransaction}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 const db=getFirestore(initializeApp({apiKey:"AIzaSyBdfyI1IHccekotNNRYwlr3U9JTkVc2uWI",authDomain:"tour-order.firebaseapp.com",projectId:"tour-order",storageBucket:"tour-order.firebasestorage.app",messagingSenderId:"411616788552",appId:"1:411616788552:web:fd0a63dbe84c64334d987d"}));
 const APASS="admin123",LPASS="leader123";
+// v32: 📖 Panduan Tour Leader — laman berasingan. SATU sumber untuk alamat ini (laman utama & page TL).
+const PANDUAN_URL="https://panduan-tour-order.netlify.app/";
 const SESI=[
 {id:"fuji",nama:"🍱 Bento di Fuji",note:"Harga menu BELUM termasuk cukai 10% — bil dibundar ke atas ke ¥10 terdekat",taxRate:0.10,payNote:"💴 Peserta perlu bayar kepada Tour Guide selepas ini (harga + cukai 10%)",payType:"pay",showPrice:true,canSkip:true,menus:[
 {id:1,name:"Yellow Chicken",price:1320,desc:"Rice Menu"},
@@ -3232,12 +3236,17 @@ return`<option value="${t.id}" ${S.selTrip===t.id?'selected':''}>${t.nama}${tari
 }).join("")}</select>`;
 }
 // ── Main render functions ──────────────────────────────────────────
+// v32: link 📖 Panduan dibuka di TAB BARU (target=_blank) — log masuk TL hanya dalam memori, jadi
+// pindah halaman dalam tab yang sama = perlu log masuk semula. rel=noopener: laman panduan tidak
+// boleh mengawal tab app ini.
+function linkPanduan(kecil){return`<a class="pandu${kecil?' kecil':''}" href="${PANDUAN_URL}" target="_blank" rel="noopener">📖 ${kecil?'Panduan':'Panduan Tour Leader'}</a>`;}
 function rHome(){
 return`<div class="hdr"><div style="font-size:44px;margin-bottom:10px">🍱</div><h1>Sistem Order Makan</h1><p>Grup Tour Management</p></div>
 <div class="body">
     <p style="font-size:14px;color:#666;margin-bottom:24px;text-align:center">Sila gunakan link trip yang diberikan oleh pengurus anda.</p>
     <button class="b2" id="go-admin">🔐 Log Masuk Admin</button>
     <button class="b2" id="go-leader">👤 Log Masuk Tour Leader</button>
+    ${linkPanduan(false)}
   </div>`;
 }
 function rOrder(){
@@ -3677,7 +3686,7 @@ const sl=trip?(trip.sesi||SESI):SESI;
 const orders=S.orders;
 const tp=orders.reduce((s,o)=>s+((o.persons||[]).length||1),0);
 const sel=rTripSelect();
-return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tour Leader</h2></div>
+return`<div class="stk"><button class="bk" id="go-back">←</button><h2>👤 Tour Leader</h2>${linkPanduan(true)}</div>
 <div class="body" style="padding-bottom:40px">
     <label class="lbl">Pilih trip yang anda bawa:</label>
     ${sel}
